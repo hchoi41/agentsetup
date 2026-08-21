@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "canonical_skill_dir": "skills",
+  "agents_md": "AGENTS.md",
+  "targets": [
+    { "id": "claude-code",     "enabled": true, "mechanism": "skill-native", "install": [".claude/skills"],  "method": "junction",
+      "notes": "Reads SKILL.md natively; root CLAUDE.md bridges @AGENTS.md." },
+    { "id": "codex",           "enabled": true, "mechanism": "skill-native", "install": [".agents/skills"],  "method": "junction" },
+    { "id": "opencode",        "enabled": true, "mechanism": "skill-native", "install": [".opencode/skills"], "method": "junction" },
+    { "id": "github-copilot",  "enabled": true, "mechanism": "adapter", "format": "prompt-file",
+      "install": [".github/prompts"], "instructions_file": ".github/copilot-instructions.md", "method": "generate",
+      "notes": "= VS Code Copilot. .github/ is a LOCAL folder Copilot reads; nothing is published to github.com." },
+    { "id": "microsoft-copilot", "enabled": true, "mechanism": "adapter", "format": "self-contained",
+      "install": ["microsoft_copilot"], "method": "generate", "manual": true,
+      "notes": "Copilot in Windows / M365. Not repo-aware: full self-contained docs for manual attach or OneDrive grounding." }
+  ],
+  "formats": {
+    "prompt-file":    { "ext": ".prompt.md", "kind": "pointer",      "template": "scripts/adapter_templates/prompt-file.md" },
+    "self-contained": { "ext": ".md",        "kind": "full-content", "template": "scripts/adapter_templates/self-contained.md", "emit_readme": true }
+  }
+}

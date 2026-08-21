@@ -1,0 +1,31 @@
+# =============================================================================
+# Project .gitignore — tracks only writable role folders
+# =============================================================================
+
+# Read-only roles (do not track)
+00.ABOUT/
+01.INPUT/
+02.INPUT_TEMPLATES/
+03.OUTPUT_FINAL/
+
+# System and editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+# OneDrive conflict files
+~$*
+
+# OS metadata
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# IDE / editor state
+.vscode/
+.idea/
+*.code-workspace

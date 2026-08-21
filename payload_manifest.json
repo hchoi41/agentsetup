@@ -1,0 +1,377 @@
+{
+  "_about": "Machine-readable payload manifest for the hchoi41/agentsetup repo. Consumed by Publish-AgentSetup.ps1. The roots block below is DOCUMENTATION ONLY - the script's parameters are authoritative and resolve on the publishing machine ($env:OneDrive for AGENTS_SETUP). dest paths are relative to the repo root.",
+  "schema_version": 1,
+  "generated": "2026-08-18",
+  "repo": {
+    "url": "https://github.com/hchoi41/agentsetup.git",
+    "visibility": "public",
+    "default_branch": "main",
+    "state_at_handoff": "exists, EMPTY (zero refs)"
+  },
+  "roots": {
+    "AGENTS_SETUP": "<OneDrive>/980.agents_setup  (script param, derived from $env:OneDrive)",
+    "HUB": "<local hub>  (script param -Hub)",
+    "PLAYGROUND": "<local playground hub>  (script param -Playground)",
+    "REPO": "<disposable mirror outside OneDrive>  (script param -RepoRoot)"
+  },
+  "include": [
+    {
+      "src": "STAGED/repo_README.md",
+      "dest": "README.md",
+      "mode": "file",
+      "note": "repo root readme; MUST stay in this manifest or the mirror step (step 2, full wipe + repopulate) deletes it on the next publish"
+    },
+    {
+      "src": "STAGED/repo_gitignore.txt",
+      "dest": ".gitignore",
+      "mode": "file",
+      "note": "public repo ignore rules (F3 fix 2026-08-20)"
+    },
+    {
+      "src": "STAGED/payload_manifest.json",
+      "dest": "payload_manifest.json",
+      "mode": "file",
+      "note": "self - the allowlist publishes itself so the public repo documents what it contains (path:hub-exempt in gate)"
+    },
+    {
+      "src": "STAGED/Publish-AgentSetup.ps1",
+      "dest": "Publish-AgentSetup.ps1",
+      "mode": "file",
+      "note": "publisher tooling; no user paths since 2026-08-20b; path:hub-exempt in gate"
+    },
+    {
+      "src": "STAGED/Get-AgentSetup.ps1",
+      "dest": "Get-AgentSetup.ps1",
+      "mode": "file",
+      "note": "consumer installer - README install instructions depend on it; path:hub-exempt in gate"
+    },
+    {
+      "src": "STAGED/Bootstrap.ps1",
+      "dest": "Bootstrap.ps1",
+      "mode": "file",
+      "note": "step-zero one-command installer (O4 resolved 2026-08-20 - Max chose to author it); path:hub-exempt in gate"
+    },
+    {
+      "src": "STAGED/skill_agentsetup-sync",
+      "dest": "skills/agentsetup-sync",
+      "mode": "tree",
+      "note": "the install-procedure skill"
+    },
+    {
+      "src": "AGENTS_SETUP/install_v5_clean",
+      "dest": "template",
+      "mode": "tree",
+      "note": "v5 folder scaffold + starter governance + start-project/project-complete skills"
+    },
+    {
+      "src": "AGENTS_SETUP/00.ABOUT/PROJECT_GOVERNANCE.md",
+      "dest": "governance/PROJECT_GOVERNANCE.md",
+      "mode": "file"
+    },
+    {
+      "src": "AGENTS_SETUP/00.ABOUT/CLAUDE.md",
+      "dest": "governance/CLAUDE.md",
+      "mode": "file"
+    },
+    {
+      "src": "AGENTS_SETUP/00.ABOUT/orchestration_protocol.md",
+      "dest": "governance/orchestration_protocol.md",
+      "mode": "file"
+    },
+    {
+      "src": "AGENTS_SETUP/00.ABOUT/claude_cowork_hdd_ingestion_protocol.md",
+      "dest": "governance/claude_cowork_hdd_ingestion_protocol.md",
+      "mode": "file"
+    },
+    {
+      "src": "HUB/00.ABOUT/AGENT_TARGETS.json",
+      "dest": "AGENT_TARGETS.json",
+      "mode": "file",
+      "note": "adapter fan-out map; drives sync_agent_adapters.ps1"
+    },
+    {
+      "src": "AGENTS_SETUP/AGENTS.md",
+      "dest": "docs/agents_setup_AGENTS.md",
+      "mode": "file",
+      "note": "reference only - describes the OneDrive hub itself, not a new deployment"
+    },
+    {
+      "src": "AGENTS_SETUP/agents_setup_global_instructions_v53_20260807_v1.md",
+      "dest": "global_instructions/agents_setup_global_instructions_v53_20260807_v1.md",
+      "mode": "file"
+    },
+    {
+      "src": "AGENTS_SETUP/resume-builder",
+      "dest": "skills/resume-builder",
+      "mode": "tree"
+    },
+    {
+      "src": "AGENTS_SETUP/session-handoff",
+      "dest": "skills/session-handoff",
+      "mode": "tree"
+    },
+    {
+      "src": "AGENTS_SETUP/session-resume",
+      "dest": "skills/session-resume",
+      "mode": "tree"
+    },
+    {
+      "src": "AGENTS_SETUP/session-wrap-up",
+      "dest": "skills/session-wrap-up",
+      "mode": "tree"
+    },
+    {
+      "src": "AGENTS_SETUP/declutter-nested-list",
+      "dest": "skills/declutter-nested-list",
+      "mode": "tree"
+    },
+    {
+      "src": "HUB/scripts/sync_agent_adapters.ps1",
+      "dest": "scripts/sync_agent_adapters.ps1",
+      "mode": "file",
+      "note": "INSTALL-CRITICAL. Rebuilds junction surfaces git cannot carry. Portable as-is."
+    },
+    {
+      "src": "HUB/scripts/adapter_templates",
+      "dest": "scripts/adapter_templates",
+      "mode": "tree"
+    },
+    {
+      "src": "HUB/scripts/deploy_new_project.ps1",
+      "dest": "scripts/deploy_new_project.ps1",
+      "mode": "file",
+      "fix": "P2"
+    },
+    {
+      "src": "HUB/scripts/memory.py",
+      "dest": "scripts/memory.py",
+      "mode": "file"
+    },
+    {
+      "src": "HUB/scripts/memorylib",
+      "dest": "scripts/memorylib",
+      "mode": "tree"
+    },
+    {
+      "src": "HUB/scripts/check_index_freshness.py",
+      "dest": "scripts/check_index_freshness.py",
+      "mode": "file"
+    },
+    {
+      "src": "HUB/scripts/preflight_check.py",
+      "dest": "scripts/preflight_check.py",
+      "mode": "file"
+    },
+    {
+      "src": "HUB/scripts/qa_pdf_check.py",
+      "dest": "scripts/qa_pdf_check.py",
+      "mode": "file"
+    },
+    {
+      "src": "STAGED/20260818_orchestrate_merged_engine_v1.ps1",
+      "dest": "orchestrate/Orchestrate.ps1",
+      "mode": "file",
+      "note": "reconciled canonical engine; AST-validated 0 errors. NOT the raw hub copy."
+    },
+    {
+      "src": "HUB/orchestrate/README.md",
+      "dest": "orchestrate/README.md",
+      "mode": "file"
+    },
+    {
+      "src": "HUB/orchestrate/checks/Check-Additive.ps1",
+      "dest": "orchestrate/checks/Check-Additive.ps1",
+      "mode": "file",
+      "note": "generic drift tripwire; byte-identical in both hubs (SHA 1D03FC91...)"
+    },
+    {
+      "src": "HUB/orchestrate/diagrams",
+      "dest": "orchestrate/diagrams",
+      "mode": "tree"
+    },
+    {
+      "src": "PLAYGROUND/orchestrate/configs/_template_code_job.json",
+      "dest": "orchestrate/configs/_template_code_job.json",
+      "mode": "file",
+      "fix": "P1"
+    },
+    {
+      "src": "HUB/tests/memory",
+      "dest": "tests/memory",
+      "mode": "tree",
+      "note": "the default Orchestrate code gate. tests/career_db is EXCLUDED."
+    },
+    {
+      "src": "HUB/pytest.ini",
+      "dest": "pytest.ini",
+      "mode": "file"
+    },
+    {
+      "src": "HUB/conftest.py",
+      "dest": "conftest.py",
+      "mode": "file"
+    }
+  ],
+  "exclude_always": [
+    {
+      "glob": "**/__pycache__/**",
+      "reason": "generated"
+    },
+    {
+      "glob": "**/*.py[cod]",
+      "reason": "generated"
+    },
+    {
+      "glob": "**/.pytest_cache/**",
+      "reason": "generated"
+    },
+    {
+      "glob": "**/node_modules/**",
+      "reason": "runtime dependency"
+    },
+    {
+      "glob": "**/.venv/**",
+      "reason": "runtime dependency"
+    },
+    {
+      "glob": "**/desktop.ini",
+      "reason": "OneDrive noise"
+    },
+    {
+      "glob": "**/Thumbs.db",
+      "reason": "OS noise"
+    },
+    {
+      "glob": "**/~$*",
+      "reason": "Office lock files"
+    }
+  ],
+  "never_publish": [
+    {
+      "path": "HUB/scripts/career_db",
+      "reason": "PERSONAL - career data tooling (37 files)"
+    },
+    {
+      "path": "HUB/tests/career_db",
+      "reason": "PERSONAL - includes fixtures/notion_export.json (14.7 KB of real career data). PUBLIC REPO: hard block."
+    },
+    {
+      "path": "AGENTS_SETUP/12.MEMORY_RAM",
+      "reason": "PERSONAL - working memory"
+    },
+    {
+      "path": "AGENTS_SETUP/13.MEMORY_HDD",
+      "reason": "PERSONAL - transcripts, capsules"
+    },
+    {
+      "path": "AGENTS_SETUP/14.LESSONS_LEARNED",
+      "reason": "PERSONAL - may reference job applications"
+    },
+    {
+      "path": "AGENTS_SETUP/15.WIKI",
+      "reason": "PERSONAL - cross-project entities"
+    },
+    {
+      "path": "AGENTS_SETUP/11.OUTPUT_ROUGH",
+      "reason": "work products + in-development skill drafts"
+    },
+    {
+      "path": "AGENTS_SETUP/01.INPUT",
+      "reason": "source material"
+    },
+    {
+      "path": "AGENTS_SETUP/03.OUTPUT_FINAL",
+      "reason": "deliverables"
+    },
+    {
+      "path": "AGENTS_SETUP/70.carbon_copy",
+      "reason": "device backups (203 files) - a backup is not an install payload"
+    },
+    {
+      "path": "AGENTS_SETUP/90.archive",
+      "reason": "superseded generations"
+    },
+    {
+      "path": "AGENTS_SETUP/00.ABOUT/DEPLOYMENT_REGISTRY.json",
+      "reason": "hub-only fleet registry; enumerates local absolute paths"
+    },
+    {
+      "path": "AGENTS_SETUP/00.ABOUT/PROJECT_INDEX.md",
+      "reason": "runtime state, not payload"
+    },
+    {
+      "path": "AGENTS_SETUP/00.ABOUT/PROJECT_REGISTRY.json",
+      "reason": "personal project slugs"
+    },
+    {
+      "path": "HUB/scripts/.agent_adapters_ledger.json",
+      "reason": "generated by sync_agent_adapters.ps1"
+    },
+    {
+      "path": "HUB/.claude, .agents, .opencode, .github, microsoft_copilot",
+      "reason": "JUNCTIONS - cannot exist in git; regenerated on target by sync_agent_adapters.ps1"
+    },
+    {
+      "path": "HUB/orchestrate/configs/* (except _template_code_job.json)",
+      "reason": "24 job files, all hardcode a machine-specific hub"
+    },
+    {
+      "path": "HUB/orchestrate/checks/* (except Check-Additive.ps1)",
+      "reason": "13 job-specific gates"
+    },
+    {
+      "path": "*/run_migration_networking_relationships.ps1",
+      "reason": "one-off v1->v2 migration, already run; carries hardcoded user paths"
+    },
+    {
+      "path": "*/migrate_v1_to_v2.ps1",
+      "reason": "one-off migration, already run"
+    },
+    {
+      "path": "*/ingest_claude_cowork_transcript.ps1",
+      "reason": "operates on personal transcripts"
+    }
+  ],
+  "required_fixes": [
+    {
+      "id": "P1",
+      "file": "orchestrate/configs/_template_code_job.json",
+      "issue": "carries \"hub\": \"C:\\\\000.playground_local\"",
+      "action": "delete the hub key so the engine resolves it at run time"
+    },
+    {
+      "id": "P2",
+      "file": "scripts/deploy_new_project.ps1",
+      "issue": "1 hardcoded C:\\Users\\siyke path",
+      "action": "DONE - fixed 2026-08-14; verified clean (0 path hits) in the 2026-08-20 QA red-team. No action."
+    },
+    {
+      "id": "P3",
+      "file": "orchestrate/Orchestrate.ps1",
+      "issue": "none - already parameterized in the merged draft",
+      "action": "verify only"
+    }
+  ],
+  "open_items": [
+    {
+      "id": "O1",
+      "item": "pdf-read has NO unpacked SKILL.md - it exists only as pdf-read.skill (12,125 B) at the agents_setup root. Either unpack it before publishing, or ship the package and note the exception to the 'unpacked source is canonical' rule.",
+      "decision_needed_from": "Max"
+    },
+    {
+      "id": "O2",
+      "item": "cloud-sync / dig / plan have unpacked sources but they live in 11.OUTPUT_ROUGH (a draft folder). Excluded from v1 as not-yet-stable. Promote them out of OUTPUT_ROUGH if they should ship.",
+      "decision_needed_from": "Max"
+    },
+    {
+      "id": "O3",
+      "item": "*.skill packages at the agents_setup root are build artifacts of the unpacked sources. Excluded from v1. Include only if you want one-click installs without a build step.",
+      "decision_needed_from": "Max"
+    },
+    {
+      "id": "O4",
+      "item": "RESOLVED 2026-08-20 (Max): Bootstrap.ps1 authored and shipped as STAGED/Bootstrap.ps1 -> repo root. README Layout row is now true.",
+      "decision_needed_from": "none - closed"
+    }
+  ]
+}

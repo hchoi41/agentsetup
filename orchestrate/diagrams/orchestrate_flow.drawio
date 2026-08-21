@@ -1,0 +1,148 @@
+<mxfile host="app.diagrams.net" version="24.0.0">
+  <diagram id="full" name="Full picture (loop + escalation)">
+    <mxGraphModel dx="1200" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1240" pageHeight="860" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="ft" value="Orchestrate.ps1 — the full picture (per-task loop + escalation chain of command)" style="text;html=1;fontSize=16;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="40" y="12" width="760" height="26" as="geometry"/></mxCell>
+        <mxCell id="fl" value="Claude = purple · Codex = teal · Copilot = blue · Gate = amber · escalation/human = red" style="text;html=1;fontSize=11;fontColor=#555555;" vertex="1" parent="1"><mxGeometry x="40" y="38" width="760" height="20" as="geometry"/></mxCell>
+
+        <mxCell id="f_config" value="CONFIG · job.json&#10;roles · tasks · gate · rubric · escalation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F3EE;strokeColor=#B9B7AD;fontColor=#1A1A17;" vertex="1" parent="1"><mxGeometry x="300" y="70" width="240" height="46" as="geometry"/></mxCell>
+        <mxCell id="f_conduct" value="Claude · CONDUCT&#10;loads config, runs the loop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6E59C7;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="300" y="140" width="240" height="46" as="geometry"/></mxCell>
+        <mxCell id="f_make" value="Codex · MAKE&#10;write / fix · skip if gate green" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1F9E8C;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="300" y="210" width="240" height="46" as="geometry"/></mxCell>
+        <mxCell id="f_gate" value="GATE (deterministic)&#10;pytest | additive-diff · exit 0 = pass" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C77F2A;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="300" y="280" width="240" height="46" as="geometry"/></mxCell>
+        <mxCell id="f_rev1" value="Codex&#10;RED-TEAM #1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1F9E8C;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="300" y="350" width="115" height="46" as="geometry"/></mxCell>
+        <mxCell id="f_rev2" value="Copilot&#10;REVIEW #2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2F73C8;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="425" y="350" width="115" height="46" as="geometry"/></mxCell>
+        <mxCell id="f_agree" value="reviewers agree?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ECEAE3;strokeColor=#B9B7AD;" vertex="1" parent="1"><mxGeometry x="320" y="420" width="200" height="56" as="geometry"/></mxCell>
+        <mxCell id="f_pass" value="gate green + approve?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ECEAE3;strokeColor=#B9B7AD;" vertex="1" parent="1"><mxGeometry x="320" y="500" width="200" height="56" as="geometry"/></mxCell>
+        <mxCell id="f_esc" value="blocker ≥ your rank?&#10;(escalation gate · tiered)" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FBEFEC;strokeColor=#B23A2E;fontColor=#A8342A;" vertex="1" parent="1"><mxGeometry x="315" y="588" width="210" height="64" as="geometry"/></mxCell>
+        <mxCell id="f_ref" value="Claude · REFEREE&#10;break the tie" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6E59C7;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="60" y="425" width="170" height="46" as="geometry"/></mxCell>
+        <mxCell id="f_fix" value="Codex · FIX&#10;must-fix → re-gate (≤ 2×)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1F9E8C;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="60" y="597" width="170" height="46" as="geometry"/></mxCell>
+        <mxCell id="f_app" value="✓ APPROVED&#10;↺ next task" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF6F0;strokeColor=#2E8B57;fontColor=#1F6B43;" vertex="1" parent="1"><mxGeometry x="600" y="505" width="200" height="46" as="geometry"/></mxCell>
+        <mxCell id="f_bug" value="Copilot · BUG TRACKER&#10;→ BUGS.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2F73C8;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="600" y="571" width="200" height="46" as="geometry"/></mxCell>
+        <mxCell id="f_escn" value="⛔ ESCALATE TO HUMAN&#10;writes ESCALATION.md · exit 3&#10;rank · reason · the decision you make" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBEFEC;strokeColor=#B23A2E;strokeWidth=2;fontColor=#A8342A;" vertex="1" parent="1"><mxGeometry x="600" y="640" width="260" height="70" as="geometry"/></mxCell>
+
+        <mxCell id="f_lh" value="escalation.level = rank on duty (cumulative; auto = no human ping)" style="text;html=1;fontSize=11;fontColor=#555555;" vertex="1" parent="1"><mxGeometry x="900" y="90" width="320" height="28" as="geometry"/></mxCell>
+        <mxCell id="f_cic" value="Commander-in-Chief&#10;unachievable — can’t be achieved · immediately" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#A8342A;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="900" y="120" width="320" height="48" as="geometry"/></mxCell>
+        <mxCell id="f_sec" value="Secretary of Defense&#10;design_change — plan fails reality · after ≥3 iters" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C2562F;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="900" y="176" width="320" height="48" as="geometry"/></mxCell>
+        <mxCell id="f_cos" value="Chief of Staff&#10;scope_change — needs re-scope · when flagged" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C77F2A;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="900" y="232" width="320" height="48" as="geometry"/></mxCell>
+        <mxCell id="f_gen" value="General / Officer&#10;unresolved — referee can’t converge · at exhaustion" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B8901F;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="900" y="288" width="320" height="48" as="geometry"/></mxCell>
+
+        <mxCell id="f_track" value="TRACKING — written every step → _orchestrate/&lt;job&gt;_&lt;ts&gt;/&#10;_status.json (live % + step) · _run.log (timestamped feed) · ERRORS.log (issue + artifact path) · RUN_SUMMARY.md · ESCALATION.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F3EE;strokeColor=#B9B7AD;fontColor=#1A1A17;align=center;" vertex="1" parent="1"><mxGeometry x="60" y="740" width="1160" height="70" as="geometry"/></mxCell>
+
+        <mxCell id="fe1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="f_config" target="f_conduct"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe2" value="for each task" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="f_conduct" target="f_make"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="f_make" target="f_gate"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="f_gate" target="f_rev1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="f_gate" target="f_rev2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="f_rev1" target="f_agree"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="f_rev2" target="f_agree"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe8" value="agree" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="f_agree" target="f_pass"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe9" value="disagree" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="f_agree" target="f_ref"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe10" value="verdict" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="f_ref" target="f_pass"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe11" value="approve" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="f_pass" target="f_app"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe12" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="f_app" target="f_bug"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe13" value="changes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="f_pass" target="f_esc"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe14" value="below rank" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#B23A2E;fontColor=#B23A2E;fontSize=10;" edge="1" parent="1" source="f_esc" target="f_fix"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe15" value="re-gate ≤2× (else HALT + BUGS.md)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#1F9E8C;fontColor=#1F9E8C;fontSize=10;" edge="1" parent="1" source="f_fix" target="f_gate"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe16" value="≥ rank" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#B23A2E;fontColor=#B23A2E;fontSize=10;" edge="1" parent="1" source="f_esc" target="f_escn"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe17" value="the rank you set" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;fontSize=10;" edge="1" parent="1" source="f_escn" target="f_gen"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="loop" name="Orchestrate.ps1 per-task loop">
+    <mxGraphModel dx="980" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="Orchestrate.ps1 — multi-LLM &quot;tiki-taka&quot; loop (per task in a job config)" style="text;html=1;fontSize=16;fontStyle=1;align=center;" vertex="1" parent="1"><mxGeometry x="120" y="10" width="660" height="26" as="geometry"/></mxCell>
+        <mxCell id="legend" value="Claude = conduct + referee (purple)   ·   Codex = make + red-team (teal)   ·   Copilot = review #2 + bugs (blue)   ·   Gate = deterministic (amber)" style="text;html=1;fontSize=11;align=center;fontColor=#555555;" vertex="1" parent="1"><mxGeometry x="60" y="36" width="780" height="20" as="geometry"/></mxCell>
+
+        <mxCell id="config" value="CONFIG · job.json&#10;roles · tasks · gate · rubric" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F3EE;strokeColor=#B9B7AD;fontColor=#1A1A17;" vertex="1" parent="1"><mxGeometry x="280" y="70" width="240" height="50" as="geometry"/></mxCell>
+        <mxCell id="conduct" value="Claude · CONDUCT&#10;loads config, runs the loop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6E59C7;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="280" y="155" width="240" height="50" as="geometry"/></mxCell>
+        <mxCell id="make" value="Codex · MAKE&#10;write / fix artifact · skip if gate green" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1F9E8C;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="280" y="240" width="240" height="50" as="geometry"/></mxCell>
+        <mxCell id="gate" value="GATE (deterministic)&#10;pytest | additive-diff · exit 0 = pass" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C77F2A;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="280" y="325" width="240" height="50" as="geometry"/></mxCell>
+        <mxCell id="rev1" value="Codex&#10;RED-TEAM #1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1F9E8C;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="280" y="410" width="115" height="50" as="geometry"/></mxCell>
+        <mxCell id="rev2" value="Copilot&#10;REVIEW #2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2F73C8;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="405" y="410" width="115" height="50" as="geometry"/></mxCell>
+        <mxCell id="agree" value="reviewers agree?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ECEAE3;strokeColor=#B9B7AD;fontColor=#1A1A17;" vertex="1" parent="1"><mxGeometry x="300" y="490" width="200" height="60" as="geometry"/></mxCell>
+        <mxCell id="referee" value="Claude · REFEREE&#10;breaks the tie" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6E59C7;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="620" y="495" width="220" height="50" as="geometry"/></mxCell>
+        <mxCell id="pass" value="gate green + approve?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ECEAE3;strokeColor=#B9B7AD;fontColor=#1A1A17;" vertex="1" parent="1"><mxGeometry x="300" y="580" width="200" height="60" as="geometry"/></mxCell>
+        <mxCell id="fix" value="Codex · FIX&#10;apply must-fix (≤ 2×)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1F9E8C;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="40" y="585" width="160" height="50" as="geometry"/></mxCell>
+        <mxCell id="approved" value="✓ APPROVED&#10;(unresolved after 2 fixes → HALT)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF6F0;strokeColor=#2E8B57;fontColor=#1F6B43;" vertex="1" parent="1"><mxGeometry x="280" y="670" width="240" height="50" as="geometry"/></mxCell>
+        <mxCell id="bugtrack" value="Copilot · BUG TRACKER&#10;→ BUGS.md (open follow-ups)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2F73C8;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="280" y="755" width="240" height="50" as="geometry"/></mxCell>
+        <mxCell id="track" value="TRACKING — written every step → _orchestrate/&lt;job&gt;_&lt;ts&gt;/&#10;_status.json (live % + step)   ·   _run.log (timestamped feed)   ·   ERRORS.log (issue + artifact path)   ·   RUN_SUMMARY.md (final index)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F3EE;strokeColor=#B9B7AD;fontColor=#1A1A17;align=center;" vertex="1" parent="1"><mxGeometry x="120" y="845" width="660" height="80" as="geometry"/></mxCell>
+
+        <mxCell id="ec" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="config" target="conduct"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ecm" value="for each task" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="conduct" target="make"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="emg" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="make" target="gate"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eg1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="gate" target="rev1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eg2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="gate" target="rev2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e1a" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="rev1" target="agree"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2a" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="rev2" target="agree"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eap" value="agree" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="agree" target="pass"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ear" value="disagree" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="agree" target="referee"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="erp" value="verdict" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="referee" target="pass"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="epa" value="pass + approve" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="pass" target="approved"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="epf" value="needs fix" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="pass" target="fix"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="efg" value="re-gate (≤ 2×)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#1F9E8C;fontColor=#1F9E8C;fontSize=10;" edge="1" parent="1" source="fix" target="gate"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eab" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="approved" target="bugtrack"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eanext" value="↺ next task" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;fontSize=10;exitX=1;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="approved" target="make"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ebt" value="every step" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;fontSize=10;" edge="1" parent="1" source="bugtrack" target="track"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="meta" name="Session meta-loop (skill ↔ orchestrator ↔ verify)">
+    <mxGraphModel dx="980" dy="700" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="640" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="mt" value="How the pieces we built cooperate (this session): find gaps → retrofit → adversarially verify → iterate to &quot;strong&quot;" style="text;html=1;fontSize=14;fontStyle=1;align=center;" vertex="1" parent="1"><mxGeometry x="80" y="16" width="740" height="24" as="geometry"/></mxCell>
+
+        <mxCell id="m_find" value="design-doc-review (skill)&#10;audit doc → scorecard of gaps" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F3EE;strokeColor=#B9B7AD;fontColor=#1A1A17;" vertex="1" parent="1"><mxGeometry x="60" y="80" width="240" height="60" as="geometry"/></mxCell>
+        <mxCell id="m_orch" value="Orchestrate.ps1 (per-task loop)&#10;retrofit vN → vN+1&#10;Codex makes · additive gate · Codex+Copilot review · Claude referee" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6E59C7;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="330" y="75" width="280" height="70" as="geometry"/></mxCell>
+        <mxCell id="m_ver" value="design-doc-review&#10;AUDIT  +  adversarial REFUTE&#10;(re-score whole doc; try to break &quot;strong&quot;)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F3EE;strokeColor=#B9B7AD;fontColor=#1A1A17;" vertex="1" parent="1"><mxGeometry x="640" y="75" width="220" height="70" as="geometry"/></mxCell>
+        <mxCell id="m_dec" value="strong?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ECEAE3;strokeColor=#B9B7AD;fontColor=#1A1A17;" vertex="1" parent="1"><mxGeometry x="690" y="230" width="120" height="70" as="geometry"/></mxCell>
+        <mxCell id="m_done" value="✓ STRONG&#10;final version" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF6F0;strokeColor=#2E8B57;fontColor=#1F6B43;" vertex="1" parent="1"><mxGeometry x="690" y="360" width="120" height="50" as="geometry"/></mxCell>
+        <mxCell id="m_note" value="Outcome: memory v9→v10 = strong · arch v7→v8→v9 = strong&#10;(the refute pass overturned a too-generous &quot;strong&quot; on arch v8; cap was v12, one extra version-up sufficed)" style="text;html=1;fontSize=11;align=center;fontColor=#555555;" vertex="1" parent="1"><mxGeometry x="60" y="450" width="800" height="40" as="geometry"/></mxCell>
+
+        <mxCell id="me1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="m_find" target="m_orch"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="me2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="m_orch" target="m_ver"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="me3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="m_ver" target="m_dec"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="me4" value="yes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="m_dec" target="m_done"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="me5" value="gap survives → next version (≤ v12)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;fontSize=10;exitX=0;exitY=0.5;entryX=0.5;entryY=1;" edge="1" parent="1" source="m_dec" target="m_orch"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="escalation" name="Escalate to human (chain of command)">
+    <mxGraphModel dx="980" dy="700" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="960" pageHeight="520" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="et" value="Escalate to human — chain of command (escalation.mode = tiered)" style="text;html=1;fontSize=15;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="40" y="14" width="600" height="24" as="geometry"/></mxCell>
+
+        <mxCell id="e_n1" value="Task NOT approved&#10;gate fail or verdict = changes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F3EE;strokeColor=#B9B7AD;fontColor=#1A1A17;" vertex="1" parent="1"><mxGeometry x="40" y="70" width="240" height="50" as="geometry"/></mxCell>
+        <mxCell id="e_n2" value="Agents classify the BLOCKER&#10;Codex · Copilot · Claude-referee" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6E59C7;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="40" y="150" width="240" height="50" as="geometry"/></mxCell>
+        <mxCell id="e_n3" value="severity ≥ your rank?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ECEAE3;strokeColor=#B9B7AD;fontColor=#1A1A17;" vertex="1" parent="1"><mxGeometry x="80" y="230" width="160" height="72" as="geometry"/></mxCell>
+        <mxCell id="e_n4" value="continue the loop&#10;FIX (≤ MaxFix) · or halt + BUGS.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F3EE;strokeColor=#B9B7AD;fontColor=#1A1A17;" vertex="1" parent="1"><mxGeometry x="40" y="342" width="240" height="50" as="geometry"/></mxCell>
+        <mxCell id="e_esc" value="⛔ ESCALATE TO HUMAN&#10;writes ESCALATION.md (exit 3)&#10;rank · reason · the decision you make&#10;run state = escalated" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBEFEC;strokeColor=#B23A2E;strokeWidth=2;fontColor=#A8342A;" vertex="1" parent="1"><mxGeometry x="320" y="232" width="240" height="82" as="geometry"/></mxCell>
+
+        <mxCell id="e_lh" value="escalation.level = the rank on duty  (catches its tier + everything more severe)" style="text;html=1;fontSize=11;fontColor=#555555;" vertex="1" parent="1"><mxGeometry x="600" y="60" width="330" height="28" as="geometry"/></mxCell>
+        <mxCell id="e_cic" value="Commander-in-Chief&#10;unachievable — output can’t be achieved · immediately" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#A8342A;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="600" y="92" width="320" height="52" as="geometry"/></mxCell>
+        <mxCell id="e_sec" value="Secretary of Defense&#10;design_change — plan fails in reality · after ≥ 3 iterations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C2562F;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="600" y="152" width="320" height="52" as="geometry"/></mxCell>
+        <mxCell id="e_cos" value="Chief of Staff&#10;scope_change — needs meaningful re-scope · when flagged" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C77F2A;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="600" y="212" width="320" height="52" as="geometry"/></mxCell>
+        <mxCell id="e_gen" value="General / Officer&#10;unresolved — referee can’t converge · at loop exhaustion" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B8901F;strokeColor=none;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="600" y="272" width="320" height="52" as="geometry"/></mxCell>
+
+        <mxCell id="e_auto" value="auto = full delegation — agents run to a final output, no human ping (commander-in-chief on holiday); leftovers → BUGS.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F3EE;strokeColor=#B9B7AD;fontColor=#1A1A17;" vertex="1" parent="1"><mxGeometry x="40" y="410" width="880" height="44" as="geometry"/></mxCell>
+
+        <mxCell id="ee1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="e_n1" target="e_n2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ee2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="e_n2" target="e_n3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ee3" value="below rank" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="e_n3" target="e_n4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ee4" value="yes ≥ rank" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="e_n3" target="e_esc"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ee5" value="your rank" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;fontSize=10;" edge="1" parent="1" source="e_esc" target="e_lh"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

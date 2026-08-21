@@ -1,0 +1,103 @@
+<svg viewBox="0 0 1180 790" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t3 d3" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+  <title id="t3">Orchestrate.ps1 — full picture with escalation</title>
+  <desc id="d3">Per task: Codex makes the artifact, a deterministic gate runs, Codex and Copilot review, Claude referees ties. If approved it moves to the next task; if not, the blocker is checked against the configured rank — below it the fix loop runs (or halts), at or above it the run escalates to a human via ESCALATION.md and exit 3. A rank ladder (Commander, Secretary, Chief of Staff, General) sets the threshold, and a tracking panel records every step.</desc>
+  <defs>
+    <marker id="m3" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7,3 L0,6 Z" fill="#6b6b63"/></marker>
+    <marker id="m3g" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7,3 L0,6 Z" fill="#1F9E8C"/></marker>
+    <marker id="m3r" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7,3 L0,6 Z" fill="#B23A2E"/></marker>
+  </defs>
+  <style>
+    .t{fill:#1a1a17;} .m{fill:#6b6b63;} .w{fill:#fff;}
+    .h{font-size:18px;font-weight:700;} .s{font-size:12px;} .lg{font-size:11px;}
+    .bx{font-size:12px;font-weight:700;} .sb{font-size:9.5px;} .el{font-size:9.5px;font-style:italic;}
+    .edge{stroke:#6b6b63;stroke-width:1.4;fill:none;}
+    .loop{stroke:#1F9E8C;stroke-width:1.4;fill:none;stroke-dasharray:5 3;}
+    .escl{stroke:#B23A2E;stroke-width:1.5;fill:none;}
+    .dash{stroke:#b9b7ad;stroke-width:1.3;fill:none;stroke-dasharray:4 3;}
+  </style>
+  <rect x="0" y="0" width="1180" height="790" fill="#ffffff"/>
+
+  <text x="24" y="28" class="t h">Orchestrate.ps1 — the full picture (loop + escalation)</text>
+  <text x="24" y="47" class="m s">per task in a job config · gate is pluggable (pytest | additive-diff) · escalation is per-job (auto or tiered)</text>
+  <g class="lg">
+    <circle cx="34" cy="66" r="5" fill="#6E59C7"/><text x="44" y="70" class="t">Claude</text>
+    <circle cx="120" cy="66" r="5" fill="#1F9E8C"/><text x="130" y="70" class="t">Codex</text>
+    <circle cx="200" cy="66" r="5" fill="#2F73C8"/><text x="210" y="70" class="t">Copilot</text>
+    <circle cx="290" cy="66" r="5" fill="#C77F2A"/><text x="300" y="70" class="t">Gate</text>
+    <circle cx="360" cy="66" r="5" fill="#B23A2E"/><text x="370" y="70" class="t">escalation / human</text>
+  </g>
+
+  <path class="edge" d="M340 130 L340 146" marker-end="url(#m3)"/>
+  <path class="edge" d="M340 190 L340 206" marker-end="url(#m3)"/>
+  <path class="edge" d="M340 250 L340 266" marker-end="url(#m3)"/>
+  <path class="edge" d="M340 310 L340 318"/>
+  <path class="edge" d="M340 318 L274 326" marker-end="url(#m3)"/>
+  <path class="edge" d="M340 318 L406 326" marker-end="url(#m3)"/>
+  <path class="edge" d="M272 370 L333 386" marker-end="url(#m3)"/>
+  <path class="edge" d="M408 370 L347 386" marker-end="url(#m3)"/>
+  <path class="edge" d="M340 426 L340 446" marker-end="url(#m3)"/><text x="348" y="440" class="m el">agree</text>
+  <path class="edge" d="M210 406 L200 406" marker-end="url(#m3)"/><text x="120" y="382" class="m el">disagree</text>
+  <path class="edge" d="M99 428 L99 466 L208 466" marker-end="url(#m3)"/><text x="120" y="460" class="m el">verdict</text>
+  <path class="edge" d="M470 466 L510 466" marker-end="url(#m3)"/><text x="476" y="460" class="m el">approve</text>
+  <path class="edge" d="M617 488 L617 512" marker-end="url(#m3)"/>
+  <path class="edge" d="M340 486 L340 518" marker-end="url(#m3)"/><text x="348" y="506" class="m el">changes</text>
+  <path class="escl" d="M210 542 L200 542" marker-end="url(#m3)"/><text x="116" y="536" class="m el">below rank</text>
+  <path class="loop" d="M99 516 L99 288 L208 288" marker-end="url(#m3g)"/><text x="108" y="306" class="m el">re-gate ≤2×</text>
+  <path class="escl" d="M470 542 L580 542 L580 574" marker-end="url(#m3r)"/><text x="486" y="536" class="m el">≥ rank</text>
+  <path class="dash" d="M740 590 L818 300" marker-end="url(#m3)"/><text x="792" y="470" class="m el" transform="rotate(75 792 470)">the rank you set</text>
+  <path class="dash" d="M617 556 L617 660" marker-end="url(#m3)"/><text x="625" y="650" class="m el">every step</text>
+
+  <rect x="210" y="86" width="260" height="44" rx="9" fill="#f4f3ee" stroke="#b9b7ad"/>
+  <text x="340" y="105" text-anchor="middle" class="t bx">CONFIG · job.json</text><text x="340" y="120" text-anchor="middle" class="m sb">roles · tasks · gate · rubric · escalation</text>
+  <rect x="210" y="146" width="260" height="44" rx="9" fill="#6E59C7"/>
+  <text x="340" y="165" text-anchor="middle" class="w bx">Claude · CONDUCT</text><text x="340" y="180" text-anchor="middle" class="w sb" opacity="0.9">loads config, runs the loop</text>
+  <rect x="210" y="206" width="260" height="44" rx="9" fill="#1F9E8C"/>
+  <text x="340" y="225" text-anchor="middle" class="w bx">Codex · MAKE</text><text x="340" y="240" text-anchor="middle" class="w sb" opacity="0.9">write / fix · skip if gate green</text>
+  <rect x="210" y="266" width="260" height="44" rx="9" fill="#C77F2A"/>
+  <text x="340" y="285" text-anchor="middle" class="w bx">GATE (deterministic)</text><text x="340" y="300" text-anchor="middle" class="w sb" opacity="0.92">pytest | additive-diff · exit 0 = pass</text>
+  <rect x="210" y="326" width="125" height="44" rx="9" fill="#1F9E8C"/>
+  <text x="272" y="345" text-anchor="middle" class="w bx">Codex</text><text x="272" y="360" text-anchor="middle" class="w sb" opacity="0.9">RED-TEAM #1</text>
+  <rect x="345" y="326" width="125" height="44" rx="9" fill="#2F73C8"/>
+  <text x="407" y="345" text-anchor="middle" class="w bx">Copilot</text><text x="407" y="360" text-anchor="middle" class="w sb" opacity="0.9">REVIEW #2</text>
+  <rect x="210" y="386" width="260" height="40" rx="20" fill="#eceae3" stroke="#b9b7ad" stroke-dasharray="5 3"/>
+  <text x="340" y="411" text-anchor="middle" class="t bx">reviewers agree?</text>
+  <rect x="210" y="446" width="260" height="40" rx="20" fill="#eceae3" stroke="#b9b7ad" stroke-dasharray="5 3"/>
+  <text x="340" y="471" text-anchor="middle" class="t bx">gate green + approve?</text>
+  <rect x="210" y="518" width="260" height="46" rx="12" fill="#FBEFEC" stroke="#B23A2E" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <text x="340" y="538" text-anchor="middle" class="bx" fill="#A8342A">blocker ≥ your rank?</text><text x="340" y="553" text-anchor="middle" class="sb" fill="#7d4339">escalation gate (tiered mode)</text>
+
+  <rect x="10" y="384" width="178" height="44" rx="9" fill="#6E59C7"/>
+  <text x="99" y="403" text-anchor="middle" class="w bx">Claude · REFEREE</text><text x="99" y="418" text-anchor="middle" class="w sb" opacity="0.9">break the tie</text>
+  <rect x="10" y="516" width="178" height="44" rx="9" fill="#1F9E8C"/>
+  <text x="99" y="535" text-anchor="middle" class="w bx">Codex · FIX</text><text x="99" y="550" text-anchor="middle" class="w sb" opacity="0.9">must-fix · then re-gate</text>
+
+  <rect x="510" y="444" width="214" height="44" rx="9" fill="#eef6f0" stroke="#2E8B57" stroke-width="1.6"/>
+  <text x="617" y="463" text-anchor="middle" class="bx" fill="#2E7D52">✓ APPROVED</text><text x="617" y="478" text-anchor="middle" class="m sb">↺ next task</text>
+  <rect x="510" y="512" width="214" height="44" rx="9" fill="#2F73C8"/>
+  <text x="617" y="531" text-anchor="middle" class="w bx">Copilot · BUG TRACKER</text><text x="617" y="546" text-anchor="middle" class="w sb" opacity="0.9">→ BUGS.md</text>
+  <rect x="510" y="574" width="280" height="68" rx="10" fill="#FBEFEC" stroke="#B23A2E" stroke-width="1.8"/>
+  <text x="650" y="596" text-anchor="middle" class="bx" fill="#A8342A">⛔ ESCALATE TO HUMAN</text>
+  <text x="650" y="612" text-anchor="middle" class="sb" fill="#7d4339">writes ESCALATION.md · exit 3</text>
+  <text x="650" y="626" text-anchor="middle" class="sb" fill="#7d4339">rank · reason · the decision you make</text>
+
+  <text x="820" y="98" class="t s" font-weight="700">escalation.level = rank on duty</text>
+  <text x="820" y="113" class="m sb">cumulative: a rank also catches everything more severe · auto = no human ping</text>
+  <rect x="838" y="122" width="330" height="46" rx="8" fill="#A8342A"/>
+  <text x="852" y="141" class="w bx">Commander-in-Chief</text><text x="852" y="158" class="w sb" opacity="0.92">unachievable — can’t be achieved · immediately</text>
+  <rect x="838" y="174" width="330" height="46" rx="8" fill="#C2562F"/>
+  <text x="852" y="193" class="w bx">Secretary of Defense</text><text x="852" y="210" class="w sb" opacity="0.92">design_change — plan fails reality · after ≥3 iters</text>
+  <rect x="838" y="226" width="330" height="46" rx="8" fill="#C77F2A"/>
+  <text x="852" y="245" class="w bx">Chief of Staff</text><text x="852" y="262" class="w sb" opacity="0.92">scope_change — needs re-scope · when flagged</text>
+  <rect x="838" y="278" width="330" height="46" rx="8" fill="#B8901F"/>
+  <text x="852" y="297" class="w bx">General / Officer</text><text x="852" y="314" class="w sb" opacity="0.92">unresolved — referee can’t converge · at exhaustion</text>
+  <path class="escl" d="M828 320 L828 124" marker-end="url(#m3r)"/><text x="822" y="224" text-anchor="middle" class="m el" transform="rotate(-90 822 224)">more severe ↑</text>
+
+  <rect x="10" y="660" width="1158" height="118" rx="10" fill="#f4f3ee" stroke="#b9b7ad"/>
+  <text x="30" y="684" class="t bx">TRACKING — written every step → _orchestrate/&lt;job&gt;_&lt;ts&gt;/</text>
+  <g class="sb">
+    <rect x="30" y="698" width="270" height="62" rx="7" fill="#eceae3"/><text x="42" y="718" class="t" font-weight="700">_status.json</text><text x="42" y="734" class="m">live percent + current</text><text x="42" y="748" class="m">task / step / verdicts</text>
+    <rect x="312" y="698" width="270" height="62" rx="7" fill="#eceae3"/><text x="324" y="718" class="t" font-weight="700">_run.log</text><text x="324" y="734" class="m">timestamped feed</text><text x="324" y="748" class="m">(tail to watch live)</text>
+    <rect x="594" y="698" width="270" height="62" rx="7" fill="#eceae3"/><text x="606" y="718" class="t" font-weight="700">ERRORS.log</text><text x="606" y="734" class="m">each issue + the exact</text><text x="606" y="748" class="m">artifact path to open</text>
+    <rect x="876" y="698" width="282" height="62" rx="7" fill="#eceae3"/><text x="888" y="718" class="t" font-weight="700">RUN_SUMMARY · ESCALATION.md</text><text x="888" y="734" class="m">final index · the human</text><text x="888" y="748" class="m">decision when escalated</text>
+  </g>
+</svg>

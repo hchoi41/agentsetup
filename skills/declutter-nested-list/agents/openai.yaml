@@ -1,0 +1,4 @@
+interface:
+  display_name: "DeclutterNestedList"
+  short_description: "Declutter and reorganize nested outlines"
+  default_prompt: "Use $declutter-nested-list to declutter this nested outline without losing source content."

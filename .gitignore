@@ -1,0 +1,65 @@
+# =============================================================================
+# agentsetup — published agent setup payload
+# This repo is PUBLIC. Everything here is a defence-in-depth guard: the payload
+# is assembled by Publish-AgentSetup.ps1 from an explicit allowlist, so nothing
+# below should ever appear. If git starts ignoring something you expected to
+# publish, the manifest is wrong — fix the manifest, not this file.
+# =============================================================================
+
+# --- personal / never publish ------------------------------------------------
+career_db/
+**/career_db/
+12.MEMORY_RAM/
+13.MEMORY_HDD/
+14.LESSONS_LEARNED/
+15.WIKI/
+70.carbon_copy/
+90.archive/
+11.OUTPUT_ROUGH/
+01.INPUT/
+03.OUTPUT_FINAL/
+DEPLOYMENT_REGISTRY.json
+PROJECT_REGISTRY.json
+PROJECT_INDEX.md
+_orchestrate/
+
+# --- credentials -------------------------------------------------------------
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12
+.agent_adapters_ledger.json
+
+# --- generated agent surfaces (JUNCTIONS — rebuilt by scripts/sync_agent_adapters.ps1) ---
+.claude/
+.agents/
+.opencode/
+.github/prompts/
+.github/copilot-instructions.md
+microsoft_copilot/
+
+# --- runtime / generated -----------------------------------------------------
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+python_envs/
+node_envs/
+cache/
+logs/
+*.log
+*.tmp
+
+# --- OS / editor / OneDrive --------------------------------------------------
+desktop.ini
+Thumbs.db
+.DS_Store
+._*
+~$*
+*.swp
+.vscode/
+.idea/

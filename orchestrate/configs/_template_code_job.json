@@ -1,0 +1,21 @@
+{
+  "name": "playground_code_job_template",
+  "hub": "C:\\000.playground_local",
+  "workProduct": "code",
+  "briefRef": "C:\\000.playground_local\\workspaces\\<YYYYMMDD>_<slug>\\<plan>.md",
+  "artifacts": ["scripts\\memorylib", "tests\\memory"],
+  "rubric": "Approve only if THIS task's own acceptance criteria in the plan are met and the pytest gate is green. Do not request features the plan assigns to a later task, and do not request a mechanism the plan did not choose.",
+  "gate": { "checks": [ { "type": "pytest", "path": "tests\\memory" } ] },
+  "roles": {
+    "maker":     { "cli": "codex",   "model": "gpt-5.6-sol",         "effort": "xhigh" },
+    "reviewer1": { "cli": "codex",   "model": "gpt-5.6-sol",         "effort": "xhigh" },
+    "reviewer2": { "cli": "copilot", "model": "auto" },
+    "referee":   { "cli": "claude",  "model": "claude-opus-5", "effort": "extra" }
+  },
+  "maxFix": 2,
+  "taskInstructionTemplate": "Implement Task {id} ({title}) EXACTLY, test-first, per the plan (briefRef). Implement ONLY Task {id}. If it is already implemented and its tests pass, make NO changes.",
+  "tasks": [
+    { "id": "1", "title": "<first task title>" }
+  ],
+  "_note": "Template for a coding job in this hub. Copy it per project. As shipped it points at the implanted memory layer (artifacts scripts/memorylib + gate pytest tests/memory) so -Preflight and -DryRun work out of the box. For a real project: set briefRef to your plan under workspaces/, repoint artifacts + gate.checks[].path at that project, list real tasks, then Preflight -> DryRun -> run."
+}
