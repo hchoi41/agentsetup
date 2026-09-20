@@ -22,7 +22,7 @@
   .\Publish-AgentSetup.ps1 -Message "feat(skills): add doc-wash-nonfiction"
 
 .NOTES
-  Status: UNVALIDATED beyond AST parse. Run -DryRun first. Author: Claude, 2026-08-18.
+  Status: live-validated (QA rounds 1-3 + inaugural publish, 2026-08-22). Run -DryRun first. Author: Claude, 2026-08-18.
   2026-08-20: Added step 0.5 WIPE-TARGET GUARD (runs before clone/pull) after the deletion incident — the destructive
   mirror step now hard-stops if $RepoRoot is (or is inside) the OneDrive source, any hub,
   or any OneDrive path, or lacks a .git working copy. Guard added by Claude (Cowork), Max-approved.
@@ -31,6 +31,9 @@
   offline and scans the PAYLOAD SOURCES instead of the stale mirror; guard additionally verifies
   the mirror's origin URL; path:hub is exempted for the four self-describing tooling files
   (secrets/PII/path:user remain universal); $AgentsSetup default derives from $env:OneDrive.
+  2026-08-22 (v1.3): step 1.5 DRIFT CHECK - if origin/main moved past the last SHA this pipeline
+  pushed (publish_state.json), a publish would clobber foreign commits (merged PRs); the run
+  stops unless -AcceptRemote is passed after human review. State recorded after every push.
 #>
 [CmdletBinding()]
 param(
@@ -43,6 +46,7 @@ param(
   [string]$Playground  = 'C:\000.playground_local',
   [string]$StagedDir   = "$PSScriptRoot",
   [switch]$SkipScan,
+  [switch]$AcceptRemote,
   [switch]$NoPush,
   [switch]$DryRun
 )
@@ -127,6 +131,48 @@ if (-not (Test-Path -LiteralPath (Join-Path $RepoRoot '.git'))) {
       }
     } finally { Pop-Location }
   }
+}
+# ---------------------------------------------------------------- 1.5 DRIFT CHECK (real runs)
+# This pipeline is the only writer the mirror expects. If origin/main moved past the last SHA
+# this pipeline pushed (a merged PR, a manual commit), a blind publish would clobber that work:
+# step 2 wipes the mirror and step 4 commits the reversal as if it were intended. Ingest foreign
+# commits into the sources first (agentsetup-sync Direction C), or -AcceptRemote after review.
+$stateFile = Join-Path $StagedDir 'publish_state.json'
+function Write-PublishState {
+  $h = git rev-parse --verify --quiet HEAD
+  if ($LASTEXITCODE -eq 0 -and $h) {
+    $h = ([string]$h).Trim()
+    @{ last_pushed_sha = $h; recorded_at_utc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'); message = $Message } |
+      ConvertTo-Json | Set-Content -LiteralPath $stateFile -Encoding UTF8
+    Say "  publish_state.json -> $($h.Substring(0,7))" 'DarkGreen'
+  }
+}
+if (-not $DryRun) {
+  Step '1.5 Drift check'
+  Push-Location $RepoRoot
+  try {
+    git rev-parse --verify --quiet origin/main *> $null
+    if ($LASTEXITCODE -eq 0) {
+      $remoteSha = ([string](git rev-parse origin/main)).Trim()
+      $lastSha = $null
+      if (Test-Path -LiteralPath $stateFile) {
+        try { $lastSha = (Get-Content -LiteralPath $stateFile -Raw | ConvertFrom-Json).last_pushed_sha } catch { $lastSha = $null }
+      }
+      if (-not $lastSha) {
+        Say "  no publish_state.json baseline - origin/main $($remoteSha.Substring(0,7)) accepted; recorded after this publish" 'Yellow'
+      } elseif ($remoteSha -ne $lastSha) {
+        if ($AcceptRemote) {
+          Say "  -AcceptRemote: origin/main $($remoteSha.Substring(0,7)) != last pushed $($lastSha.Substring(0,7)) - proceeding on human review" 'Yellow'
+        } else {
+          throw "DRIFT GUARD: origin/main is $remoteSha but this pipeline last pushed $lastSha. Commits exist outside the pipeline (merged PR or manual edit) and publishing now would clobber them. Ingest them into the sources first (agentsetup-sync Direction C), then re-run with -AcceptRemote."
+        }
+      } else {
+        Say "  clean: origin/main == last pushed ($($remoteSha.Substring(0,7)))" 'Green'
+      }
+    } else {
+      Say '  empty remote - drift check not applicable' 'DarkGray'
+    }
+  } finally { Pop-Location }
 }
 # ---------------------------------------------------------------- 2. MIRROR PAYLOAD
 Step '2. Mirror payload'
@@ -233,7 +279,7 @@ Push-Location $RepoRoot
 try {
   git add -A
   $pending = git status --porcelain
-  if (-not $pending) { Say '  nothing changed - no commit made.' 'Yellow'; return }
+  if (-not $pending) { Say '  nothing changed - no commit made.' 'Yellow'; Write-PublishState; return }
   Say ("  {0} path(s) staged" -f ($pending | Measure-Object).Count)
   git commit -m $Message
   if ($LASTEXITCODE -ne 0) { throw "commit failed ($LASTEXITCODE)" }
@@ -241,4 +287,5 @@ try {
   git push -u origin main
   if ($LASTEXITCODE -ne 0) { throw "push failed ($LASTEXITCODE) - check gh auth status / credential helper" }
   Say '  pushed to origin/main' 'Green'
+  Write-PublishState
 } finally { Pop-Location }

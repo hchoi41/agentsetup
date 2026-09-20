@@ -95,6 +95,10 @@ By default a job runs in **full delegation** (`escalation.mode: "auto"`) — the
 ```
 `secretary` needs `maxFix >= 2` so ≥3 iterations are reachable. Exit codes: `0` all approved · `1` halt (below-threshold / auto) · `3` escalated to human.
 
+## Engine v2
+
+`Orchestrate2.ps1` ships beside v1. v1 is unchanged, so legacy configs keep running on it. v2 uses structured argv gates rather than shell strings, a pre-created run root, strict adapter outcomes so a failed vendor cannot read as success, and an explicit severity contract. Real v2 runs require a consent receipt, so v2 is launcher-driven rather than hand-run. It has never been run for real: its 51/51 tests use fakes only, with zero vendor spend.
+
 ## Notes
 
 - **Gitless** by hub policy — no `git` steps anywhere.

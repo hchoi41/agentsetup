@@ -2,7 +2,7 @@
 
 Universal rules that all agents follow regardless of which agent system they belong to. These rules govern folder access, naming, project identity, and context protocols.
 
-Governance version: v2.2 (2026-08-20)
+Governance version: v2.3 (2026-08-22)
 
 ## Folder Governance
 
@@ -103,45 +103,27 @@ Rules:
 
 ## Execution Routing
 
-Status: active trial policy since 2026-06-25. This routing model is rolled out for agent use and is authoritative for new work unless the user overrides it. Its effectiveness has not yet been benchmarked; revisit when the benchmark gate is designed or on user request. (Flagged 2026-08-20 in the scaffolding review for simplification — pending Max's decision; unchanged in v2.2.)
+Determinism first (owner ruling 2026-08-22; supersedes the 2026-06-25 trial policy). Code over prompts: prompts produce nondeterministic outcomes, so anything that CAN be executed by code MUST be. LLM judgment is reserved — and required — for work code cannot decide.
 
-During the trial, agents must apply this routing model to new work. Record the chosen routing label (`D0`/`D1`/`N1`/`N2`) in the working artifact or task notes. Deviations require an explicit user override or a brief rationale in the working artifact.
+Before execution, classify the task and record the label (`D0`/`D1`/`D2`) in the working artifact or task notes. Deviations require an explicit user override or a brief rationale.
 
-Before execution, classify the task by determinism.
+- `D0` — deterministic (the default): the task can be expressed as a script, a command with an exit code, a regex gate, a checksum, a test, or an explicit assertion. Then it must be. Agents may help design or generate the code, but final execution is by code. A deterministic task executed by prompt instead of code is a defect.
+- `D1` — code-controlled judgment: the deciding step is genuinely non-codable (natural-language review, content quality, ambiguity), but control flow stays code. The LLM's input and output cross a deterministic boundary — a schema, a gate, a diff, an assertion — before anything acts on the result.
+- `D2` — agent work: authoring, design, synthesis, incident response, red-teaming — where the task IS language and judgment. Here LLM usage is required; do not imitate it with brittle scripts. Irreversible actions still need an explicit plan, checkpoints, and user approval.
 
-- Deterministic work: output can be specified and verified by code, tests, or explicit rules. Use the Code Lane.
-- Nondeterministic work: output requires judgment, synthesis, ambiguity handling, or open-ended exploration. Use the Agent Lane.
+Legacy label map: old `D1` → `D0` (agent-assisted code), `N1` → `D1`, `N2` → `D2`.
 
-If a task is deterministic, agents may help design or generate code, but final execution must be performed by code, scripts, tests, or other reproducible mechanisms.
+Litmus test: "could a script verify this ran correctly?" If yes and no script exists, that is a defect. If no, assign it to a model and gate its output.
 
-### Code Lane
+### Code Lane (D0)
 
-Use for deterministic tasks.
+Required controls: executable command or script · reproducible inputs and outputs · a verification step (tests, diff checks, lint, type checks, explicit assertions) · a rollback or recovery path when changes affect durable artifacts.
 
-Required controls:
+### Agent Lane (D1/D2)
 
-- executable command or script
-- reproducible inputs and outputs
-- verification step such as tests, diff checks, lint, type checks, or explicit assertions
-- rollback or recovery path when changes affect durable artifacts
+Required controls: loop engineering (explicit steps, stop conditions, retry boundaries) · harness engineering (tool boundaries, budget/time limits, safe execution envelope) · context engineering (scoped inputs, source hierarchy, freshness checks) · prompt engineering (stable instructions, rubrics, review criteria).
 
-### Agent Lane
-
-Use for nondeterministic tasks.
-
-Required controls:
-
-- loop engineering: explicit steps, stop conditions, retry boundaries
-- harness engineering: tool boundaries, budget/time limits, safe execution envelope
-- context engineering: scoped inputs, source hierarchy, freshness checks
-- prompt engineering: stable instructions, examples or rubrics where needed, review criteria
-
-Routing labels:
-
-- `D0`: deterministic; execute by code/script/test.
-- `D1`: mostly deterministic; agent may assist, execution still code-driven.
-- `N1`: bounded nondeterministic; agent workflow allowed with standard controls.
-- `N2`: high-risk nondeterministic; require explicit plan, checkpoints, and user approval before irreversible actions.
+Recorded precedent (2026-08): an incident chain was closed by D0 verification — `git ls-remote`, checksum tables, exit-coded gates — after model-interpreted page reads reached a wrong conclusion. Determinism is the spine; models are the hands.
 
 ### Governance Change Control
 

@@ -12,11 +12,15 @@ latest state; any new computer gets the whole environment from here in one comma
 ## Install on a new machine
 
 ```powershell
-git clone https://github.com/hchoi41/agentsetup.git C:\000.agentsetup_repo
-cd C:\000.agentsetup_repo
-.\Get-AgentSetup.ps1 -Destination C:\000.myhub -DryRun    # see the plan
-.\Get-AgentSetup.ps1 -Destination C:\000.myhub            # do it
+irm https://raw.githubusercontent.com/hchoi41/agentsetup/main/Bootstrap.ps1 -OutFile "$env:TEMP\Bootstrap.ps1"
+& "$env:TEMP\Bootstrap.ps1" -Destination C:\000.myhub -DryRun    # see the plan
+& "$env:TEMP\Bootstrap.ps1" -Destination C:\000.myhub            # do it
 ```
+
+Bootstrap checks prerequisites, clones (or syncs) the cache repo outside OneDrive, and runs
+`Get-AgentSetup.ps1` from it. Already have the cache repo? Run `Get-AgentSetup.ps1` directly.
+Re-running Bootstrap on an existing hub **upgrades it in place** (your `AGENTS.md` /
+`00.ABOUT/CLAUDE.md` local sections are merged, not overwritten).
 
 Or just tell an agent: *"install the latest agent setup at `C:\000.myhub`"* — the
 `agentsetup-sync` skill covers the whole procedure.
@@ -70,15 +74,25 @@ script's own folder. No machine-specific paths are baked in. See `orchestrate/RE
 
 ---
 
-## Contributing to this repo
+## Contributing
 
-Don't hand-edit files here. The flow is one-directional:
+**Outside contributors: pull requests are welcome.** Keep changes focused on `skills/`,
+`scripts/`, `orchestrate/`, `governance/`, or `template/` content, and never include real
+personal data or machine-specific paths. A maintainer reviews the PR, ingests it into the
+private curated sources, and republishes — your merged commits stay in the history, followed by
+a pipeline commit that formalizes them. The publisher's **DRIFT GUARD** refuses to publish over
+commits it didn't push, so a merged PR cannot be silently overwritten.
+
+**Maintainers:** never hand-edit this repo. The flow is
 
 ```
-local hub  →  980.agents_setup (OneDrive)  →  this repo  →  GitHub
+local hub  →  private curated store  →  this repo  →  GitHub
 ```
 
-Change the hub, promote to `agents_setup`, then run `Publish-AgentSetup.ps1`. Editing the repo
-directly means the next publish overwrites you.
+Change the sources, then run `Publish-AgentSetup.ps1`. On a `DRIFT GUARD:` stop, run the ingest
+procedure (`skills/agentsetup-sync`, Direction C) before publishing.
+
+**Releases:** governance generations are tagged (`v4`, `v5`, …). `git describe --tags` in your
+cache repo shows which generation you run; re-run `Bootstrap.ps1` to upgrade.
 
 Commit convention: `{type}({scope}): {summary}` — `feat` `fix` `docs` `chore` `refactor` `plan` `research`.

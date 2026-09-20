@@ -1,11 +1,11 @@
 ---
 name: agentsetup-sync
-description: Publish the local agent setup to GitHub, or install the latest agent setup onto a machine. Use when the user says "update the agent setup", "push the agent setup", "publish my skills", "I want the latest agent setup on this device/folder", "install the agent setup on a new computer", or adds a new skill/workflow to a hub and wants it propagated.
+description: Publish the local agent setup to GitHub, install the latest agent setup onto a machine, or ingest changes contributed directly to the GitHub repo. Use when the user says "update the agent setup", "push the agent setup", "publish my skills", "I want the latest agent setup on this device/folder", "install the agent setup on a new computer", or adds a new skill/workflow to a hub and wants it propagated. Also use when the publisher stops with "DRIFT GUARD" or a pull request was merged on GitHub.
 ---
 
 # agentsetup-sync
 
-Moves the agent setup along a one-directional promotion pipeline, in either direction.
+Moves the agent setup along the promotion pipeline — publish up (A), install down (B), ingest back (C).
 
 ```
 TIER 1  local hub            <local hub root(s)>  — short local paths OUTSIDE OneDrive
@@ -46,6 +46,10 @@ wants it to become the published state.
    .\Publish-AgentSetup.ps1 -Message "feat(skills): add <name>"
    ```
 5. **Report** the commit SHA and what shipped.
+6. **Tag governance generations.** When the payload carries a governance version bump (v4, v5, …),
+   tag the published commit from the cache repo — `git tag -a v<N> <sha> -m "<one-line note>"` then
+   `git push origin v<N>` — so installed machines can tell which generation they run
+   (`git describe --tags`).
 
 ### The scan gate
 
@@ -87,6 +91,26 @@ Then confirm with the user:
 - `AGENT_HUB_ROOT` is set to the target (user scope).
 - `AGENTS.md` and `00.ABOUT/CLAUDE.md` were **merged, not overwritten**, if the target already
   had local sections. `Get-AgentSetup.ps1` preserves them unless `-Force` is passed.
+
+---
+
+## Direction C — INGEST ("someone changed the repo directly")
+
+Trigger: the publisher stops with **`DRIFT GUARD:`** — origin/main holds commits this pipeline
+did not push (a merged pull request, a hotfix made on another machine). Publishing over them
+would erase that work; this direction brings it home instead.
+
+1. **See what came in.** From the cache repo: `git fetch origin`, then
+   `git log <last-pushed-sha>..origin/main --stat` — read every foreign commit. The last-pushed
+   SHA is in the staging folder's `publish_state.json`.
+2. **Review like a maintainer.** The scan gate checks what goes OUT, not what comes IN — read the
+   diff for secrets, personal data, machine paths, and licence problems before adopting anything.
+3. **Apply accepted changes to the SOURCES** (the curated store the manifest reads from) — never
+   only to the mirror, which is rebuilt from sources on every publish. A brand-new file also
+   needs a `payload_manifest.json` include entry. For rejected changes, say why on the PR.
+4. **Republish with `-AcceptRemote`.** The pipeline commit lands ON TOP of the foreign commits,
+   so the contributor's history is preserved; `publish_state.json` records the new tip and the
+   guard is satisfied.
 
 ---
 

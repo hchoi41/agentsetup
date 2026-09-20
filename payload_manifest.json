@@ -126,6 +126,24 @@
       "mode": "tree"
     },
     {
+      "src": "AGENTS_SETUP/de-mannerism",
+      "dest": "skills/de-mannerism",
+      "mode": "tree",
+      "note": "added 2026-09-19 (at Tier 2 since 2026-09-16); mannered/metaphorical phrasing audit, report-only"
+    },
+    {
+      "src": "AGENTS_SETUP/minto-pass",
+      "dest": "skills/minto-pass",
+      "mode": "tree",
+      "note": "added 2026-09-19; Minto pyramid / dual-audience / number-context audit for application writing"
+    },
+    {
+      "src": "AGENTS_SETUP/tidy-lists",
+      "dest": "skills/tidy-lists",
+      "mode": "tree",
+      "note": "added 2026-09-19; delimiter normalization + inline-enumeration compression (distinct from declutter-nested-list)"
+    },
+    {
       "src": "HUB/scripts/sync_agent_adapters.ps1",
       "dest": "scripts/sync_agent_adapters.ps1",
       "mode": "file",
@@ -210,6 +228,18 @@
       "src": "HUB/conftest.py",
       "dest": "conftest.py",
       "mode": "file"
+    },
+    {
+      "src": "STAGED/repo_LICENSE",
+      "dest": "LICENSE",
+      "mode": "file",
+      "note": "MIT, O3 ruling 2026-09-21; MUST stay in this manifest or the wipe+repopulate mirror deletes it"
+    },
+    {
+      "src": "HUB/orchestrate/Orchestrate2.ps1",
+      "dest": "orchestrate/Orchestrate2.ps1",
+      "mode": "file",
+      "note": "engine v2 (orchestrate/v2), promoted 2026-08-29; ships beside v1, does not replace it"
     }
   ],
   "exclude_always": [
@@ -336,8 +366,8 @@
     {
       "id": "P1",
       "file": "orchestrate/configs/_template_code_job.json",
-      "issue": "carries \"hub\": \"C:\\\\000.playground_local\"",
-      "action": "delete the hub key so the engine resolves it at run time"
+      "issue": "carried \"hub\": \"C:\\\\000.playground_local\" (and an absolute briefRef placeholder)",
+      "action": "DONE - fixed 2026-08-23 at the PLAYGROUND source: hub key deleted (engine resolves at run time), briefRef made hub-relative, _note documents the resolution chain. Republish required to reach GitHub."
     },
     {
       "id": "P2",

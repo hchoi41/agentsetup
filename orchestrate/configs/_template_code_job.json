@@ -1,8 +1,7 @@
 {
   "name": "playground_code_job_template",
-  "hub": "C:\\000.playground_local",
   "workProduct": "code",
-  "briefRef": "C:\\000.playground_local\\workspaces\\<YYYYMMDD>_<slug>\\<plan>.md",
+  "briefRef": "workspaces\\<YYYYMMDD>_<slug>\\<plan>.md",
   "artifacts": ["scripts\\memorylib", "tests\\memory"],
   "rubric": "Approve only if THIS task's own acceptance criteria in the plan are met and the pytest gate is green. Do not request features the plan assigns to a later task, and do not request a mechanism the plan did not choose.",
   "gate": { "checks": [ { "type": "pytest", "path": "tests\\memory" } ] },
@@ -17,5 +16,5 @@
   "tasks": [
     { "id": "1", "title": "<first task title>" }
   ],
-  "_note": "Template for a coding job in this hub. Copy it per project. As shipped it points at the implanted memory layer (artifacts scripts/memorylib + gate pytest tests/memory) so -Preflight and -DryRun work out of the box. For a real project: set briefRef to your plan under workspaces/, repoint artifacts + gate.checks[].path at that project, list real tasks, then Preflight -> DryRun -> run."
+  "_note": "Template for a coding job in this hub. Copy it per project. No hub key: the engine resolves the hub at run time (config.hub > -HubRoot > $env:AGENT_HUB_ROOT > engine folder); add a hub key only to pin one machine-specific path. As shipped it points at the implanted memory layer (artifacts scripts/memorylib + gate pytest tests/memory) so -Preflight and -DryRun work out of the box. For a real project: set briefRef to your plan under workspaces/, repoint artifacts + gate.checks[].path at that project, list real tasks, then Preflight -> DryRun -> run."
 }
