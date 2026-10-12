@@ -19,11 +19,13 @@ All projects share this folder taxonomy. Roles are authoritative; on-disk labels
 
 | Role | Label | Access | Purpose |
 | --- | --- | --- | --- |
-| ABOUT | `00.ABOUT` | Read-only* | Workspace identity, governance, project manifest |
-| INPUT | `01.INPUT` | Read-only | Source material, briefs, must_read folder |
+| ABOUT | `00.ABOUT` | Read-only* | Workspace identity, governance, project manifest, `must_read` folder |
+| PROJECT | `01.PROJECT` | Per subfolder | One folder per project (one-time work with a firm deadline) |
+| INPUT | `01.PROJECT/<project>/10.INPUT` | Writable (create/edit); deletion requires Max's explicit permission | Source material, briefs |
+| PROCESS | `01.PROJECT/<project>/20.PROCESS` | Writable | Drafts, in-progress work, project artifacts |
+| OUTPUT | `01.PROJECT/<project>/30.OUTPUT` | Read-only | Completed deliverables and archives |
 | INPUT_TEMPLATES | `02.INPUT_TEMPLATES` | Read-only | Reusable structures and patterns |
-| OUTPUT_FINAL | `03.OUTPUT_FINAL` | Read-only | Completed deliverables and archives |
-| OUTPUT_ROUGH | `11.OUTPUT_ROUGH` | Writable | Drafts, in-progress work, project artifacts |
+| OPERATION | `10.OPERATION` | INPUT read-only; PROCESS writable; OUTPUT read-only | One folder per operation (ongoing work), same three subfolders; `OPERATIONS_DASHBOARD.md` holds the on/off switches |
 | MEMORY_RAM | `12.MEMORY_RAM` | Writable | Cross-session working memory |
 | MEMORY_HDD | `13.MEMORY_HDD` | Writable append-only | Long-term history, transcripts, capsules |
 | LESSONS_LEARNED | `14.LESSONS_LEARNED` | Writable | Confirmed lessons worth retaining |

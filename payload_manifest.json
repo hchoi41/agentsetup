@@ -1,12 +1,11 @@
 {
   "_about": "Machine-readable payload manifest for the hchoi41/agentsetup repo. Consumed by Publish-AgentSetup.ps1. The roots block below is DOCUMENTATION ONLY - the script's parameters are authoritative and resolve on the publishing machine ($env:OneDrive for AGENTS_SETUP). dest paths are relative to the repo root.",
   "schema_version": 1,
-  "generated": "2026-08-18",
+  "generated": "2026-10-12",
   "repo": {
     "url": "https://github.com/hchoi41/agentsetup.git",
     "visibility": "public",
-    "default_branch": "main",
-    "state_at_handoff": "exists, EMPTY (zero refs)"
+    "default_branch": "main"
   },
   "roots": {
     "AGENTS_SETUP": "<OneDrive>/980.agents_setup  (script param, derived from $env:OneDrive)",
@@ -58,10 +57,78 @@
       "note": "the install-procedure skill"
     },
     {
-      "src": "AGENTS_SETUP/install_v5_clean",
-      "dest": "template",
-      "mode": "tree",
-      "note": "v5 folder scaffold + starter governance + start-project/project-complete skills"
+      "src": "AGENTS_SETUP/install_v5_clean/AGENTS.md",
+      "dest": "template/AGENTS.md",
+      "mode": "file",
+      "note": "Explicit portable template asset; no workspace controls or user content."
+    },
+    {
+      "src": "AGENTS_SETUP/install_v5_clean/.gitignore",
+      "dest": "template/.gitignore",
+      "mode": "file",
+      "note": "Explicit portable template asset; no workspace controls or user content."
+    },
+    {
+      "src": "AGENTS_SETUP/install_v5_clean/10.OPERATION/OPERATIONS_DASHBOARD.md",
+      "dest": "template/10.OPERATION/OPERATIONS_DASHBOARD.md",
+      "mode": "file",
+      "note": "Explicit portable template asset; no workspace controls or user content."
+    },
+    {
+      "src": "AGENTS_SETUP/install_v5_clean/scripts/check_index_freshness.py",
+      "dest": "template/scripts/check_index_freshness.py",
+      "mode": "file",
+      "note": "Explicit portable template asset; no workspace controls or user content."
+    },
+    {
+      "src": "AGENTS_SETUP/install_v5_clean/scripts/deploy_new_project.ps1",
+      "dest": "template/scripts/deploy_new_project.ps1",
+      "mode": "file",
+      "note": "Explicit portable template asset; no workspace controls or user content."
+    },
+    {
+      "src": "AGENTS_SETUP/install_v5_clean/scripts/ingest_claude_cowork_transcript.ps1",
+      "dest": "template/scripts/ingest_claude_cowork_transcript.ps1",
+      "mode": "file",
+      "note": "Explicit portable template asset; no workspace controls or user content."
+    },
+    {
+      "src": "AGENTS_SETUP/install_v5_clean/scripts/operation_switch.ps1",
+      "dest": "template/scripts/operation_switch.ps1",
+      "mode": "file",
+      "note": "Explicit portable template asset; no workspace controls or user content."
+    },
+    {
+      "src": "AGENTS_SETUP/install_v5_clean/scripts/preflight_check.py",
+      "dest": "template/scripts/preflight_check.py",
+      "mode": "file",
+      "note": "Explicit portable template asset; no workspace controls or user content."
+    },
+    {
+      "src": "AGENTS_SETUP/install_v5_clean/scripts/qa_pdf_check.py",
+      "dest": "template/scripts/qa_pdf_check.py",
+      "mode": "file",
+      "note": "Explicit portable template asset; no workspace controls or user content."
+    },
+    {
+      "src": "AGENTS_SETUP/install_v5_clean/skills/start-project",
+      "dest": "template/skills/start-project",
+      "mode": "tree"
+    },
+    {
+      "src": "AGENTS_SETUP/install_v5_clean/skills/project-complete",
+      "dest": "template/skills/project-complete",
+      "mode": "tree"
+    },
+    {
+      "src": "AGENTS_SETUP/install_v5_clean/skills/operationalize",
+      "dest": "template/skills/operationalize",
+      "mode": "tree"
+    },
+    {
+      "src": "AGENTS_SETUP/install_v5_clean/skills/projectify",
+      "dest": "template/skills/projectify",
+      "mode": "tree"
     },
     {
       "src": "AGENTS_SETUP/00.ABOUT/PROJECT_GOVERNANCE.md",
@@ -96,8 +163,8 @@
       "note": "reference only - describes the OneDrive hub itself, not a new deployment"
     },
     {
-      "src": "AGENTS_SETUP/agents_setup_global_instructions_v53_20260807_v1.md",
-      "dest": "global_instructions/agents_setup_global_instructions_v53_20260807_v1.md",
+      "src": "AGENTS_SETUP/20261012_agents_setup_global_instructions_v1.md",
+      "dest": "global_instructions/20261012_agents_setup_global_instructions_v1.md",
       "mode": "file"
     },
     {
@@ -155,10 +222,11 @@
       "mode": "tree"
     },
     {
-      "src": "HUB/scripts/deploy_new_project.ps1",
+      "src": "AGENTS_SETUP/install_v5_clean/scripts/deploy_new_project.ps1",
       "dest": "scripts/deploy_new_project.ps1",
       "mode": "file",
-      "fix": "P2"
+      "fix": "P2",
+      "note": "Portable canonical project-first scaffolder; local hub customizations are not distributed."
     },
     {
       "src": "HUB/scripts/memory.py",
@@ -192,9 +260,10 @@
       "note": "reconciled canonical engine; AST-validated 0 errors. NOT the raw hub copy."
     },
     {
-      "src": "HUB/orchestrate/README.md",
+      "src": "STAGED/orchestrate_README.md",
       "dest": "orchestrate/README.md",
-      "mode": "file"
+      "mode": "file",
+      "note": "Public package invocation and included-job documentation; local hub job documentation remains local."
     },
     {
       "src": "HUB/orchestrate/checks/Check-Additive.ps1",
@@ -240,6 +309,64 @@
       "dest": "orchestrate/Orchestrate2.ps1",
       "mode": "file",
       "note": "engine v2 (orchestrate/v2), promoted 2026-08-29; ships beside v1, does not replace it"
+    },
+    {
+      "src": "AGENTS_SETUP/start-project",
+      "dest": "skills/start-project",
+      "mode": "tree",
+      "note": "Current curated core source; promote the reviewed canonical source before publishing."
+    },
+    {
+      "src": "AGENTS_SETUP/project-complete",
+      "dest": "skills/project-complete",
+      "mode": "tree",
+      "note": "Current curated core source; promote the reviewed canonical source before publishing."
+    },
+    {
+      "src": "AGENTS_SETUP/operationalize",
+      "dest": "skills/operationalize",
+      "mode": "tree",
+      "note": "Current curated core source; promote the reviewed canonical source before publishing."
+    },
+    {
+      "src": "AGENTS_SETUP/projectify",
+      "dest": "skills/projectify",
+      "mode": "tree",
+      "note": "Current curated core source; promote the reviewed canonical source before publishing."
+    },
+    {
+      "src": "AGENTS_SETUP/cloud-sync/SKILL.md",
+      "dest": "skills/cloud-sync/SKILL.md",
+      "mode": "file",
+      "note": "Runtime cloud-sync source; test fixtures and eval inputs are not distributed."
+    },
+    {
+      "src": "AGENTS_SETUP/cloud-sync/scripts",
+      "dest": "skills/cloud-sync/scripts",
+      "mode": "tree",
+      "note": "Runtime cloud-sync source; test fixtures and eval inputs are not distributed."
+    },
+    {
+      "src": "AGENTS_SETUP/cloud-sync/references",
+      "dest": "skills/cloud-sync/references",
+      "mode": "tree",
+      "note": "Runtime cloud-sync source; test fixtures and eval inputs are not distributed."
+    },
+    {
+      "src": "AGENTS_SETUP/install_v5_clean/scripts/operation_switch.ps1",
+      "dest": "scripts/operation_switch.ps1",
+      "mode": "file"
+    },
+    {
+      "src": "AGENTS_SETUP/install_v5_clean/scripts/ingest_claude_cowork_transcript.ps1",
+      "dest": "scripts/ingest_claude_cowork_transcript.ps1",
+      "mode": "file"
+    },
+    {
+      "src": "STAGED/Test-Install.ps1",
+      "dest": "tests/install/Test-Install.ps1",
+      "mode": "file",
+      "note": "Self-contained disposable install verification; no account settings or live data."
     }
   ],
   "exclude_always": [
@@ -302,16 +429,16 @@
       "reason": "PERSONAL - cross-project entities"
     },
     {
-      "path": "AGENTS_SETUP/11.OUTPUT_ROUGH",
-      "reason": "work products + in-development skill drafts"
+      "path": "AGENTS_SETUP/01.PROJECT",
+      "reason": "work products: inputs, working files, deliverables, in-development skill drafts"
     },
     {
-      "path": "AGENTS_SETUP/01.INPUT",
-      "reason": "source material"
+      "path": "AGENTS_SETUP/10.OPERATION",
+      "reason": "ongoing operations and their dashboard"
     },
     {
-      "path": "AGENTS_SETUP/03.OUTPUT_FINAL",
-      "reason": "deliverables"
+      "path": "AGENTS_SETUP/00.ABOUT/must_read",
+      "reason": "PERSONAL - curated startup context"
     },
     {
       "path": "AGENTS_SETUP/70.carbon_copy",
@@ -358,8 +485,8 @@
       "reason": "one-off migration, already run"
     },
     {
-      "path": "*/ingest_claude_cowork_transcript.ps1",
-      "reason": "operates on personal transcripts"
+      "path": "AGENTS_SETUP/install_v5_clean/00.ABOUT/PROJECT_INDEX.md, PROJECT_REGISTRY.json, must_read/",
+      "reason": "Workspace controls and source context are initialized empty by the installer, not copied into the payload."
     }
   ],
   "required_fixes": [
@@ -372,7 +499,7 @@
     {
       "id": "P2",
       "file": "scripts/deploy_new_project.ps1",
-      "issue": "1 hardcoded C:\\Users\\siyke path",
+      "issue": "One historical hardcoded Windows user-profile path",
       "action": "DONE - fixed 2026-08-14; verified clean (0 path hits) in the 2026-08-20 QA red-team. No action."
     },
     {
@@ -390,8 +517,8 @@
     },
     {
       "id": "O2",
-      "item": "cloud-sync / dig / plan have unpacked sources but they live in 11.OUTPUT_ROUGH (a draft folder). Excluded from v1 as not-yet-stable. Promote them out of OUTPUT_ROUGH if they should ship.",
-      "decision_needed_from": "Max"
+      "item": "cloud-sync runtime source is included from its reviewed curated source; generated eval inputs are excluded. dig and plan remain outside this payload until separately promoted.",
+      "decision_needed_from": "none for cloud-sync; later scope decision for dig and plan"
     },
     {
       "id": "O3",

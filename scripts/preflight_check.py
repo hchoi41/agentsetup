@@ -14,7 +14,7 @@ WHAT IT CHECKS (for a given project root):
   - 00.ABOUT/PROJECT_REGISTRY.json is readable AND valid JSON
   - 00.ABOUT/PROJECT_GOVERNANCE.md is readable
   - the latest RAM named in PROJECT_INDEX is readable (if a pointer is present)
-  - writable roles exist: 11.OUTPUT_ROUGH, 12.MEMORY_RAM, 13.MEMORY_HDD,
+  - working folders exist: 01.PROJECT, 10.OPERATION, 12.MEMORY_RAM, 13.MEMORY_HDD,
     14.LESSONS_LEARNED, 15.WIKI
 
 An unreadable file usually means OneDrive online-only: open it locally (or run
@@ -39,7 +39,8 @@ REQUIRED_FILES = [
     os.path.join("00.ABOUT", "PROJECT_GOVERNANCE.md"),
 ]
 WRITABLE_FOLDERS = [
-    "11.OUTPUT_ROUGH",
+    "01.PROJECT",
+    "10.OPERATION",
     "12.MEMORY_RAM",
     "13.MEMORY_HDD",
     "14.LESSONS_LEARNED",
@@ -112,7 +113,7 @@ def main():
         present = os.path.isdir(os.path.join(root, rel))
         print(f"  [{'OK ' if present else 'XX '}] {rel}{'' if present else '  -> missing'}")
         if not present:
-            issues.append(f"{rel}: missing writable folder")
+            issues.append(f"{rel}: missing folder")
 
     print()
     if issues:

@@ -1,5 +1,6 @@
+---
 name: project-complete
-description: "Formally sign off a project and trigger wiki knowledge extraction. Use this skill whenever the user says 'project complete', 'sign off project', 'close project', 'finish project', 'project done', 'wrap up project', 'move to final', 'deliverables are done', 'archive this project', 'project finished', 'done with project', or any indication that a project has reached completion and deliverables should move to OUTPUT_FINAL. This is the formal ceremony that triggers wiki knowledge extraction from the project's INPUT and RAM. Always use this skill for project closure — do not close a project or update PROJECT_INDEX status to completed without running this ceremony first."
+description: "Formally sign off a project and trigger wiki knowledge extraction. Use this skill whenever the user says 'project complete', 'sign off project', 'close project', 'finish project', 'project done', 'wrap up project', 'move to final', 'deliverables are done', 'archive this project', 'project finished', 'done with project', or any indication that a project has reached completion and deliverables should move to its 30.OUTPUT folder. This is the formal ceremony that triggers wiki knowledge extraction from the project's 10.INPUT and RAM. Work that will keep running on a cycle is not closed here — that is the operationalize skill. Always use this skill for project closure — do not close a project or update PROJECT_INDEX status to completed without running this ceremony first."
 ---
 
 # Project Completion Ceremony
@@ -34,15 +35,19 @@ Ask: "Confirming: you're signing off **{project name}**. Correct?"
 
 If the project doesn't exist in PROJECT_INDEX.md, something is wrong — investigate before proceeding.
 
+The project's folder is `01.PROJECT/{folder_name}/`. If the workspace has no `01.PROJECT/`, it is not on the project-first layout: stop and tell the user.
+
+If the work is not ending but will keep running on a cycle, this is not a closure — it is `operationalize`. Say so and stop.
+
 ### Step 2: Deliverable Verification
 
-Check `11.OUTPUT_ROUGH` for the project's deliverables.
+Check the project's `20.PROCESS/` for its deliverables.
 
 Ask the user:
-- "Have all deliverables been moved to `03.OUTPUT_FINAL`? Or should I help identify what needs to move?"
+- "Have all deliverables been moved to `30.OUTPUT`? Or should I help identify what needs to move?"
 - If deliverables need moving, list them and confirm before proceeding.
 
-Do not move files without explicit confirmation. The user may have already handled this.
+Do not move files without explicit confirmation. The user may have already handled this. Only finished files go to `30.OUTPUT/`; drafts and superseded versions stay in `20.PROCESS/`.
 
 ### Step 2b: Acceptance Criteria Review
 
@@ -50,19 +55,19 @@ Before proceeding to knowledge extraction, check the project's deliverables agai
 
 **Locate the acceptance criteria file:**
 
-Look for `{slug}_acceptance_criteria_*.md` in `11.OUTPUT_ROUGH/{folder_name}/`. If the file is referenced in the project's RAM under "Key Inputs / Referenced Files," use that path directly.
+Look for `*acceptance_criteria*.md` in `01.PROJECT/{folder_name}/10.INPUT/` (a project scaffolded before the layout change may have it in `20.PROCESS/`). If the file is referenced in the project's RAM under "Key Inputs / Referenced Files," use that path directly.
 
 **If no acceptance criteria file exists:**
 
 This can happen for projects that predate the acceptance criteria step or were scaffolded informally. In this case:
 - Note the gap to the user: "No acceptance criteria were set at project start."
 - Ask: "Would you like to do a quick retrospective check before closing? I can draft criteria from the project's RAM and we can evaluate against them — or we can skip and close as-is."
-- If the user opts to skip, proceed to Step 3.
+- If the user opts to skip, proceed to Step 2.5.
 **Run the review:**
 
 For each criterion in the checklist:
 
-1. Read the relevant deliverable(s) in `11.OUTPUT_ROUGH/{folder_name}/` and `03.OUTPUT_FINAL/{folder_name}/`.
+1. Read the relevant deliverable(s) in the project's `30.OUTPUT/` (and `20.PROCESS/` for anything not yet moved).
 2. Assess whether the criterion is met, partially met, or not met.
 3. For each assessment, provide a brief evidence note — what specifically in the deliverable satisfies (or fails to satisfy) the criterion.
 
@@ -85,17 +90,32 @@ For each criterion in the checklist:
 ```
 
 **Save the report** as:
-`11.OUTPUT_ROUGH/{folder_name}/{slug}_acceptance_review_{YYYYMMDD}_v1.md`
+`01.PROJECT/{folder_name}/20.PROCESS/{YYYYMMDD}_{artifact_prefix}_acceptance_review_v1.md`
+
+Resolve `artifact_prefix` from the existing RAM or adopted naming convention; for a new project it is normally the date-free canonical slug. Preserve existing registry identities and acceptance-criteria filenames. The lookup above accepts both current date-first and earlier filename ordering.
 
 **Decision gate:**
 
-- If all criteria are met → proceed to Step 3.
+- If all criteria are met → proceed to Step 2.5.
 - If any criteria are not met or partially met → present the gaps to the user and ask: "Some criteria aren't fully met. Want to address these before closing, or close the project as-is with these noted?"
 - If the user wants to address gaps → pause the ceremony. The project stays active until the gaps are resolved and the user re-triggers closure.
 - If the user accepts the gaps → note them in the final RAM and proceed.
+### Step 2.5 - Load/Unload & Archive
+
+Before wiki extraction, offer to publish the finished work to its OneDrive domain through `cloud-sync` (engine: `skills/cloud-sync/scripts/sync_project.ps1`). Copy only within the user's confirmed publication scope; existing in-session authorization covers that scope.
+
+1. Confirm the project identity and that finals are in `01.PROJECT/{folder_name}/30.OUTPUT/`.
+2. Resolve the owning OneDrive domain from the local `CHARTER.md` domain map when present and the cloud-sync domain map. Settle a new destination or collision before copying. Both workspaces must have `01.PROJECT/`.
+3. Run the cloud-sync dry run with explicit `-SrcRoot` and `-DstRoot`; present copied/already-present counts, held-back files, decisions required, exclusions, and collisions. Dry run creates no receipt or destination files.
+4. On the confirmed plan, apply with `-Hash`, finish the recipe, then apply again. Use `20.PROCESS/SYNC_REPORT.md` on both sides as the unload receipt. It records the actual result; `OK` verifies the local OneDrive copy, not completed upload by the OneDrive app.
+5. Report every incomplete item. The project-first policy copies all `10.INPUT` and `30.OUTPUT` content regardless of size: the earlier 25 MB manual-upload rule and pointer/pruning behavior do not apply. Runtime dependencies and drafts remain in `20.PROCESS`; review misplaced runtime warnings before publication.
+6. Record the unload result, source and destination receipt paths, destination folder, and OneDrive upload status in final RAM. If publication is declined or incomplete, record that state explicitly; do not imply a completed cloud backup.
+
+Continue with wiki extraction. After Step 8, refresh the final RAM and final recipe in the already authorized destination as described there.
+
 ### Step 3: Knowledge Extraction Scan
 
-Read the project's latest RAM. If INPUT still has material used during the project, scan it too.
+Read the project's latest RAM. Scan the project's `10.INPUT/` too — it holds the material the work was built from. Project input files and subfolders may be created and edited, preserving source provenance and prior versions when revising evidence. Deleting an input file or folder requires Max's explicit permission; project closure or archive language alone does not supply that permission.
 
 Look for candidates worth extracting into wiki pages:
 - Named concepts, frameworks, or models referenced in RAM
@@ -174,15 +194,19 @@ Update the project's entry:
 - Latest RAM path → final (or consolidated) RAM
 - One-line summary → update to reflect completion
 
+If Step 2.5 included publication, refresh the recipe to `final`, cross-check and stamp it against `30.OUTPUT`, then rerun the cloud-sync dry run and apply with `-Hash` within the same approved scope. This publishes the final RAM and final recipe after closure. Record the resulting `SYNC_REPORT.md` receipt and report any incomplete cloud work separately from project closure.
+
 ### Step 9: Confirm Closure
 
 Present a summary:
 - Acceptance criteria result (X/Y met, or "no criteria set")
-- Deliverables location in OUTPUT_FINAL
+- Deadline in PROJECT_INDEX.md against today's date (met, or late by N days)
+- Deliverables location (`01.PROJECT/{folder_name}/30.OUTPUT/`)
 - Wiki pages created/updated (count and names)
 - MOCs updated (if any)
 - Final RAM location
 - PROJECT_INDEX.md status
+- Unload status and receipt path from Step 2.5 and the post-closure refresh; if declined or incomplete, name the outstanding cloud-sync step. A completed receipt includes the full `10.INPUT` and `30.OUTPUT` copies and a final, verified `20.PROCESS/RECIPE.md`.
 
 Ask: "Project **{project name}** is now formally closed. Anything else before we move on?"
 
@@ -190,7 +214,9 @@ Ask: "Project **{project name}** is now formally closed. Anything else before we
 
 - **Deliverables not ready:** Pause at Step 2. Help the user finish before proceeding. Do not skip deliverable verification.
 - **No wiki-worthy knowledge:** That's fine. Skip Steps 4-5, note "No wiki extraction" in log.md and final summary.
-- **INPUT already emptied:** Work from RAM alone for the knowledge scan.
+- **`10.INPUT/` is empty:** Work from RAM alone for the knowledge scan.
+- **The work will keep running (maintenance, a repeating cycle):** Don't close it. Use `operationalize`.
+- **The workspace has no `01.PROJECT/`:** Stop at Step 1 and tell the user.
 - **No RAM exists:** Create one final RAM summarizing the project before closing, then proceed.
 - **15.WIKI or subfolders missing:** Create the folder hierarchy (`15.WIKI/`, `15.WIKI/processed/`, `15.WIKI/processed/MOC/`) before writing wiki pages.
 - **Multiple projects closing at once:** Run the ceremony sequentially for each project. Do not batch them — each deserves its own scan and confirmation.

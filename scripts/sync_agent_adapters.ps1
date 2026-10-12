@@ -56,9 +56,7 @@ if (-not (Test-Path $manifestPath)) {
 }
 $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
 $skillsDir = Join-Path $WorkspaceRoot $manifest.canonical_skill_dir
-$skills = Get-ChildItem $skillsDir -Directory -ErrorAction SilentlyContinue |
-  Where-Object { Test-Path (Join-Path $_.FullName 'SKILL.md') } |
-  Sort-Object Name
+$skills = @()
 
 $ledgerPath = Join-Path $WorkspaceRoot 'scripts/.agent_adapters_ledger.json'
 $oldLedger = @()
@@ -75,6 +73,75 @@ $oldPaths = @($oldLedger | Where-Object { $_.path } | ForEach-Object { Get-Norma
 $newLedger = New-Object System.Collections.Generic.List[object]
 $plannedPaths = New-Object System.Collections.Generic.List[string]
 $plan = New-Object System.Collections.Generic.List[string]
+
+# Validate every source, output root, and prior generated path before writing or deleting.
+# A ledger copied from another machine/workspace is evidence to review, not deletion authority.
+function Test-Within([string]$path,[string]$root) {
+  $p=(Get-NormalizedPath $path).TrimEnd('\','/')
+  $r=(Get-NormalizedPath $root).TrimEnd('\','/')
+  return $p.Equals($r,[StringComparison]::OrdinalIgnoreCase) -or $p.StartsWith($r+'\',[StringComparison]::OrdinalIgnoreCase)
+}
+function Assert-NoReparseChain([string]$path) {
+  $current=Get-NormalizedPath $path
+  while ($current) {
+    $item=Get-Item -LiteralPath $current -Force -ErrorAction SilentlyContinue
+    if ($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw "Reparse point in adapter path: $current" }
+    $parent=Split-Path -Parent $current
+    if ($parent -eq $current) { break }
+    $current=$parent
+  }
+}
+function Resolve-AdapterPath([string]$relative) {
+  if (-not $relative -or [IO.Path]::IsPathRooted($relative) -or $relative -match '(^|[\\/])\.\.([\\/]|$)|:') { throw 'Adapter paths must be relative and inside the workspace.' }
+  $absolute=Get-NormalizedPath (Join-Path $WorkspaceRoot $relative)
+  if ($absolute.TrimEnd('\','/') -eq $WorkspaceRoot.TrimEnd('\','/') -or -not (Test-Within $absolute $WorkspaceRoot)) { throw 'Adapter path escapes the workspace.' }
+  return $absolute
+}
+Assert-NoReparseChain $WorkspaceRoot
+Assert-NoReparseChain $manifestPath
+Assert-NoReparseChain $ledgerPath
+Assert-NoReparseChain (Resolve-AdapterPath $manifest.canonical_skill_dir)
+Assert-NoReparseChain (Resolve-AdapterPath $manifest.agents_md)
+$skills = Get-ChildItem $skillsDir -Directory -ErrorAction SilentlyContinue |
+  Where-Object { Test-Path (Join-Path $_.FullName 'SKILL.md') } |
+  Sort-Object Name
+foreach ($s in $skills) { Assert-NoReparseChain $s.FullName; Assert-NoReparseChain (Join-Path $s.FullName 'SKILL.md') }
+$outputRoots=New-Object System.Collections.Generic.List[string]
+$outputFiles=New-Object System.Collections.Generic.List[string]
+foreach ($t in $manifest.targets) {
+  if (-not $t.enabled) { continue }
+  foreach ($inst in $t.install) {
+    $outputRoot=Resolve-AdapterPath $inst
+    Assert-NoReparseChain $outputRoot
+    if ((Test-Within $outputRoot $skillsDir) -or (Test-Within $skillsDir $outputRoot)) { throw 'Adapter output and canonical skills must be separate folders.' }
+    $outputRoots.Add($outputRoot)
+  }
+  if ($t.instructions_file) {
+    $outputFile=Resolve-AdapterPath $t.instructions_file
+    Assert-NoReparseChain $outputFile
+    $outputFiles.Add($outputFile)
+  }
+  if ($t.mechanism -eq 'adapter') {
+    $fmt=$manifest.formats.($t.format)
+    Assert-NoReparseChain (Resolve-AdapterPath $fmt.template)
+    if ($fmt.ext -notmatch '^\.[A-Za-z0-9.]+$') { throw 'Unsupported adapter filename extension.' }
+    foreach ($inst in $t.install) {
+      foreach ($s in $skills) { Assert-NoReparseChain (Join-Path (Resolve-AdapterPath $inst) ($s.Name+$fmt.ext)) }
+    }
+    if ($fmt.emit_readme) { Assert-NoReparseChain (Join-Path (Resolve-AdapterPath $t.install[0]) 'README.md') }
+  }
+}
+foreach ($old in $oldLedger) {
+  if (-not $old.path) { continue }
+  $oldPath=Get-NormalizedPath ([string]$old.path)
+  $allowed=$outputFiles.Contains($oldPath)
+  foreach ($outputRoot in $outputRoots) {
+    if ($oldPath.TrimEnd('\','/') -ne $outputRoot.TrimEnd('\','/') -and (Test-Within $oldPath $outputRoot)) { $allowed=$true }
+  }
+  if (-not $allowed) { throw 'Adapter ledger contains a path outside the configured adapter outputs; review it before regeneration.' }
+  Assert-NoReparseChain (Split-Path -Parent $oldPath)
+  if ($old.mode -eq 'generate') { Assert-NoReparseChain $oldPath }
+}
 
 function Get-SkillMeta($skillDir){
   $raw = Get-Content (Join-Path $skillDir.FullName 'SKILL.md') -Raw

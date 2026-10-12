@@ -1,107 +1,79 @@
 <#
 .SYNOPSIS
-  One-command install of the agent setup on a fresh machine.
-
+Download the agent setup and install a local Windows hub with PowerShell 7.
 .DESCRIPTION
-  Step zero of the consumer pipeline. Checks prerequisites, clones (or updates) the
-  public repo into a local cache OUTSIDE OneDrive, then delegates the actual install
-  to Get-AgentSetup.ps1 from the freshly synced repo (run under pwsh 7+).
-
-      GitHub  ->  cache repo (default C:\000.agentsetup_repo)  ->  your new hub (-Destination)
-
-  Runs from Windows PowerShell 5.1 or pwsh. Every step is re-runnable (idempotent).
-
-.EXAMPLE
-  # brand-new machine, straight from the web:
-  #   irm https://raw.githubusercontent.com/hchoi41/agentsetup/main/Bootstrap.ps1 -OutFile "$env:TEMP\Bootstrap.ps1"
-  #   & "$env:TEMP\Bootstrap.ps1" -Destination C:\000.newhub -DryRun
-  #   & "$env:TEMP\Bootstrap.ps1" -Destination C:\000.newhub
-  # or from a local copy of the repo:
-  .\Bootstrap.ps1 -Destination C:\000.newhub -DryRun
-  .\Bootstrap.ps1 -Destination C:\000.newhub
-
-.NOTES
-  Author: Claude, 2026-08-20. Max-approved; closes payload_manifest open_items O4.
-  Guards (2026-08-20 incident lesson): refuses OneDrive paths for both -Destination and
-  -CacheRoot — runtime hubs and git working copies live OUTSIDE OneDrive by design,
-  because sync churn corrupts .git and floods OneDrive storage.
+Runs in Windows PowerShell 5.1 or PowerShell 7. It never resets a dirty cache.
+Use -SourceRoot with an extracted ZIP to install without Git or network access.
 #>
 [CmdletBinding()]
 param(
   [Parameter(Mandatory)][string]$Destination,
-  [string]$RepoUrl   = 'https://github.com/hchoi41/agentsetup.git',
-  [string]$CacheRoot = 'C:\000.agentsetup_repo',
+  [string]$RepoUrl='https://github.com/hchoi41/agentsetup.git',
+  [string]$CacheRoot=(Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'AgentSetup\repo'),
+  [string]$SourceRoot,
   [switch]$Force,
-  [switch]$DryRun
+  [switch]$DryRun,
+  [switch]$CopyAdapters,
+  [switch]$SetUserEnvironment
 )
-$ErrorActionPreference = 'Stop'
-function Say([string]$m, [string]$c = 'Gray') { Write-Host $m -ForegroundColor $c }
-function Step([string]$m) { Write-Host "`n== $m" -ForegroundColor Cyan }
-
-# ---------------------------------------------------------------- 0. PREFLIGHT
-Step '0. Preflight'
-$missing = @()
-foreach ($c in @('git', 'pwsh')) {
-  if (Get-Command $c -ErrorAction SilentlyContinue) { Say "  ok   $c" 'DarkGreen' }
-  else { Say "  FAIL $c (required)" 'Red'; $missing += $c }
+$ErrorActionPreference='Stop'
+if (-not (Get-Command pwsh -ErrorAction SilentlyContinue)) { throw 'Install PowerShell 7+ (pwsh) through your approved software channel first.' }
+function Full([string]$Path) {
+  $absolute=[IO.Path]::GetFullPath($Path)
+  if ($absolute.TrimEnd('\','/') -eq [IO.Path]::GetPathRoot($absolute).TrimEnd('\','/')) { throw 'Drive or share roots are not installation folders.' }
+  $absolute.TrimEnd('\','/')
 }
-if ($missing.Count -gt 0) {
-  Say '  install hints:  winget install Git.Git   |   winget install Microsoft.PowerShell' 'Yellow'
-  throw "missing required tool(s): $($missing -join ', ')"
-}
-
-# OneDrive guard: hubs and git working copies never live inside OneDrive.
-foreach ($pair in @(@('Destination', $Destination), @('CacheRoot', $CacheRoot))) {
-  $full = [System.IO.Path]::GetFullPath($pair[1])
-  if ($full -match '(?i)\\OneDrive(\\|$)') {
-    throw "BOOTSTRAP GUARD: -$($pair[0]) '$full' is under OneDrive. Runtime hubs and git working copies live OUTSIDE OneDrive (sync churn corrupts them). Pick a local path like C:\000.myhub."
+function Within([string]$Path,[string]$Root) { $Path.Equals($Root,[StringComparison]::OrdinalIgnoreCase) -or $Path.StartsWith($Root+'\',[StringComparison]::OrdinalIgnoreCase) }
+function Check-Local([string]$Path) {
+  if ($Path -match '(?i)\\OneDrive(?: - [^\\]+)?(?:\\|$)') { throw 'Use folders outside OneDrive.' }
+  foreach ($syncRoot in @($env:OneDrive,$env:OneDriveCommercial,$env:OneDriveConsumer)) {
+    if ($syncRoot -and (Within $Path (Full $syncRoot))) { throw 'Use folders outside OneDrive.' }
+  }
+  $current=$Path
+  while ($current) {
+    $item=Get-Item -LiteralPath $current -Force -ErrorAction SilentlyContinue
+    if ($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw "Reparse point in install path: $current" }
+    $parent=Split-Path -Parent $current
+    if ($parent -eq $current) { break }
+    $current=$parent
   }
 }
-Say "  destination   $Destination"
-Say "  cache repo    $CacheRoot"
-
-# ---------------------------------------------------------------- 1. GET THE REPO
-Step '1. Get the repo'
-if (Test-Path -LiteralPath (Join-Path $CacheRoot '.git')) {
-  if ($DryRun) { Say '  -DryRun: would fetch + reset the cache to origin/main' 'Yellow' }
-  else {
-    Push-Location $CacheRoot
-    try {
-      git fetch origin 2>&1 | ForEach-Object { Say "  $_" }
-      if ($LASTEXITCODE -ne 0) { throw "git fetch failed ($LASTEXITCODE)" }
-      git rev-parse --verify --quiet origin/main *> $null
-      if ($LASTEXITCODE -eq 0) {
-        git reset --hard origin/main 2>&1 | ForEach-Object { Say "  $_" }
-        if ($LASTEXITCODE -ne 0) { throw "git reset --hard origin/main failed ($LASTEXITCODE)" }
-        Say '  cache synced to origin/main (local edits discarded - the cache is a read-only consumer copy)' 'Green'
-      } else {
-        Say '  origin/main not found on the remote - keeping local state' 'Yellow'
-      }
-    } finally { Pop-Location }
-  }
-} else {
-  if ($DryRun) { Say "  -DryRun: would clone $RepoUrl -> $CacheRoot" 'Yellow' }
-  else {
-    New-Item -ItemType Directory -Force -Path (Split-Path $CacheRoot -Parent) | Out-Null
-    git clone $RepoUrl $CacheRoot
-    if ($LASTEXITCODE -ne 0) { throw "clone failed ($LASTEXITCODE)" }
-  }
-}
-
-# ---------------------------------------------------------------- 2. DELEGATE THE INSTALL
-Step '2. Install via Get-AgentSetup.ps1 (under pwsh)'
-$installer = Join-Path $CacheRoot 'Get-AgentSetup.ps1'
-if (-not (Test-Path -LiteralPath $installer)) {
-  if ($DryRun) {
-    Say "  -DryRun: installer not on disk yet (clone was skipped); a real run would execute $installer" 'Yellow'
-    Say "`nDryRun complete." 'Cyan'
+$Destination=Full $Destination
+Check-Local $Destination
+if (-not $SourceRoot) {
+  if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw 'Install Git first, or download the repository ZIP and use -SourceRoot.' }
+  $CacheRoot=Full $CacheRoot
+  Check-Local $CacheRoot
+  if ((Within $Destination $CacheRoot) -or (Within $CacheRoot $Destination)) { throw 'Destination and cache must be separate folders.' }
+  if (Test-Path -LiteralPath (Join-Path $CacheRoot '.git')) {
+    $origin=(& git -C $CacheRoot remote get-url origin)
+    if ($LASTEXITCODE -ne 0 -or "$origin".Trim() -ne $RepoUrl) { throw 'Cache origin does not match RepoUrl.' }
+    $dirty=@(& git -C $CacheRoot status --porcelain)
+    if ($LASTEXITCODE -ne 0 -or $dirty.Count) { throw 'Cache has local changes; preserve them and use a separate cache.' }
+    if (-not $DryRun) {
+      & git -C $CacheRoot pull --ff-only
+      if ($LASTEXITCODE -ne 0) { throw 'Cache update failed; no installation performed.' }
+    } else { Write-Host 'DRY RUN: would update the clean cache with git pull --ff-only.' }
+  } elseif ($DryRun) {
+    Write-Host 'DRY RUN: would clone and validate the repository, then install. Nothing written.'
     return
+  } else {
+    if ((Test-Path -LiteralPath $CacheRoot) -and @(Get-ChildItem -LiteralPath $CacheRoot -Force).Count) { throw 'Cache folder is nonempty and is not a Git checkout.' }
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $CacheRoot) | Out-Null
+    & git clone $RepoUrl $CacheRoot
+    if ($LASTEXITCODE -ne 0) { throw 'Repository clone failed.' }
   }
-  throw "Get-AgentSetup.ps1 not found at $installer - the repo clone looks incomplete"
+  $SourceRoot=$CacheRoot
 }
-$gasArgs = @('-NoProfile', '-File', $installer, '-Destination', $Destination, '-RepoUrl', $RepoUrl, '-CacheRoot', $CacheRoot)
-if ($Force)  { $gasArgs += '-Force' }
-if ($DryRun) { $gasArgs += '-DryRun' }
-& pwsh @gasArgs
-if ($LASTEXITCODE -ne 0) { throw "Get-AgentSetup.ps1 returned $LASTEXITCODE - inspect its output above" }
-Say "`nBootstrap complete. Hub at $Destination" 'Cyan'
+$SourceRoot=Full $SourceRoot
+Check-Local $SourceRoot
+if ((Within $Destination $SourceRoot) -or (Within $SourceRoot $Destination)) { throw 'Destination and source must be separate folders.' }
+$installer=Join-Path $SourceRoot 'Get-AgentSetup.ps1'
+if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) { throw 'SourceRoot has no Get-AgentSetup.ps1; use the repository root.' }
+$argsForInstaller=@('-NoProfile','-File',$installer,'-Destination',$Destination,'-SourceRoot',$SourceRoot)
+if ($Force) { $argsForInstaller+='-Force' }
+if ($DryRun) { $argsForInstaller+='-DryRun' }
+if ($CopyAdapters) { $argsForInstaller+='-CopyAdapters' }
+if ($SetUserEnvironment) { $argsForInstaller+='-SetUserEnvironment' }
+& pwsh @argsForInstaller
+if ($LASTEXITCODE -ne 0) { throw "Installer failed with exit code $LASTEXITCODE." }

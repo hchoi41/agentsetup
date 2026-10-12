@@ -7,10 +7,11 @@
 | Path | Access | Purpose |
 | --- | --- | --- |
 | `00.ABOUT/` | read-only¹ | Governance, project manifest, protocols |
-| `01.INPUT/` (`must_read/`) | read-only | Source material; curated startup context |
+| `01.PROJECT/<project>/10.INPUT/` | writable (create/edit); deletion requires Max's explicit permission | Source material |
+| `01.PROJECT/<project>/20.PROCESS/` | writable | Drafts, in-progress work, active plans |
+| `01.PROJECT/<project>/30.OUTPUT/` | read-only | Completed deliverables |
 | `02.INPUT_TEMPLATES/` | read-only | Reusable structures |
-| `03.OUTPUT_FINAL/` | read-only | Completed deliverables |
-| `11.OUTPUT_ROUGH/` | writable | Drafts, in-progress work, active plans |
+| `10.OPERATION/<operation>/` | INPUT read-only; PROCESS writable; OUTPUT read-only | Ongoing work, same three subfolders; `OPERATIONS_DASHBOARD.md` holds the on/off switches |
 | `12.MEMORY_RAM/` | writable | Cross-session working memory |
 | `13.MEMORY_HDD/` | append-only | Long-term history, transcripts |
 | `14.LESSONS_LEARNED/` | writable | Confirmed lessons |

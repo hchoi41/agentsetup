@@ -86,14 +86,14 @@ Then run additional free-text Notion searches to catch anything outside those da
 
 Record each item's Notion page URL / ID so the carbon copy is traceable back to the original.
 
-**B3 — Start the project.** Activate the **`/start-project`** skill to formalize this application as a tracked project. That creates the paired `11.OUTPUT_ROUGH/{project}/` + `03.OUTPUT_FINAL/{project}/` folders, registers the project, and creates the initial RAM. Name the project after the company + role. The extracted JD is the natural "reference document" for `start-project`'s acceptance-criteria step.
+**B3 — Start the project.** Activate the **`/start-project`** skill to formalize this application as a tracked project. That creates the project folder `01.PROJECT/{project}/` with `10.INPUT/`, `20.PROCESS/` and `30.OUTPUT/`, registers the project, and creates the initial RAM. Name the project after the company + role. The extracted JD is the natural "reference document" for `start-project`'s acceptance-criteria step.
 
-**B4 — Carbon-copy into OUTPUT_ROUGH.** Write the extracted JD and context as files **inside the project folder `start-project` just created** (`11.OUTPUT_ROUGH/{project}/`). These are carbon copies — faithful local reproductions of the Notion source, not summaries. Follow the workspace naming convention `project_content-type_vN_YYYYMMDD`:
+**B4 — Carbon-copy into 20.PROCESS.** Write the extracted JD and context as files **inside the project folder `start-project` just created** (`01.PROJECT/{project}/20.PROCESS/`). These are carbon copies — faithful local reproductions of the Notion source, not summaries. Follow the workspace naming convention `project_content-type_vN_YYYYMMDD`:
 
 - the JD itself — e.g. `{slug}_jd_v1_{YYYYMMDD}.md`
 - the extracted context — e.g. `{slug}_notion-extract_v1_{YYYYMMDD}.md` (status, deadlines, req ID, contacts, prior analysis, source URLs)
 
-**B5 — Hand off to Phase 1.** With the JD carbon-copied into the project's OUTPUT_ROUGH folder, proceed to Phase 1 using the **local copy as the source of record**. If the Notion extract already contains prior JD analysis, fold it into the frame — but re-verify it against the JD text; do not trust stale analysis blindly.
+**B5 — Hand off to Phase 1.** With the JD carbon-copied into the project's `20.PROCESS` folder, proceed to Phase 1 using the **local copy as the source of record**. If the Notion extract already contains prior JD analysis, fold it into the frame — but re-verify it against the JD text; do not trust stale analysis blindly.
 
 ### Window & Coverage Triage (run before Phase 1, either case)
 
@@ -509,7 +509,7 @@ Run the red-team in this order. The biggest volume filters (F1, F3) come first �
 
 When running all three phases together:
 
-0. **Phase 0 — Acquire the JD, then triage.** Route by source: read it from the INPUT folder (Case A, default), or pull it from Notion and carbon-copy it into the project's OUTPUT_ROUGH folder via `/start-project` (Case B). Run the **Window & Coverage Triage** to set the pass budget. Only then start the frame.
+0. **Phase 0 — Acquire the JD, then triage.** Route by source: read it from the INPUT folder (Case A, default), or pull it from Notion and carbon-copy it into the project's `20.PROCESS` folder via `/start-project` (Case B). Run the **Window & Coverage Triage** to set the pass budget. Only then start the frame.
 1. **Phase 1 — Build the JD frame, including the Step 1b company-state brief.** Don't skip or rush — text-level parsing alone reproduces the generic-tailoring failure mode. If the user provides only the target JD, either pull 2–3 similar JDs yourself (if search is available) or ask the user to supply comparable listings. The frame output gets explicit sign-off from the user before advancing.
 2. **Phase 2 — Gap-driven interview against the frame.** Synthesize into bullets that pass both the Impact-Chain Check and the Cliché Review.
 3. **Sculpt pass — Kill / Protect / Build** across the draft before the red-team runs.
@@ -519,7 +519,7 @@ When running all three phases together:
 
 ## Output Expectations
 
-- **Acquired JD (source of record)** — the JD read from INPUT (Case A), or carbon-copied from Notion into `11.OUTPUT_ROUGH/{project}/` alongside a Notion-extract file (status, deadlines, req ID, contacts, source URLs) when Case B applies
+- **Acquired JD (source of record)** — the JD read from INPUT (Case A), or carbon-copied from Notion into `01.PROJECT/{project}/20.PROCESS/` alongside a Notion-extract file (status, deadlines, req ID, contacts, source URLs) when Case B applies
 - **JD frame** — structured skeleton of what the role really asks for (archetype, prongs, hard/preferred filters, vocabulary map, signal intensity, implicit signals)
 - Gap map (structured table) referencing the frame
 - Interview notes / extracted knowledge (for user's reference)
@@ -540,7 +540,7 @@ Canonical rationale: fleet hub `14.LESSONS_LEARNED/lesson_visual-qa-task-routing
 
 ## Edge Cases
 
-- **JD source is Notion**: Run Phase 0 Case B — search the three named databases (2026-06 Job Application KPI Tracker, Job Application Tracker, Job Description Analysis) plus free-text Notion search, confirm the entry if several match, carbon-copy the JD and context into the project's OUTPUT_ROUGH folder via `/start-project`, then start Phase 1 from the local copy.
+- **JD source is Notion**: Run Phase 0 Case B — search the three named databases (2026-06 Job Application KPI Tracker, Job Application Tracker, Job Description Analysis) plus free-text Notion search, confirm the entry if several match, carbon-copy the JD and context into the project's `20.PROCESS` folder via `/start-project`, then start Phase 1 from the local copy.
 - **JD not found in Notion**: If the search returns no clear match, show the user what you found and ask them to point to the exact Notion page or paste the JD — do not proceed on a guess.
 - **User has no existing resume**: Start Phase 1 as usual, then Phase 2 as a full career interview, then build from scratch.
 - **User only wants Phase 3**: Skip the interview, go straight to red-team. But still build a JD frame first (Phase 1) — the red-team needs the frame to evaluate relevance. Flag any gaps that Phase 2 could have filled.
