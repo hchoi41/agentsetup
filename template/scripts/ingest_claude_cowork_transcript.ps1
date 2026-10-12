@@ -186,7 +186,7 @@ function Get-ProjectRootNameFromPath {
         return $Matches[1]
     }
 
-    if ($Path -match '\\([^\\]+)\\(?:00\.ABOUT|00\.DATA|01\.DATA|00\.PROJECTS|02\.PROJECTS|03\.TEMPLATES|01\.INPUT|02\.INPUT_TEMPLATES|03\.OUTPUT_FINAL|11\.DE DELIVERABLES|11\.OUTPUT_ROUGH|12\.DE RAM|12\.MEMORY_RAM|13\.DE LESSONS LEARNED|13\.MEMORY_HDD|14\.LESSONS_LEARNED|88\.DE HDD)(?:\\|$)') {
+    if ($Path -match '\\([^\\]+)\\(?:00\.ABOUT|01\.PROJECT|10\.OPERATION|00\.DATA|01\.DATA|00\.PROJECTS|02\.PROJECTS|03\.TEMPLATES|01\.INPUT|02\.INPUT_TEMPLATES|03\.OUTPUT_FINAL|11\.DE DELIVERABLES|11\.OUTPUT_ROUGH|12\.DE RAM|12\.MEMORY_RAM|13\.DE LESSONS LEARNED|13\.MEMORY_HDD|14\.LESSONS_LEARNED|88\.DE HDD)(?:\\|$)') {  # legacy-path: transcripts from before the layout change name the old folders
         return $Matches[1]
     }
 
@@ -212,7 +212,7 @@ function Get-ProjectRootPathFromPath {
         return $null
     }
 
-    if ($normalizedPath -match '^(?<root>[a-z]:\\.*?)(?:\\(?:00\.about|00\.data|01\.data|00\.projects|02\.projects|03\.templates|01\.input|02\.input_templates|03\.output_final|11\.de deliverables|11\.output_rough|12\.de ram|12\.memory_ram|13\.de lessons learned|13\.memory_hdd|14\.lessons_learned|88\.de hdd)(?:\\|$))') {
+    if ($normalizedPath -match '^(?<root>[a-z]:\\.*?)(?:\\(?:00\.about|01\.project|10\.operation|00\.data|01\.data|00\.projects|02\.projects|03\.templates|01\.input|02\.input_templates|03\.output_final|11\.de deliverables|11\.output_rough|12\.de ram|12\.memory_ram|13\.de lessons learned|13\.memory_hdd|14\.lessons_learned|88\.de hdd)(?:\\|$))') {  # legacy-path: transcripts from before the layout change name the old folders
         return $Matches["root"]
     }
 
@@ -756,7 +756,7 @@ function Get-ArtifactList {
     }
 
     foreach ($path in $ReferencedPaths) {
-        if ($path -match '11\.DE DELIVERABLES|11\.OUTPUT_ROUGH|12\.DE RAM|12\.MEMORY_RAM') {
+        if ($path -match '11\.DE DELIVERABLES|11\.OUTPUT_ROUGH|01\.PROJECT|10\.OPERATION|12\.DE RAM|12\.MEMORY_RAM') {  # legacy-path: transcripts from before the layout change name the old folders
             $artifacts.Add($path)
         }
     }
@@ -813,10 +813,9 @@ function Write-Utf8File {
 Ensure-Directory $WorkspaceRoot
 
 $aboutRoot = Join-Path $WorkspaceRoot "00.ABOUT"
-$inputRoot = Join-Path $WorkspaceRoot "01.INPUT"
+$projectRoot = Join-Path $WorkspaceRoot "01.PROJECT"
 $inputTemplatesRoot = Join-Path $WorkspaceRoot "02.INPUT_TEMPLATES"
-$outputFinalRoot = Join-Path $WorkspaceRoot "03.OUTPUT_FINAL"
-$outputRoughRoot = Join-Path $WorkspaceRoot "11.OUTPUT_ROUGH"
+$operationRoot = Join-Path $WorkspaceRoot "10.OPERATION"
 $ramRoot = Join-Path $WorkspaceRoot "12.MEMORY_RAM"
 $hddRoot = Join-Path $WorkspaceRoot "13.MEMORY_HDD"
 $lessonsLearnedRoot = Join-Path $WorkspaceRoot "14.LESSONS_LEARNED"
@@ -826,10 +825,9 @@ $manifestPath = Join-Path $hddRoot "index\ingest_manifest.jsonl"
 
 foreach ($path in @(
     $aboutRoot,
-    $inputRoot,
+    $projectRoot,
     $inputTemplatesRoot,
-    $outputFinalRoot,
-    $outputRoughRoot,
+    $operationRoot,
     $ramRoot,
     $lessonsLearnedRoot,
     (Join-Path $hddRoot "inbox"),

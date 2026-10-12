@@ -4,9 +4,11 @@
 
 # Read-only roles (do not track)
 00.ABOUT/
-01.INPUT/
+01.PROJECT/*/10.INPUT/
+10.OPERATION/*/10.INPUT/
 02.INPUT_TEMPLATES/
-03.OUTPUT_FINAL/
+01.PROJECT/*/30.OUTPUT/
+10.OPERATION/*/30.OUTPUT/
 
 # System and editor files
 .DS_Store

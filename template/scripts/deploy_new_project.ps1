@@ -1,12 +1,12 @@
 <#
 .SYNOPSIS
-    Scaffolds a new Claude Cowork project workspace using the v5 folder layout.
+    Scaffolds a new agent workspace using the project-first folder layout.
 
 .DESCRIPTION
-    Creates the full v5 folder hierarchy (including WIKI and HDD ingest
-    subfolders), copies governance documents from the clean template, and
-    initialises empty control files (PROJECT_INDEX.md, PROJECT_REGISTRY.json,
-    ingest_manifest.jsonl, log.md).
+    Creates the full folder hierarchy (01.PROJECT, 10.OPERATION with its
+    dashboard, WIKI and HDD ingest subfolders), copies governance documents
+    and scripts from the clean template, and initialises empty control files
+    (PROJECT_INDEX.md, PROJECT_REGISTRY.json, ingest_manifest.jsonl, log.md).
 
     Run once per new project.
 
@@ -106,10 +106,9 @@ Write-Output "Creating workspace at: $TargetPath"
 
 $folders = @(
     "00.ABOUT",
-    "01.INPUT",
+    "01.PROJECT",
     "02.INPUT_TEMPLATES",
-    "03.OUTPUT_FINAL",
-    "11.OUTPUT_ROUGH",
+    "10.OPERATION",
     "12.MEMORY_RAM",
     "13.MEMORY_HDD\inbox",
     "13.MEMORY_HDD\processing",
@@ -148,14 +147,38 @@ foreach ($doc in $governanceDocs) {
 }
 
 # ---------------------------------------------------------------------------
-# Copy ingest script
+# Copy scripts and the operations dashboard
 # ---------------------------------------------------------------------------
 
-$templateScript = Join-Path $TemplatePath "scripts\ingest_claude_cowork_transcript.ps1"
-$destScript = Join-Path $TargetPath "scripts\ingest_claude_cowork_transcript.ps1"
-if (Test-Path -LiteralPath $templateScript) {
-    Copy-Item -LiteralPath $templateScript -Destination $destScript -Force
-    Write-Output "  Copied: scripts\ingest_claude_cowork_transcript.ps1"
+foreach ($name in @("ingest_claude_cowork_transcript.ps1", "operation_switch.ps1")) {
+    $templateScript = Join-Path $TemplatePath "scripts\$name"
+    $destScript = Join-Path $TargetPath "scripts\$name"
+    if (Test-Path -LiteralPath $templateScript) {
+        Copy-Item -LiteralPath $templateScript -Destination $destScript -Force
+        Write-Output "  Copied: scripts\$name"
+    }
+    else {
+        Write-Warning "Template script not found: $name"
+    }
+}
+
+# A new workspace always starts with the EMPTY dashboard. It is written here, not copied from $TemplatePath:
+# when this script is run from a workspace that is in use, a copy would carry that workspace's operations along.
+# (It is the same text that scripts\operation_switch.ps1 writes when the dashboard is missing.)
+$destDashboard = Join-Path $TargetPath "10.OPERATION\OPERATIONS_DASHBOARD.md"
+if (-not (Test-Path -LiteralPath $destDashboard)) {
+    $Dashboard = @(
+        '# Operations Dashboard',
+        '',
+        'One row per operation in this folder. **Switch** is the on/off switch: a run goes ahead only when its row says `ON`. Anything else (`OFF`, no row, a typo) and the run stops before it starts.',
+        '',
+        'Flip a switch by editing the cell, or with `scripts/operation_switch.ps1 on|off <operation>`. For the summary, run `scripts/operation_switch.ps1 status`.',
+        '',
+        '| Operation | Switch | Cadence | Runner | Notes |',
+        '| --- | --- | --- | --- | --- |'
+    ) -join "`n"
+    Write-Utf8File -Path $destDashboard -Content ($Dashboard + "`n")
+    Write-Output "  Created: 10.OPERATION\OPERATIONS_DASHBOARD.md"
 }
 
 # ---------------------------------------------------------------------------
@@ -170,13 +193,13 @@ $manifestPath = Join-Path $TargetPath "13.MEMORY_HDD\index\ingest_manifest.jsonl
 # PROJECT_INDEX.md
 if (-not (Test-Path -LiteralPath $projectIndexPath)) {
     $indexHeader = @(
-        "| project_name | status | latest_ram_path | current_state_summary |",
-        "| --- | --- | --- | --- |"
+        "| project_name | status | latest_ram_path | must_read | current_state_summary | deadline |",
+        "| --- | --- | --- | --- | --- | --- |"
     ) -join [Environment]::NewLine
 
     if ($ProjectName -or $ProjectSlug) {
         $slug = if ($ProjectSlug) { $ProjectSlug } else { Normalize-ProjectSlug $ProjectName }
-        $indexHeader += [Environment]::NewLine + "| $slug | active | | New project workspace created. |"
+        $indexHeader += [Environment]::NewLine + "| $slug | active | | | New project workspace created. | |"
     }
 
     Write-Utf8File -Path $projectIndexPath -Content ($indexHeader + [Environment]::NewLine)
@@ -233,7 +256,7 @@ if (-not (Test-Path -LiteralPath $wikiLogPath)) {
 }
 
 # ---------------------------------------------------------------------------
-# Create OUTPUT conjugate pair (if project specified)
+# Create the first project folder (if project specified)
 # ---------------------------------------------------------------------------
 
 if ($ProjectName -or $ProjectSlug) {
@@ -241,15 +264,12 @@ if ($ProjectName -or $ProjectSlug) {
     $datePrefix = (Get-Date -Format "yyyyMMdd")
     $subfolderName = "${datePrefix}_${slug}"
 
-    $roughSubfolder = Join-Path $TargetPath "11.OUTPUT_ROUGH\$subfolderName"
-    $finalSubfolder = Join-Path $TargetPath "03.OUTPUT_FINAL\$subfolderName"
+    foreach ($sub in @("10.INPUT", "20.PROCESS", "30.OUTPUT")) {
+        Ensure-Directory (Join-Path $TargetPath "01.PROJECT\$subfolderName\$sub")
+    }
 
-    Ensure-Directory $roughSubfolder
-    Ensure-Directory $finalSubfolder
-
-    Write-Output "  Created conjugate pair:"
-    Write-Output "    11.OUTPUT_ROUGH\$subfolderName"
-    Write-Output "    03.OUTPUT_FINAL\$subfolderName"
+    Write-Output "  Created project folder:"
+    Write-Output "    01.PROJECT\$subfolderName  (10.INPUT, 20.PROCESS, 30.OUTPUT)"
 }
 
 # ---------------------------------------------------------------------------
@@ -259,7 +279,7 @@ if ($ProjectName -or $ProjectSlug) {
 Write-Output ""
 Write-Output "Deployment complete."
 Write-Output "  Workspace: $TargetPath"
-Write-Output "  Layout: v5 (CLAUDE.md v5.2)"
+Write-Output "  Layout: project-first (01.PROJECT, 10.OPERATION)"
 if ($ProjectName -or $ProjectSlug) {
     $slug = if ($ProjectSlug) { $ProjectSlug } else { Normalize-ProjectSlug $ProjectName }
     Write-Output "  Project: $slug"

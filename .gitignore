@@ -63,3 +63,8 @@ Thumbs.db
 *.swp
 .vscode/
 .idea/
+
+# Private project-first work never belongs in the public payload.
+/01.PROJECT/
+/10.OPERATION/
+/skills/cloud-sync/evals/

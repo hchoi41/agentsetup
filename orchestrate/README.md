@@ -1,6 +1,6 @@
 # Orchestrate — generalized multi-LLM "tiki-taka" conductor
 
-`Orchestrate.ps1` (hub root) generalizes the build-only `Orchestrate-Build.ps1` into a
+`orchestrate/Orchestrate.ps1` generalizes the earlier build-only conductor into a
 **config-driven** loop: the roles stay locked, the **gate is pluggable**, and each **job**
 is a JSON file. The same proven loop drives **code** or a **document**.
 
@@ -56,17 +56,18 @@ Code jobs lean on layer 1 (pytest can't be argued with). Doc jobs lean on layer 
 ## Run it
 
 ```powershell
+# Run from the installed hub root. Pass HubRoot because the engine lives in orchestrate/.
 # 1) check the CLIs are on PATH + authed (no LLM spend)
-.\Orchestrate.ps1 -Config orchestrate\configs\design_doc_retrofit.json -Preflight
+.\orchestrate\Orchestrate.ps1 -HubRoot $PWD.Path -Config orchestrate\configs\_template_code_job.json -Preflight
 
 # 2) print the resolved plan — roles, gate, per-task instructions (no LLM spend)
-.\Orchestrate.ps1 -Config orchestrate\configs\design_doc_retrofit.json -DryRun
+.\orchestrate\Orchestrate.ps1 -HubRoot $PWD.Path -Config orchestrate\configs\_template_code_job.json -DryRun
 
 # 3) run for real (SPENDS Codex/Copilot credits + Claude tokens)
-.\Orchestrate.ps1 -Config orchestrate\configs\design_doc_retrofit.json
+.\orchestrate\Orchestrate.ps1 -HubRoot $PWD.Path -Config orchestrate\configs\my_job.json
 
 # one task only
-.\Orchestrate.ps1 -Config orchestrate\configs\design_doc_retrofit.json -Task A
+.\orchestrate\Orchestrate.ps1 -HubRoot $PWD.Path -Config orchestrate\configs\my_job.json -Task A
 ```
 
 Run artifacts (per-task make/fix logs, gate output, review JSON, `BUGS.md`) land in
@@ -74,8 +75,9 @@ Run artifacts (per-task make/fix logs, gate output, review JSON, `BUGS.md`) land
 
 ## Bundled jobs
 
-- `configs\v1a_core_build.json` — backward-compat: the original 12-task code build, now driven by the generalized conductor (idempotent re-run; pytest gate).
-- `configs\design_doc_retrofit.json` — first **document** job: retrofit spec v9→v10 and arch v7→v8 to the design-doc principles, additive-only, additive-diff gate + "strong" rubric.
+- `configs\_template_code_job.json` is the only bundled job configuration. Copy it to a new
+  job file, set the actual plan, artifacts, gate and tasks, then preview before running.
+- Machine-specific and historical job configurations are deliberately excluded.
 
 ## Escalation (chain of command)
 

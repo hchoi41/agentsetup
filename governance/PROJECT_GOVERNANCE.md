@@ -2,7 +2,7 @@
 
 Universal rules that all agents follow regardless of which agent system they belong to. These rules govern folder access, naming, project identity, and context protocols.
 
-Governance version: v2.3 (2026-08-22)
+Governance version: v3.0 (2026-10-11)
 
 ## Folder Governance
 
@@ -11,10 +11,12 @@ Use role first and label second. The role is authoritative even if the on-disk l
 | Role | Preferred label | CRUD status | Purpose |
 | --- | --- | --- | --- |
 | `ABOUT` | `00.ABOUT` | Read-only except `PROJECT_INDEX.md` | Workspace identity, rules, assumptions, and orchestration protocol |
-| `INPUT` | `01.INPUT` | Read-only | Input material for the task |
+| `PROJECT` | `01.PROJECT` | Per subfolder | One folder per project — one-time work with a firm deadline — holding that project's `INPUT`, `PROCESS` and `OUTPUT` |
+| `INPUT` | `01.PROJECT/<project>/10.INPUT` | Writable (create/edit); deletion requires Max's explicit permission | Input material for the task |
+| `PROCESS` | `01.PROJECT/<project>/20.PROCESS` | Writable | New outputs, drafts, revisions, and project artifacts |
+| `OUTPUT` | `01.PROJECT/<project>/30.OUTPUT` | Read-only | Completed work, references, archives, and historical material |
 | `INPUT_TEMPLATES` | `02.INPUT_TEMPLATES` | Read-only | Proven structures and patterns to reuse |
-| `OUTPUT_FINAL` | `03.OUTPUT_FINAL` | Read-only | Completed work, references, archives, and historical material |
-| `OUTPUT_ROUGH` | `11.OUTPUT_ROUGH` | Writable | New outputs, drafts, revisions, and project artifacts |
+| `OPERATION` | `10.OPERATION` | Per subfolder | One folder per operation — ongoing or cyclical work — holding `INPUT` (read-only), `PROCESS` (writable) and `OUTPUT` (read-only). `OPERATIONS_DASHBOARD.md` is its switchboard, edited by the user (or `scripts/operation_switch.ps1` at the user's request): a run goes ahead only when its row says `ON`, and never writes to it |
 | `MEMORY_RAM` | `12.MEMORY_RAM` | Writable | Cross-session working memory and handoff checkpoints |
 | `MEMORY_HDD` | `13.MEMORY_HDD` | Writable append-only | Long-term transcript archives, capsules, ingest state, and history indexes |
 | `LESSONS_LEARNED` | `14.LESSONS_LEARNED` | Writable | Confirmed lessons worth retaining |
@@ -31,7 +33,24 @@ Rules:
 - When a writable role is missing, create the role folder and its required subfolders before use.
 - If a folder is not mapped to any recognized role, treat it as read-only by default.
 - If two folders appear to serve the same role, stop and ask before writing.
+- Nothing sits loose under `01.PROJECT` or `10.OPERATION` except the dashboard: every file belongs to one project's or operation's `INPUT`, `PROCESS` or `OUTPUT`.
+- After the workspace's layout update is complete, agents may create and edit files in project `01.PROJECT/<project>/10.INPUT`. Deleting any file or folder there requires Max's explicit permission. Operation `10.INPUT`, unmigrated root input folders, `02.INPUT_TEMPLATES`, and `00.ABOUT/must_read` remain read-only unless Max separately authorizes a change.
 - Required HDD ingest hierarchy: `inbox`, `processing`, `raw_transcripts`, `capsules`, `index`, `failed`.
+
+### Legacy paths
+
+A workspace that still has `01.INPUT`, `11.OUTPUT_ROUGH` or `03.OUTPUT_FINAL` at its root has not fully moved to the layout above: those folders still carry the `INPUT`, `PROCESS` and `OUTPUT` roles for the projects inside them. Do not create `01.PROJECT` there and do not move projects by hand; tell the user.
+
+Files written before the move name the old folders. Read those paths as:
+
+| Written as | Read as |
+| --- | --- |
+| `01.INPUT/must_read/…` | `00.ABOUT/must_read/…` |
+| `01.INPUT/<project>/…` | `01.PROJECT/<project>/10.INPUT/…` |
+| `11.OUTPUT_ROUGH/<project>/…` | `01.PROJECT/<project>/20.PROCESS/…` |
+| `03.OUTPUT_FINAL/<project>/…` | `01.PROJECT/<project>/30.OUTPUT/…` |
+
+Where folders were joined or renamed in the move, the exact map is `13.MEMORY_HDD/layout_migration_*/MOVES.csv`. History files keep their old paths; do not rewrite them.
 
 ## Naming Convention
 
@@ -39,15 +58,17 @@ Rules:
 
 Files: `{YYYYMMDD}_{project}_{content_type}_v{N}.{ext}`
 
-Folders: `{YYYYMMDD}_{project}`
+Folders: `{YYYYMMDD}_{type1}_{type2}_{name}`
 
 - `YYYYMMDD`: creation date, local time. Action-led names keep the verb inside the slug (`20260722_analyze_market_entry`) — a verb never displaces the date.
-- `project`: concise project slug, lowercase snake_case.
+- `type1`: one verb for what the work is (`coach`, `analyze`, `build`). `type2`: one theme keyword — the client, subject, or area. `name`: what this one is. Reuse a `type1` and a `type2` that are already in use before coining a new one: they are how later work finds earlier work of the same kind.
+- `project`: concise project slug, lowercase snake_case. For a folder named as above it is the folder name without the date.
 - `content_type`: artifact label (e.g., `newsletter`, `report`, `ram`, `capsule`, `plan`).
 - `v{N}`: start at v1, increment when the same artifact lineage already exists.
 - A folder's date is when the project started; a file's date is when that artifact was written. Divergence as work continues is correct.
 - Abbreviate only the project slug when the name becomes too long.
 - **Legacy names are left as they are.** Files created before this workspace adopted v2.2 follow the older `{project}_{content_type}_{YYYYMMDD}_v1` pattern; do not rename them. Tools must accept both patterns (see `scripts/check_index_freshness.py`).
+- Fixed-name control files are the exception — one per folder, updated in place: `PROJECT_INDEX.md`, `SESSION_HANDOFF.md`, `OPERATIONS_DASHBOARD.md`, `RECIPE.md`, `PROCESS_MANIFEST.json`, `SYNC_REPORT.md`.
 - All names must be valid under Windows and OneDrive constraints.
 - Prohibited characters: `< > : " / \ | ? *`
 - No trailing periods or spaces. No case-only distinctions. No reserved device names (CON, PRN, AUX, NUL, COM1–COM9, LPT1–LPT9).
@@ -69,7 +90,7 @@ Rules:
 
 ## Local-First & Cloud Sync
 
-Work starts in a local hub (the `000.*_local` runtime drives, outside OneDrive). OneDrive workspaces are the **curated, durable store — not a runtime folder**. Transfers between the two go through the `cloud-sync` skill (job-type-aware curation, secret excludes, latest-version-only), never by hand-copying. Agent-setup and tooling artifacts publish to the fleet hub `980.agents_setup`, which carries them to other machines (git transport is managed by Max, not by agents). Generated bulk — caches, envs, `node_modules`, model files, logs, version-iteration noise — never leaves the local hub.
+Work starts in a local hub (the `000.*_local` runtime drives, outside OneDrive). OneDrive workspaces are the **curated, durable store — not a runtime folder**. Transfers between the two go through the `cloud-sync` skill, never by hand-copying: `INPUT` and `OUTPUT` are copied in full, whatever their size or number; `PROCESS` stays local and reaches the cloud as its manifest and a recipe — how the work was done and why; possible secrets are held back until a human clears them. Agent-setup and tooling artifacts publish to the fleet hub `980.agents_setup`, which carries them to other machines (git transport is managed by Max, not by agents). Generated bulk — caches, envs, `node_modules`, model files, logs, version-iteration noise — belongs in `PROCESS` and never leaves the local hub.
 
 **Why (recorded 2026-08-20, per Max):** the fleet originally worked directly in OneDrive. Two failure modes forced the local-first move — ① agent work churns thousands of small files created and deleted rapidly, which OneDrive sync handles badly (frequent sync errors, conflict copies, the very problems `Check-OneDriveSyncHealth.ps1` / `Move-OneDriveGeneratedArtifacts.ps1` were built to fight), and ② at that churn rate OneDrive storage exhausts on a 1–2 year horizon (1 TB is not enough for runtime artifacts). Older workspaces built in the OneDrive-direct era are **legacy by design** — do not "fix" them onto this model retroactively; new runtime work simply starts local.
 
@@ -89,10 +110,11 @@ Work starts in a local hub (the `000.*_local` runtime drives, outside OneDrive).
 Minimum fields per project:
 
 - project name
-- status: `active`, `paused`, or `completed`
+- status: `active`, `paused`, `completed`, or `operation` (ongoing work in `10.OPERATION`; whether it is switched on lives only on the dashboard)
 - latest RAM path
-- must_read: relative path to a curated folder (typically `01.INPUT/must_read/`) containing files to load at startup. The user manages this folder directly. Optional; empty means only ABOUT is loaded.
+- must_read: relative path to a curated folder (typically `00.ABOUT/must_read/`) containing files to load at startup. The user manages this folder directly. Optional; empty means only ABOUT is loaded.
 - one-line current-state summary
+- deadline: `YYYY-MM-DD` for a project — a project has a firm deadline; empty for an operation. The table's last column.
 
 Rules:
 
