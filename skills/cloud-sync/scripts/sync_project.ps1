@@ -50,7 +50,7 @@ param(
   [string]$SrcRoot = $env:AGENT_HUB_ROOT,    # local hub root
   [string]$DstRoot,                          # OneDrive workspace root (not needed with -RecipeOnly)
   [string]$DstName,                          # folder name in the destination, when it differs from -Project
-  [string]$Slug,                             # the name RAM files carry; default: the folder name without its date prefix
+  [string]$Slug,                             # stable RAM prefix; defaults to semantic operation name or date-first project name
   [string[]]$Allow = @(),                    # paths (relative to the project folder) a human cleared after a secret match
   [string[]]$OverwriteNewer = @(),           # paths whose cloud copy is newer and may be overwritten by the hub's
   [switch]$Hash,                             # compare and verify by SHA-256 instead of size and time (reads every file)
@@ -99,6 +99,24 @@ function Get-Sha { param([string]$Path) return (Get-FileHash -LiteralPath $Path 
 function Stop-Blocked { param([string]$Msg) Write-Host "RESULT: BLOCKED - $Msg" -ForegroundColor Red; exit 1 }
 function Test-FolderName { param([string]$Name) return ($Name -and $Name -notmatch '[\\/:*?"<>|]' -and $Name -ne '.' -and $Name -ne '..' -and $Name -eq $Name.Trim()) }
 function Test-Layout { param([string]$Root) return (Test-Path -LiteralPath (Join-Path $Root '01.PROJECT') -PathType Container) }
+function Get-OperationNameParts { param([string]$Name)
+  # Recognize only the canonical suffix. Keep legacy names on their existing path.
+  # Windows comparisons ignore case; no name or registry identity is rewritten.
+  if (-not (Test-FolderName $Name) -or $Name.Length -gt 255 -or $Name.StartsWith('.') -or $Name.EndsWith('.') -or $Name -match '\p{Cc}') { return $null }
+  $match = [regex]::Match($Name, '^(?<semantic>.+)_(?<date>[0-9]{8})_v(?<major>0|[1-9][0-9]*)\.(?<minor>[0-9]{2})$', [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+  if (-not $match.Success) { return $null }
+  $semantic = $match.Groups['semantic'].Value
+  if ($semantic -ne $semantic.Trim() -or $semantic.StartsWith('.') -or $semantic.EndsWith('.') -or $semantic -match '(?:^|_)[0-9]{8}_[vV][^_]*$') { return $null }
+  $baseName = ($semantic -split '\.', 2)[0].TrimEnd(' ')
+  if ($baseName -match '^(?i:CON|PRN|AUX|NUL|COM[1-9¹²³]|LPT[1-9¹²³]|CONIN\$|CONOUT\$|CLOCK\$)$') { return $null }
+  $date = $match.Groups['date'].Value
+  $parsedDate = [datetime]::MinValue
+  if (-not [datetime]::TryParseExact($date, 'yyyyMMdd', [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::None, [ref]$parsedDate)) { return $null }
+  $version = $match.Groups['major'].Value + '.' + $match.Groups['minor'].Value
+  if ($version -ceq '0.00') { return $null }
+  # Compare canonical version strings directly: even a large major cannot overflow.
+  return @{ Semantic = $semantic; Date = $date; Version = $version }
+}
 function Split-PathList { param([string[]]$Items, [string]$Base)
   $out = New-Object System.Collections.Generic.List[string]
   foreach ($a in $Items) {
@@ -195,7 +213,9 @@ try {
   $Kind = $kinds[0]
   $KindWord = if ($Kind -eq '01.PROJECT') { 'project' } else { 'operation' }
   $SrcProj = Join-Parts $SrcRoot @($Kind, $Project)
-  if (-not $Slug) { $Slug = $Project -replace '^\d{8}_', '' }
+  $operationName = if ($Kind -eq '10.OPERATION') { Get-OperationNameParts $Project } else { $null }
+  if (-not $Slug) { $Slug = if ($operationName) { $operationName.Semantic } else { $Project -replace '^\d{8}_', '' } }
+  $explicitDstName = -not [string]::IsNullOrEmpty($DstName)
   if (-not $DstName) { $DstName = $Project }
 
   # ---- resolve destination ----
@@ -212,6 +232,16 @@ try {
       Stop-Blocked "'$DstName' is a $KindWord here but sits under $otherKind in the destination: reconcile that first"
     }
     $DstProj = Join-Parts $DstRoot @($Kind, $DstName)
+    if ($operationName -and -not $explicitDstName -and -not (Test-Path -LiteralPath $DstProj)) {
+      $dstOperations = Join-Path $DstRoot '10.OPERATION'
+      if (Test-Path -LiteralPath $dstOperations -PathType Container) {
+        $otherVersions = @(foreach ($sibling in (Get-ChildItem -LiteralPath $dstOperations -Directory -Force)) {
+          $parts = Get-OperationNameParts $sibling.Name
+          if ($parts -and [string]::Equals($parts.Semantic, $operationName.Semantic, [StringComparison]::OrdinalIgnoreCase) -and $parts.Date -ceq $operationName.Date -and $parts.Version -cne $operationName.Version) { $sibling.Name }
+        })
+        if ($otherVersions.Count) { Stop-Blocked "Operation lineage already exists under another destination version: $($otherVersions -join ', '). Review that counterpart and pass -DstName explicitly, or reconcile names first; no parallel operation was created." }
+      }
+    }
   }
 
   $AllowNow = Split-PathList $Allow $SrcProj

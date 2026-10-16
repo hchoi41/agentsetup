@@ -421,6 +421,30 @@
       "dest": "tests/install/Test-AgentSelection.ps1",
       "mode": "file",
       "note": "Prompt-first optional CLI onboarding; no user selections, credentials or generated fixtures."
+    },
+    {
+      "src": "AGENTS_SETUP/install_v5_clean/scripts/operation_name.ps1",
+      "dest": "scripts/operation_name.ps1",
+      "mode": "file",
+      "note": "Operation name/date/version conversion; read-only helper and disposable tests."
+    },
+    {
+      "src": "AGENTS_SETUP/install_v5_clean/scripts/operation_name.ps1",
+      "dest": "template/scripts/operation_name.ps1",
+      "mode": "file",
+      "note": "Operation name/date/version conversion; read-only helper and disposable tests."
+    },
+    {
+      "src": "STAGED/Test-OperationNames.ps1",
+      "dest": "tests/install/Test-OperationNames.ps1",
+      "mode": "file",
+      "note": "Operation name/date/version conversion; read-only helper and disposable tests."
+    },
+    {
+      "src": "STAGED/Test-OperationSync.ps1",
+      "dest": "tests/install/Test-OperationSync.ps1",
+      "mode": "file",
+      "note": "Disposable operation naming and RAM/sync compatibility regression."
     }
   ],
   "exclude_always": [

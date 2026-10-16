@@ -164,7 +164,7 @@ Record the acceptance criteria file path in the RAM created at Step 6 under "Key
 Before creating anything, verify:
 
 1. **Slug collision**: Check PROJECT_REGISTRY.json and PROJECT_INDEX.md for an existing project with the same slug or display name. If found, alert the user and ask how to proceed — rename the new project, or merge into the existing one.
-2. **Folder collision**: Check whether `01.PROJECT/{folder_name}/` already exists. If it does, that's not necessarily an error — the user may have created the folder manually before formalizing. Note what is in it and proceed. Do not overwrite or recreate existing folders. Then check `10.OPERATION/` for a folder with the same slug: if there is one, stop and ask — the user may want `projectify` (turn that operation into a project) rather than a second, parallel folder.
+2. **Folder collision**: Check whether `01.PROJECT/{folder_name}/` already exists. If it does, that's not necessarily an error — the user may have created the folder manually before formalizing. Note what is in it and proceed. Do not overwrite or recreate existing folders. Then check `10.OPERATION/` and registry aliases for the same semantic identity, including `{slug}_YYYYMMDD_v0.01` (and later versions) as well as legacy date-first names: compare identity without the operation date/version suffix. If there is one, stop and ask — the user may want `projectify` (turn that operation into a project) rather than a second, parallel folder. Do not create a new identity merely because the folder format changed.
 
 ### Step 3: Create the Project Folder
 

@@ -238,3 +238,9 @@ Ingest foreign remote changes into the sources before publishing; Direction C re
 cache repo shows which generation you run; re-run `Bootstrap.ps1` to upgrade.
 
 Commit convention: `{type}({scope}): {summary}` — `feat` `fix` `docs` `chore` `refactor` `plan` `research`.
+
+## Operation folder names
+
+Projects keep date-first names. Converting `20261017_build_weekly_digest` produces `10.OPERATION/build_weekly_digest_20261017_v0.01/`. The original creation date is preserved; deliberate revisions advance by 0.01 (`v0.09` → `v0.10`, `v0.99` → `v1.00`). Routine cycles keep their folder/version.
+
+The operationalize/projectify skills use the read-only `scripts/operation_name.ps1` helper, update dashboard keys and live paths, and retain registry identity and version lineage. Projectifying restores `20261017_build_weekly_digest`; returning to operation reuses the recorded version unless a deliberate revision advances it. Existing folders are not renamed by installation. Files retain their date-first artifact naming.
