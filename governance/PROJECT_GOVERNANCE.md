@@ -2,7 +2,7 @@
 
 Universal rules that all agents follow regardless of which agent system they belong to. These rules govern folder access, naming, project identity, and context protocols.
 
-Governance version: v3.0 (2026-10-11)
+Governance version: v3.1 (2026-10-17)
 
 ## Folder Governance
 
@@ -54,18 +54,23 @@ Where folders were joined or renamed in the move, the exact map is `13.MEMORY_HD
 
 ## Naming Convention
 
-**Date first, always** (v2.2 — adopted fleet-wide from the hub's 2026-07-31 ruling; Max navigates by recalling *when* something happened, so `YYYYMMDD_` is the first token):
+**Files and project folders are date first** (v2.2, 2026-07-31). **Operation folders are name first** (v3.1, owner ruling 2026-10-17), so the ongoing activity sorts before its creation date:
 
 Files: `{YYYYMMDD}_{project}_{content_type}_v{N}.{ext}`
 
-Folders: `{YYYYMMDD}_{type1}_{type2}_{name}`
+Project folders: `{YYYYMMDD}_{type1}_{type2}_{name}`
 
-- `YYYYMMDD`: creation date, local time. Action-led names keep the verb inside the slug (`20260722_analyze_market_entry`) — a verb never displaces the date.
+Operation folders: `{operation_name}_{YYYYMMDD}_v0.01`
+
+- `YYYYMMDD`: creation date, local time. Project-to-operation conversion moves the existing creation-date token to the suffix; it does not replace it with the conversion date. Action-led project names keep the verb inside the slug (`20260722_analyze_market_entry`).
 - `type1`: one verb for what the work is (`coach`, `analyze`, `build`). `type2`: one theme keyword — the client, subject, or area. `name`: what this one is. Reuse a `type1` and a `type2` that are already in use before coining a new one: they are how later work finds earlier work of the same kind.
 - `project`: concise project slug, lowercase snake_case. For a folder named as above it is the folder name without the date.
 - `content_type`: artifact label (e.g., `newsletter`, `report`, `ram`, `capsule`, `plan`).
 - `v{N}`: start at v1, increment when the same artifact lineage already exists.
-- A folder's date is when the project started; a file's date is when that artifact was written. Divergence as work continues is correct.
+- A folder's date is when the work started; a file's date is when that artifact was written. Divergence as work continues is correct.
+- An operation starts at `v0.01`. Each deliberate revision of the operation advances by exactly `0.01`: `v0.09` → `v0.10`, `v0.99` → `v1.00`. Use integer hundredths, with exactly two fractional digits. Routine cycles and ordinary file edits do not rename the operation. Keep its name and creation date through revisions.
+- `operationalize` and `projectify` use `scripts/operation_name.ps1` to calculate names. Returning to a project restores `YYYYMMDD_{operation_name}` and records the last operation name/version in its recipe and RAM; a later operationalization reuses that version unless the operation is deliberately revised, when it advances exactly once. Missing or conflicting lineage must be resolved before a repeat conversion. Folder naming does not change the adopted registry identity.
+- Existing operation folders are not renamed merely by installing this policy. Rename on an approved conversion or revision, update live paths and dashboard keys together, and preserve historical records. An occupied destination is a collision to resolve, never a reason to skip versions or merge folders.
 - Abbreviate only the project slug when the name becomes too long.
 - **Legacy names are left as they are.** Files created before this workspace adopted v2.2 follow the older `{project}_{content_type}_{YYYYMMDD}_v1` pattern; do not rename them. Tools must accept both patterns (see `scripts/check_index_freshness.py`).
 - Fixed-name control files are the exception — one per folder, updated in place: `PROJECT_INDEX.md`, `SESSION_HANDOFF.md`, `OPERATIONS_DASHBOARD.md`, `RECIPE.md`, `PROCESS_MANIFEST.json`, `SYNC_REPORT.md`.

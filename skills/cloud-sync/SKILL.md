@@ -39,6 +39,7 @@ All commands below are this skill's `scripts/sync_project.ps1` (PowerShell 7). I
 ### Step 0 — Resolve source and destination
 
 - **Source:** the folder in the local hub — `01.PROJECT/<name>/` for a project, `10.OPERATION/<name>/` for an operation. Resolve the workspace root from `00.ABOUT/PROJECT_REGISTRY.json` (canonical slug + `root_paths`).
+- **Operation identity:** always pass the resolved stable RAM prefix as `-Slug <slug>` for an operation. Preserve its adopted registry identity and RAM filenames across folder revisions; resolve the prefix from the registry and existing RAM/recipe, not from the current version number. The engine's compatibility default recognizes `name_YYYYMMDD_v0.01` and uses `name`; it does not resolve registry identities. Legacy date-first names retain their previous default.
 - **Destination:** the OneDrive workspace that **owns this work's domain**. The folder keeps the same name in the same place. Map by domain, then confirm on first run:
   - job applications / assignments → the job-search OneDrive workspace
   - financial models / market research → the modeling workspace
@@ -46,6 +47,7 @@ All commands below are this skill's `scripts/sync_project.ps1` (PowerShell 7). I
   - general / weekly / personal → the corresponding `000_*` workspace
 - **Both sides must be on the `01.PROJECT` layout.** The script refuses a workspace that has no `01.PROJECT/`. Do not work around it, and never sync into another folder instead.
 - **Collision guard.** If the same work already exists in the destination under a *different* folder name (cross-workspace drift is common), **stop and ask**: sync into that folder (`-DstName <its name>`), or rename one side first. Never create a parallel folder silently. Record the chosen destination so future syncs are unambiguous.
+  For a canonical operation name, the engine refuses an implicit new destination when a sibling has the same semantic name and creation date but another version (Windows case-insensitive comparison). Use `-DstName` only for the explicitly reviewed destination; the engine never renames or deletes an older version. Other identity or legacy-name collisions still require this manual check.
 
 Read the source and destination AGENTS.md / CLAUDE.md before writing. A local `CHARTER.md` domain map, when present, helps choose the destination. External knowledge vaults retain their own roles and access rules; this skill cannot map them into hub folders or bypass either layout guard.
 
@@ -54,6 +56,8 @@ Read the source and destination AGENTS.md / CLAUDE.md before writing. A local `C
 ```
 scripts/sync_project.ps1 -Project <name> -SrcRoot <hub> -DstRoot <OneDrive workspace>
 ```
+
+For an operation, include `-Slug <resolved stable RAM prefix>` in this dry run and every subsequent apply. Retain any reviewed `-DstName` override in the same command.
 
 It changes nothing. Show the user the plan it prints: what will be copied, what is already there, what is **not** copied and why, any blockers, and the three closing lines `FILES:`, `RECIPE:`, `RESULT:`.
 
@@ -121,7 +125,7 @@ Earlier receipts used auto-uploaded/manual-required/pointered categories. On thi
 - `-Allow <path>[,<path>]` — copy a file the secret scan held back. Only after the user cleared that exact file.
 - `-OverwriteNewer <path>[,<path>]` — let the hub's file replace a newer cloud copy. Only after the user chose.
 - `-DstName <folder>` — the destination folder has another name.
-- `-Slug <slug>` — the name the project's RAM files carry, when it is not the folder name without its date.
+- `-Slug <slug>` — the stable prefix the RAM files carry; always resolve and pass it for operations, including revisions. It overrides all folder-name inference.
 - `-Hash` — compare and verify by SHA-256. Slower, and it downloads online-only files in the destination to compare them; use it for the push that closes a project.
 - `-RecipeOnly` — check the recipe; with `-Apply`, also refresh the manifest in the hub.
 
