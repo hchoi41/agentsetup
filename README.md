@@ -25,6 +25,46 @@ the extracted-ZIP route needs no Git. Python 3.11+, Node, and AI CLIs are separa
 dependencies for the workflows that use them. On a managed company PC, obtain those tools
 through its approved software channel; this installer does not change execution policy.
 
+### New computer: one command from the extracted ZIP
+
+No Max-system folders need to exist. The clean installer creates the local hub and all missing
+parent folders; it does not migrate or copy a personal workspace from another PC.
+
+1. Download the ZIP from the [latest release](https://github.com/hchoi41/agentsetup/releases/latest)
+   and choose **Extract All** into a local folder.
+2. Open **PowerShell 7** in the extracted folder containing `Install-MaxAgentSystem.ps1`
+   and `Get-AgentSetup.ps1`.
+3. Run:
+
+   ```powershell
+   pwsh -NoProfile -File .\Install-MaxAgentSystem.ps1
+   ```
+
+The destination defaults to `%LOCALAPPDATA%\AgentSetup\hub`. The wrapper uses the bundled
+payload automatically and copies native skill adapters by default, so this ZIP route needs no
+Git or existing setup. A missing or completely empty destination is accepted; any existing
+contents, including hidden files, are refused. Use `Get-AgentSetup.ps1` below for an existing hub.
+
+Optional examples, run from the same extracted folder:
+
+```powershell
+# Preview without creating the hub or its parent folders.
+pwsh -NoProfile -File .\Install-MaxAgentSystem.ps1 -DryRun
+
+# Choose a different local destination; missing parent folders are created.
+pwsh -NoProfile -File .\Install-MaxAgentSystem.ps1 -Destination 'D:\AgentSetup\hub'
+
+# Opt in to native skill junctions instead of the default copies.
+pwsh -NoProfile -File .\Install-MaxAgentSystem.ps1 -UseJunctions
+```
+
+Choose one install command for your destination. After a successful install, open that hub as
+your agent's working folder and fill in the identity placeholders at the top of `AGENTS.md`.
+`01.PROJECT` starts empty, the project registry has no entries, and no personal history is imported.
+See [INSTALL.md](INSTALL.md) for the folder tree, prerequisites, and first-use steps.
+
+### Network install or update
+
 Download and preview first:
 
 ```powershell
@@ -80,12 +120,15 @@ From the repository root, use a new test folder outside the repository:
 
 ```powershell
 pwsh -NoProfile -File ./tests/install/Test-Install.ps1 -FixtureRoot "$env:TEMP/agentsetup-install-review"
+pwsh -NoProfile -File ./tests/install/Test-CleanInstall.ps1 -FixtureRoot "$env:TEMP/agentsetup-clean-install-review"
 ```
 
 The test leaves its disposable installation, logs, and `validation.json` for inspection.
 It checks the new layout and skills, repeat installs, customization preservation, forced-change
 backups, refusal cases, and unchanged user environment. It does not test your actual company
 computer, configure accounts, or publish anything.
+The clean-install test also covers absent parent folders, an isolated default location,
+empty-folder installation, hidden-file refusal, and the extracted-source Bootstrap route.
 
 ---
 
@@ -93,7 +136,8 @@ computer, configure accounts, or publish anything.
 
 | Path | What |
 |---|---|
-| `Bootstrap.ps1` / `Get-AgentSetup.ps1` | Install onto a machine |
+| `Install-MaxAgentSystem.ps1` / `INSTALL.md` | Clean install from an extracted ZIP; first-use guide |
+| `Bootstrap.ps1` / `Get-AgentSetup.ps1` | Network install/update and existing-hub upgrades |
 | `Publish-AgentSetup.ps1` | Push a new state up from the OneDrive hub |
 | `payload_manifest.json` | The allowlist. Single source of truth for what publishes. |
 | `AGENT_TARGETS.json` | Which agents get the skills, and how (junction vs generated adapter) |

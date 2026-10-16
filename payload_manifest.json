@@ -1,7 +1,7 @@
 {
   "_about": "Machine-readable payload manifest for the hchoi41/agentsetup repo. Consumed by Publish-AgentSetup.ps1. The roots block below is DOCUMENTATION ONLY - the script's parameters are authoritative and resolve on the publishing machine ($env:OneDrive for AGENTS_SETUP). dest paths are relative to the repo root.",
   "schema_version": 1,
-  "generated": "2026-10-12",
+  "generated": "2026-10-16",
   "repo": {
     "url": "https://github.com/hchoi41/agentsetup.git",
     "visibility": "public",
@@ -367,6 +367,24 @@
       "dest": "tests/install/Test-Install.ps1",
       "mode": "file",
       "note": "Self-contained disposable install verification; no account settings or live data."
+    },
+    {
+      "mode": "file",
+      "note": "Fresh-only ZIP entrypoint with automatic local destination; delegates the shared installer.",
+      "src": "STAGED/Install-MaxAgentSystem.ps1",
+      "dest": "Install-MaxAgentSystem.ps1"
+    },
+    {
+      "mode": "file",
+      "note": "Clean setup instructions for a Windows computer with no existing system folders.",
+      "src": "STAGED/INSTALL.md",
+      "dest": "INSTALL.md"
+    },
+    {
+      "mode": "file",
+      "note": "Disposable clean setup regression tests; no account or personal data.",
+      "src": "STAGED/Test-CleanInstall.ps1",
+      "dest": "tests/install/Test-CleanInstall.ps1"
     }
   ],
   "exclude_always": [
