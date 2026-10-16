@@ -108,8 +108,33 @@ Describe the final behavior for a reader who has not seen the working conversati
 
 Trigger: a new machine, a new folder, or a hub that has fallen behind.
 
+### Quick reference: clean install with no existing Max-system folders
+
+Use the downloaded release ZIP for a new hub. Extract it, open PowerShell 7 in the folder
+containing `Install-MaxAgentSystem.ps1`, and run:
+
 ```powershell
-# step zero on a brand-new machine — Bootstrap.ps1 checks git/pwsh, clones (or fast-forwards) a clean
+pwsh -NoProfile -File .\Install-MaxAgentSystem.ps1
+```
+
+- Default destination: `%LOCALAPPDATA%\AgentSetup\hub`. All missing parents are created.
+- Bundled source is selected automatically; no Git, personal-PC copy, or migration is needed.
+- Native skill adapters are copies by default. `-UseJunctions` opts into junctions.
+- `-Destination '<local path>'` chooses another hub. `-DryRun` previews without creating it.
+- Only a missing or completely empty destination is accepted, including no hidden files.
+  An occupied destination must use the existing-hub upgrade route below.
+- Start by opening the installed hub in the agent, reading `AGENTS.md` and `00.ABOUT`, and
+  filling the `AGENTS.md` identity placeholders. The project registry starts empty; no
+  example projects, private history, account login, or scheduled work is imported.
+
+See the repository-root `INSTALL.md` for the standalone first-use guide. PowerShell 7 is the
+installation prerequisite; optional workflow software and AI accounts are installed or
+configured separately through the machine's approved channels. Do not bypass host policy.
+
+### Network and existing-hub routes
+
+```powershell
+# network route — Bootstrap.ps1 checks git/pwsh, clones (or fast-forwards) a clean
 # cache repo to its -CacheRoot default outside OneDrive, then delegates to Get-AgentSetup.ps1:
 irm https://raw.githubusercontent.com/hchoi41/agentsetup/main/Bootstrap.ps1 -OutFile "$env:TEMP\Bootstrap.ps1"
 & "$env:TEMP\Bootstrap.ps1" -Destination <target> -DryRun
