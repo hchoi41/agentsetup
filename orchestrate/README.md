@@ -6,13 +6,40 @@ is a JSON file. The same proven loop drives **code** or a **document**.
 
 ## Locked roles (the "set in advance")
 
-| LLM | Default model | Standing role |
+| LLM | Model selection | Standing role |
 |---|---|---|
-| **Codex** | gpt-5.5 · xhigh | **Maker** (writes/fixes) + **Red-team** (review #1) |
-| **Copilot** | auto | **Reviewer #2** + tie-break input + end-of-run **bug tracker** |
-| **Claude** | opus-4.8 · max | **Conductor** (runs this) + **Referee** (tie-break only, on disagreement) |
+| **Codex** | Job configuration or engine default | **Maker** (writes/fixes) + **Red-team** (review #1) |
+| **Copilot** | Job configuration or engine default | **Reviewer #2** + tie-break input + end-of-run **bug tracker** |
+| **Claude** | Job configuration or engine default | **Conductor** (runs this) + **Referee** (tie-break only, on disagreement) |
 
 `config.roles` may override a role's `model`/`effort` (or swap a `cli`), but not the choreography.
+
+## Choose agents on this computer
+
+New installations begin with agent selection pending. Use `Setup-AgentCLIs.ps1` to
+choose one or more agents, or explicitly choose none. The machine-local choice is saved
+in `00.ABOUT/AGENT_CLI_SETUP.json`; installing a CLI does not authenticate it or prove
+that a paid job can run.
+
+Both engines check that file in their installation root and the resolved job hub, including
+ancestor hubs. Pending, none, or malformed state blocks real runs, preflight and previews
+before provider commands or run writes. None disables multi-agent orchestration even when
+CLIs happen to be installed. Every configured role must use a selected CLI, including the
+conditional referee and final bug tracker. When multiple hub choices apply, all must permit
+the job. Neither engine silently changes a provider, model, or role mapping.
+
+The default job needs Codex, GitHub Copilot CLI and Claude Code. Codex, Copilot and the
+existing experimental Gemini adapter can fill the maker role; Claude cannot. OpenCode's
+skill folders support individual use, but no OpenCode conductor adapter exists. Selecting
+one CLI therefore does not make the default multi-provider job runnable; use individual
+work or explicitly configure supported roles and compatible models.
+
+Existing hubs with no selection state retain legacy behavior. Upgrades preserve saved
+choices. A copied legacy engine without the shared guard can run only if neither root nor
+its ancestors has state; a missing guard beside an opted-in installation is a repair error.
+The shared guard checks selection only. Verify executable availability and authentication
+separately, then review the actual job before spending credits. `Orchestrate2.ps1 -Capabilities`
+only reports its contract and remains available without a configured hub or agent selection.
 
 ## The loop (per task)
 
@@ -57,7 +84,7 @@ Code jobs lean on layer 1 (pytest can't be argued with). Doc jobs lean on layer 
 
 ```powershell
 # Run from the installed hub root. Pass HubRoot because the engine lives in orchestrate/.
-# 1) check the CLIs are on PATH + authed (no LLM spend)
+# 1) inspect CLI version probes (no LLM spend; authentication is NOT checked)
 .\orchestrate\Orchestrate.ps1 -HubRoot $PWD.Path -Config orchestrate\configs\_template_code_job.json -Preflight
 
 # 2) print the resolved plan — roles, gate, per-task instructions (no LLM spend)
@@ -72,6 +99,11 @@ Code jobs lean on layer 1 (pytest can't be argued with). Doc jobs lean on layer 
 
 Run artifacts (per-task make/fix logs, gate output, review JSON, `BUGS.md`) land in
 `_orchestrate\<name>_<timestamp>\`.
+
+The v1 `-Preflight` output is informational: it runs `--version`, does not check login,
+and is not a complete readiness gate (including native exit-status validation). A successful
+preflight command does not establish access to a model or a valid subscription. Complete the
+selected providers' sign-in steps separately; onboarding never runs a paid prompt to test them.
 
 ## Bundled jobs
 

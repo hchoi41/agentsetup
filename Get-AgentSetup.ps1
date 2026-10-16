@@ -88,6 +88,7 @@ foreach ($legacy in @('01.INPUT','11.OUTPUT_ROUGH','03.OUTPUT_FINAL')) {
 }
 
 # Validate a complete, contained copy plan before creating destination files.
+$newHub = -not ((Test-Path -LiteralPath (Join-Path $Destination 'AGENTS.md')) -or (Test-Path -LiteralPath (Join-Path $Destination '00.ABOUT/AGENTSETUP_INSTALL.json')))
 $plan=[ordered]@{}
 function Add-File([string]$From,[string]$To,[bool]$Preserve=$false) {
   $src=Join-Path $SourceRoot $From
@@ -102,6 +103,7 @@ foreach ($doc in @('PROJECT_GOVERNANCE.md','CLAUDE.md','orchestration_protocol.m
   Add-File ('governance/'+$doc) ('00.ABOUT/'+$doc) ($doc -eq 'CLAUDE.md')
 }
 Add-File 'AGENT_TARGETS.json' '00.ABOUT/AGENT_TARGETS.json' $true
+Add-File 'START-HERE.md' '00.ABOUT/AGENT_CLI_ONBOARDING.md'
 Add-File 'template/10.OPERATION/OPERATIONS_DASHBOARD.md' '10.OPERATION/OPERATIONS_DASHBOARD.md' $true
 foreach ($tree in @('skills','scripts','orchestrate','tests')) {
   $root=Join-Path $SourceRoot $tree
@@ -118,7 +120,7 @@ foreach ($tree in @('skills','scripts','orchestrate','tests')) {
 foreach ($skill in @('start-project','project-complete','cloud-sync','operationalize','projectify')) {
   if (-not $plan.Contains('skills/'+$skill+'/SKILL.md')) { throw "Core skill missing: $skill" }
 }
-foreach ($required in @('scripts/operation_switch.ps1','scripts/deploy_new_project.ps1','scripts/sync_agent_adapters.ps1','scripts/adapter_templates/prompt-file.md','scripts/adapter_templates/self-contained.md')) {
+foreach ($required in @('scripts/operation_switch.ps1','scripts/deploy_new_project.ps1','scripts/sync_agent_adapters.ps1','scripts/adapter_templates/prompt-file.md','scripts/adapter_templates/self-contained.md','scripts/Setup-AgentCLIs.ps1','scripts/Assert-AgentCliSelection.ps1','skills/setup-agents/SKILL.md')) {
   if (-not $plan.Contains($required)) { throw "Required runtime file missing: $required" }
 }
 $seeds=[ordered]@{
@@ -127,6 +129,9 @@ $seeds=[ordered]@{
   '13.MEMORY_HDD/ingest/ingest_manifest.jsonl'=''
   '15.WIKI/log.md'="# Wiki Log`n"
   'CLAUDE.md'=(@('@AGENTS.md','','@00.ABOUT/CLAUDE.md','') -join [Environment]::NewLine)
+}
+if ($newHub) {
+  $seeds['00.ABOUT/AGENT_CLI_SETUP.json']="{`"schema_version`":1,`"selection_state`":`"pending`",`"selected_agents`":[],`"tools`":{},`"authentication`":`"not_checked`"}`n"
 }
 foreach ($rel in @($plan.Keys)+@($seeds.Keys)) {
   $dest=Join-Path $Destination $rel
@@ -198,6 +203,14 @@ if ($DryRun) {
 }
 $folders=@('00.ABOUT','00.ABOUT/must_read','01.PROJECT','02.INPUT_TEMPLATES','10.OPERATION','12.MEMORY_RAM','13.MEMORY_HDD/ingest','14.LESSONS_LEARNED','15.WIKI/wiki_template','workspaces')
 foreach ($folder in $folders) { New-Item -ItemType Directory -Force -Path (Join-Path $Destination $folder) | Out-Null }
+# Record the fresh-hub choice before copying AGENTS.md. A partial-install retry
+# must not mistake a newly copied AGENTS.md for a pre-existing legacy hub.
+if ($newHub) {
+  $choicePath=Join-Path $Destination '00.ABOUT/AGENT_CLI_SETUP.json'
+  if (-not (Test-Path -LiteralPath $choicePath)) {
+    [IO.File]::WriteAllText($choicePath,$seeds['00.ABOUT/AGENT_CLI_SETUP.json'],[Text.UTF8Encoding]::new($false))
+  }
+}
 $next=@{}; $kept=0; $written=0
 $backupRoot=Join-Path $Destination ('13.MEMORY_HDD/agentsetup_install_'+[DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffffffZ'))
 foreach ($rel in $plan.Keys) {
@@ -241,3 +254,4 @@ $record=@{schema=1;installed_utc=[DateTime]::UtcNow.ToString('o');files=$next}
 if ($SetUserEnvironment) { [Environment]::SetEnvironmentVariable('AGENT_HUB_ROOT',$Destination,'User'); Say 'AGENT_HUB_ROOT set in the user environment.' }
 Say "Installed project-first hub: $Destination ($written written; $kept local customizations kept)."
 if ($kept) { Say 'Review preserved customizations against the new payload before using upgraded workflows.' }
+Say 'Next: give 00.ABOUT/AGENT_CLI_ONBOARDING.md to the AI agent you already use. Choose one or several optional CLIs, or none.'

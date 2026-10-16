@@ -305,10 +305,10 @@
       "note": "MIT, O3 ruling 2026-09-21; MUST stay in this manifest or the wipe+repopulate mirror deletes it"
     },
     {
-      "src": "HUB/orchestrate/Orchestrate2.ps1",
+      "src": "STAGED/Orchestrate2.ps1",
       "dest": "orchestrate/Orchestrate2.ps1",
       "mode": "file",
-      "note": "engine v2 (orchestrate/v2), promoted 2026-08-29; ships beside v1, does not replace it"
+      "note": "Curated portable v2 engine with explicit CLI-selection guard; live hub engine remains separately maintained."
     },
     {
       "src": "AGENTS_SETUP/start-project",
@@ -385,6 +385,42 @@
       "note": "Disposable clean setup regression tests; no account or personal data.",
       "src": "STAGED/Test-CleanInstall.ps1",
       "dest": "tests/install/Test-CleanInstall.ps1"
+    },
+    {
+      "src": "STAGED/START-HERE.md",
+      "dest": "START-HERE.md",
+      "mode": "file",
+      "note": "Prompt-first optional CLI onboarding; no user selections, credentials or generated fixtures."
+    },
+    {
+      "src": "STAGED/skill_setup-agents",
+      "dest": "skills/setup-agents",
+      "mode": "tree",
+      "note": "Prompt-first optional CLI onboarding; no user selections, credentials or generated fixtures."
+    },
+    {
+      "src": "STAGED/Setup-AgentCLIs.ps1",
+      "dest": "scripts/Setup-AgentCLIs.ps1",
+      "mode": "file",
+      "note": "Prompt-first optional CLI onboarding; no user selections, credentials or generated fixtures."
+    },
+    {
+      "src": "STAGED/Assert-AgentCliSelection.ps1",
+      "dest": "scripts/Assert-AgentCliSelection.ps1",
+      "mode": "file",
+      "note": "Prompt-first optional CLI onboarding; no user selections, credentials or generated fixtures."
+    },
+    {
+      "src": "STAGED/Test-AgentCLIs.ps1",
+      "dest": "tests/install/Test-AgentCLIs.ps1",
+      "mode": "file",
+      "note": "Prompt-first optional CLI onboarding; no user selections, credentials or generated fixtures."
+    },
+    {
+      "src": "STAGED/Test-AgentSelection.ps1",
+      "dest": "tests/install/Test-AgentSelection.ps1",
+      "mode": "file",
+      "note": "Prompt-first optional CLI onboarding; no user selections, credentials or generated fixtures."
     }
   ],
   "exclude_always": [

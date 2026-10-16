@@ -57,6 +57,39 @@ $Hub = if     ($cfg.hub)            { "$($cfg.hub)" }
        elseif ($env:AGENT_HUB_ROOT) { "$env:AGENT_HUB_ROOT" }
        else                         { Split-Path -Parent $PSCommandPath }
 if (-not (Test-Path -LiteralPath $Hub)) { Fail-Config "hub root not found: $Hub" }
+
+# Enforce onboarding before run-root/receipt processing or any vendor invocation.
+# Capabilities above remains config-free and does not run a job or contact a provider.
+try {
+  $SelectionInstallationRoot = if ((Split-Path $PSScriptRoot -Leaf) -eq 'orchestrate') { Split-Path $PSScriptRoot -Parent } else { $PSScriptRoot }
+  $SelectionRequiredClis = @(foreach ($seat in @(@('maker','codex'),@('reviewer1','codex'),@('reviewer2','copilot'),@('referee','claude'))) {
+    $configuredRole = $cfg.roles.($seat[0])
+    if ($configuredRole -and $configuredRole.cli) { "$($configuredRole.cli)" } else { $seat[1] }
+  })
+  $SelectionGuard = Join-Path $SelectionInstallationRoot 'scripts/Assert-AgentCliSelection.ps1'
+  $SelectionGuardItem = $null
+  try { $SelectionGuardItem = Get-Item -LiteralPath $SelectionGuard -Force -ErrorAction Stop }
+  catch [System.Management.Automation.ItemNotFoundException] { }
+  if ($SelectionGuardItem) {
+    if ($SelectionGuardItem.PSIsContainer) { throw "Agent CLI selection guard is not a file: $SelectionGuard" }
+    & $SelectionGuard -InstallationRoot $SelectionInstallationRoot -HubRoot $Hub -RequiredClis $SelectionRequiredClis
+  } else {
+    # Preserve copied legacy engines only when neither root nor any ancestor has state.
+    foreach ($start in @($SelectionInstallationRoot,$Hub)) {
+      $current = [IO.Path]::GetFullPath($start)
+      while ($current) {
+        $statePath = Join-Path $current '00.ABOUT/AGENT_CLI_SETUP.json'
+        $stateItem = $null
+        try { $stateItem = Get-Item -LiteralPath $statePath -Force -ErrorAction Stop }
+        catch [System.Management.Automation.ItemNotFoundException] { }
+        if ($stateItem) { throw "Agent CLI selection state exists, but its guard is missing: $SelectionGuard. Repair the installation before running orchestration." }
+        $parent = [IO.Directory]::GetParent($current)
+        if ($null -eq $parent) { break }
+        $current = $parent.FullName
+      }
+    }
+  }
+} catch { Fail-Config $_.Exception.Message }
 if (-not $cfg.name) { Fail-Config 'config.name is required' }
 $workProduct = if ($cfg.workProduct) { "$($cfg.workProduct)" } else { 'code' }
 if ($MaxFix -lt 0) { $MaxFix = if ($null -ne $cfg.maxFix) { [int]$cfg.maxFix } else { 2 } }

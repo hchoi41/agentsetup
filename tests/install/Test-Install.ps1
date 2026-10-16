@@ -51,6 +51,11 @@ $index=Get-Content -LiteralPath (Join-Path $dest '00.ABOUT/PROJECT_INDEX.md') -R
 Assert ($index -match 'deadline') 'empty index contains deadline'
 $registry=Get-Content -LiteralPath (Join-Path $dest '00.ABOUT/PROJECT_REGISTRY.json') -Raw | ConvertFrom-Json
 Assert (@($registry.projects).Count -eq 0) 'new registry contains no personal projects'
+$cliChoicePath=Join-Path $dest '00.ABOUT/AGENT_CLI_SETUP.json'
+$initialChoice=Get-Content -LiteralPath $cliChoicePath -Raw | ConvertFrom-Json
+Assert ($initialChoice.selection_state -eq 'pending' -and @($initialChoice.selected_agents).Count -eq 0) 'fresh hub waits for explicit CLI choice'
+Assert (Test-Path -LiteralPath (Join-Path $dest '00.ABOUT/AGENT_CLI_ONBOARDING.md')) 'installed hub includes prompt-first onboarding'
+Assert (Test-Path -LiteralPath (Join-Path $dest '.agents/skills/setup-agents/SKILL.md')) 'onboarding skill is available through native adapters'
 $coreHash=Hash (Join-Path $dest 'skills/cloud-sync/scripts/sync_project.ps1')
 Run-Install '03-repeat' $dest $SourceRoot @('-CopyAdapters')
 Assert ((Hash (Join-Path $dest 'skills/cloud-sync/scripts/sync_project.ps1')) -eq $coreHash) 'repeat preserves runtime bytes'
@@ -146,6 +151,35 @@ if ($junctionCreated) {
   Assert (-not (Test-Path -LiteralPath (Join-Path $junctionTarget '.claude'))) 'junction refusal occurs before adapter writes'
 }
 
+$pendingOutput=& pwsh -NoProfile -File (Join-Path $dest 'orchestrate/Orchestrate.ps1') -HubRoot $dest -Config (Join-Path $dest 'orchestrate/configs/_template_code_job.json') -DryRun 2>&1
+Assert ($LASTEXITCODE -ne 0) 'pending CLI selection blocks orchestration before choosing tools'
+Assert (-not (Test-Path -LiteralPath (Join-Path $dest '_orchestrate'))) 'pending selection creates no orchestration run'
+# Fixture-only role selection: no package installation, login, or model invocation.
+@{schema_version=1;selection_state='selected';selected_agents=@('codex','claude','copilot');tools=@{};authentication='not_checked'} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $cliChoicePath -Encoding utf8
+$choiceHash=Hash $cliChoicePath
+Run-Install '17a-preserve-cli-choice-on-upgrade' $dest $SourceRoot @('-CopyAdapters')
+Assert ((Hash $cliChoicePath) -eq $choiceHash) 'upgrade preserves explicit CLI selection bytes'
+# A stopped fresh install must retain pending through its documented retry route.
+$interrupted=Join-Path $FixtureRoot 'interrupted fresh hub'
+$faultInstaller=Join-Path $FixtureRoot 'Interrupt-NewInstall.ps1'
+$installerText=Get-Content -LiteralPath (Join-Path $SourceRoot 'Get-AgentSetup.ps1') -Raw
+$needle='$next[$rel]=$wanted; $written++'
+Assert ([regex]::Matches($installerText,[regex]::Escape($needle)).Count -eq 1) 'interruption fixture targets one copy-completion boundary'
+$faultText=$installerText.Replace($needle,($needle+"`n"+'  if ($rel -eq ''AGENTS.md'') { throw ''TEST_ONLY_INTERRUPTED_AFTER_AGENTS'' }'))
+[IO.File]::WriteAllText($faultInstaller,$faultText,[Text.UTF8Encoding]::new($false))
+$interruptedOutput=& pwsh -NoProfile -File $faultInstaller -Destination $interrupted -SourceRoot $SourceRoot -CopyAdapters 2>&1
+Assert ($LASTEXITCODE -ne 0 -and ($interruptedOutput -join "`n") -match 'TEST_ONLY_INTERRUPTED_AFTER_AGENTS') 'controlled failure occurs after first payload file'
+Assert (Test-Path -LiteralPath (Join-Path $interrupted 'AGENTS.md')) 'interrupted install already has AGENTS.md'
+$pendingBeforeRetry=Get-Content -LiteralPath (Join-Path $interrupted '00.ABOUT/AGENT_CLI_SETUP.json') -Raw | ConvertFrom-Json
+Assert ($pendingBeforeRetry.selection_state -eq 'pending') 'pending choice is durable before copying initial AGENTS.md'
+Run-Install '17b-interrupted-install-retry' $interrupted $SourceRoot @('-CopyAdapters')
+$pendingAfterRetry=Get-Content -LiteralPath (Join-Path $interrupted '00.ABOUT/AGENT_CLI_SETUP.json') -Raw | ConvertFrom-Json
+Assert ($pendingAfterRetry.selection_state -eq 'pending') 'retry never changes interrupted fresh hub to legacy no-choice mode'
+$legacyHub=Join-Path $FixtureRoot 'existing hub without selection'
+New-Item -ItemType Directory -Path $legacyHub | Out-Null
+Copy-Item -LiteralPath (Join-Path $SourceRoot 'template/AGENTS.md') -Destination (Join-Path $legacyHub 'AGENTS.md')
+Run-Install '17c-legacy-no-choice-upgrade' $legacyHub $SourceRoot @('-CopyAdapters')
+Assert (-not (Test-Path -LiteralPath (Join-Path $legacyHub '00.ABOUT/AGENT_CLI_SETUP.json'))) 'existing hub without selection keeps legacy behavior on upgrade'
 $orchestrateOutput=& pwsh -NoProfile -File (Join-Path $dest 'orchestrate/Orchestrate.ps1') -HubRoot $dest -Config (Join-Path $dest 'orchestrate/configs/_template_code_job.json') -DryRun 2>&1
 $orchestrateCode=$LASTEXITCODE
 $orchestrateOutput | Set-Content -LiteralPath (Join-Path $FixtureRoot '17-orchestrate-dryrun.log') -Encoding utf8
