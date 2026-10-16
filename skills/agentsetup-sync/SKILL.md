@@ -110,6 +110,13 @@ Trigger: a new machine, a new folder, or a hub that has fallen behind.
 
 ### Quick reference: clean install with no existing Max-system folders
 
+Begin with the prompt in the release's `START-HERE.md`, using the AI assistant the
+person already has. Offer one or several of Codex, Claude Code, GitHub Copilot CLI,
+Gemini CLI and OpenCode, or none exclusively. Do not infer a CLI from the current
+chat app. The `setup-agents` skill and `scripts/Setup-AgentCLIs.ps1` preview and apply
+the explicit choice after hub creation. None installs nothing and disables the
+bundled multi-agent runner. Installation and authentication are separate states.
+
 Use the downloaded release ZIP for a new hub. Extract it, open PowerShell 7 in the folder
 containing `Install-MaxAgentSystem.ps1`, and run:
 
@@ -130,6 +137,9 @@ pwsh -NoProfile -File .\Install-MaxAgentSystem.ps1
 See the repository-root `INSTALL.md` for the standalone first-use guide. PowerShell 7 is the
 installation prerequisite; optional workflow software and AI accounts are installed or
 configured separately through the machine's approved channels. Do not bypass host policy.
+After hub creation, use `00.ABOUT/AGENT_CLI_ONBOARDING.md` for the approved optional
+CLI installation plan. New hubs begin with a pending choice; preserve existing
+selections on upgrades. Choosing tools never authorizes a model run or role remapping.
 
 ### Network and existing-hub routes
 

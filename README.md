@@ -12,6 +12,18 @@ latest install payload; a Windows computer can install it into a local hub.
 
 ## Install on a Windows computer
 
+**Begin in the AI conversation you already use:** copy the prompt in
+[START-HERE.md](START-HERE.md). It asks which agent CLIs you want—choose one,
+several, or **none**—before any CLI installation. No additional agent is needed
+to ask this question. If the assistant cannot run commands locally, it provides
+the commands for you to run.
+
+The choices are Codex, Claude Code, GitHub Copilot CLI, Gemini CLI, and OpenCode.
+None installs no CLI and disables Max's multi-agent runner while leaving your
+current single-agent workflow available. OpenCode is currently solo-only in the
+bundled system; Gemini's conductor adapter is experimental. A selected CLI does
+not automatically supply every role required by a job.
+
 The installer creates `01.PROJECT` and `10.OPERATION`, the operations dashboard and switch,
 empty project controls, and the five core workflows: `start-project`, `project-complete`,
 `cloud-sync`, `operationalize`, and `projectify`. It installs procedures and local adapters;
@@ -62,6 +74,23 @@ Choose one install command for your destination. After a successful install, ope
 your agent's working folder and fill in the identity placeholders at the top of `AGENTS.md`.
 `01.PROJECT` starts empty, the project registry has no entries, and no personal history is imported.
 See [INSTALL.md](INSTALL.md) for the folder tree, prerequisites, and first-use steps.
+
+### Choose and install optional agent CLIs
+
+Give your current assistant `00.ABOUT/AGENT_CLI_ONBOARDING.md` from the installed
+hub, or use the release's [START-HERE.md](START-HERE.md). The `setup-agents` skill
+uses `scripts/Setup-AgentCLIs.ps1` to inspect tools and show an install plan before
+applying your selection. It installs only chosen missing CLIs and the approved
+missing prerequisites, retaining existing tools. CLI dependency installation is
+separate from hub folder creation and may require Windows administrator approval.
+
+New hubs start with a pending CLI choice. Pending and none block multi-agent runs;
+selected mode allows only configured providers the user selected. Existing hubs
+without a choice file retain legacy behavior until opting in, and saved choices
+survive upgrades. Selection is local and separate from the generated skill adapters.
+Authentication is not inferred from installation: sign in through each tool's own
+interface, then check the intended job's provider/model requirements. No paid AI
+run is performed as an installation test.
 
 ### Network install or update
 
@@ -121,6 +150,8 @@ From the repository root, use a new test folder outside the repository:
 ```powershell
 pwsh -NoProfile -File ./tests/install/Test-Install.ps1 -FixtureRoot "$env:TEMP/agentsetup-install-review"
 pwsh -NoProfile -File ./tests/install/Test-CleanInstall.ps1 -FixtureRoot "$env:TEMP/agentsetup-clean-install-review"
+pwsh -NoProfile -File ./tests/install/Test-AgentCLIs.ps1 -FixtureRoot "$env:TEMP/agentsetup-cli-choice-review"
+pwsh -NoProfile -File ./tests/install/Test-AgentSelection.ps1 -FixtureRoot "$env:TEMP/agentsetup-cli-guard-review"
 ```
 
 The test leaves its disposable installation, logs, and `validation.json` for inspection.
@@ -129,6 +160,9 @@ backups, refusal cases, and unchanged user environment. It does not test your ac
 computer, configure accounts, or publish anything.
 The clean-install test also covers absent parent folders, an isolated default location,
 empty-folder installation, hidden-file refusal, and the extracted-source Bootstrap route.
+The CLI setup suite simulates package managers in isolated child processes; it never
+installs real provider software. The selection suite checks both actual engine
+entrypoints with fake tools, proving disabled choices stop before provider calls.
 
 ---
 

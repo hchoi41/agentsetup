@@ -6,6 +6,11 @@ empty project controls, skills, and agent adapters. No files from a personal PC 
 
 ## Before you start
 
+Start with the AI assistant you already use: paste the prompt from
+[START-HERE.md](START-HERE.md). It offers **one, several, or none** of Codex,
+Claude Code, GitHub Copilot CLI, Gemini CLI, and OpenCode. Your current chat app
+does not need its own CLI to guide this setup. No tool is selected automatically.
+
 - **Windows and PowerShell 7+** are required. `pwsh --version` shows the installed version.
 - Choose a local writable location outside OneDrive and separate from the extracted release.
   The default is `%LOCALAPPDATA%\AgentSetup\hub`.
@@ -14,7 +19,7 @@ empty project controls, skills, and agent adapters. No files from a personal PC 
   network install/update route in the README.
 
 On a managed computer, use its approved software channel to obtain PowerShell 7 and any
-optional tools. The installer does not install software, request administrator elevation,
+optional tools. The core hub installer does not install software, request administrator elevation,
 change execution policy, or bypass company permissions. If policy blocks a script, use the
 approved support route for that computer.
 
@@ -120,7 +125,13 @@ an AI service.
 2. Have the agent read `AGENTS.md`, `00.ABOUT/PROJECT_INDEX.md`, and
    `00.ABOUT/PROJECT_GOVERNANCE.md`. Fill the top of `AGENTS.md` with your hub/project name,
    one-line purpose, and status in place of its identity placeholders.
-3. Describe your first project and use `start-project` to agree its plan and acceptance
+3. Give that agent `00.ABOUT/AGENT_CLI_ONBOARDING.md` and finish the optional CLI
+   choice. The `setup-agents` skill previews missing tools and prerequisites, then
+   installs only the approved choices. Choose none to install no CLI and keep
+   multi-agent runs disabled. Required package installations may request Windows
+   administrator approval; they do not bypass local policy. Sign-in stays in the
+   providers' own interfaces, and installation alone does not prove authentication.
+4. Describe your first project and use `start-project` to agree its plan and acceptance
    criteria before scaffolding it. The empty registry is expected; the installer does not
    invent a project for you.
 
@@ -132,6 +143,13 @@ access rules.
 The Microsoft Copilot documents are for manual attachment or supported grounding; installing
 them does not connect an account. Customize canonical `skills/` and `AGENTS.md` sources,
 not generated adapter documents or copied skill surfaces, which are regenerated on an update.
+
+A new hub begins with `00.ABOUT/AGENT_CLI_SETUP.json` set to pending. Pending and
+none block the bundled multi-agent engines; choosing providers restricts jobs to
+those providers. A single CLI is a valid choice but may not satisfy the default
+Codex/Copilot/Claude job. OpenCode currently has no conductor adapter, and Gemini's
+adapter is experimental. The setup helper preserves prior choices when changed,
+and normal setup upgrades never replace an existing selection.
 
 ## Existing hubs and updates
 

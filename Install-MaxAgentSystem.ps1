@@ -64,5 +64,6 @@ if ($DryRun) {
   Write-Host 'Preview complete. Rerun without -DryRun to create the hub and its missing parent folders.'
 } else {
   Write-Host "Max Agent System installed: $Destination"
-  Write-Host 'Open that folder in your agent, fill in its AGENTS.md identity, and start your first project.'
+  Write-Host 'Open that folder in your current AI agent and fill in its AGENTS.md identity.'
+  Write-Host 'First, give your current AI the prompt in 00.ABOUT/AGENT_CLI_ONBOARDING.md to choose optional agent CLIs (one, several, or none).'
 }
