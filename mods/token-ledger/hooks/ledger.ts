@@ -36,6 +36,10 @@ export type LedgerRecord = {
   commands: Record<string, number>
   issues: Issue[]
   rating?: 'good' | 'bad'
+  /** Set when the next prompt soon after reads like a complaint about this answer. */
+  suspect?: boolean
+  /** Which machine recorded it (set by the GitHub sync). */
+  machine?: string
 }
 
 export type Config = {
@@ -162,7 +166,21 @@ export function parseWeights(text: string): Record<string, number> {
 }
 
 export function isSuccess(r: LedgerRecord): boolean {
-  return r.outcome === 'answer' && r.rating !== 'bad'
+  return r.outcome === 'answer' && r.rating !== 'bad' && !(r.suspect && r.rating !== 'good')
+}
+
+const COMPLAINT = /\b(wrong|incorrect|doesn'?t work|does not work|didn'?t work|still (fails|broken|wrong|not)|not what i|that'?s not|try again|you missed|broke|undo|revert)\b/i
+
+/** A prompt that, sent soon after an answer, says the answer failed. */
+export function isComplaint(text: string): boolean {
+  return COMPLAINT.test(text.slice(0, 400))
+}
+
+export const SMALL_PROMPT = 400
+
+/** Small vs large prompts, so cheap settings proven on small jobs are not pushed onto large ones. */
+export function sizeBucket(promptChars: number): 'small' | 'large' {
+  return promptChars < SMALL_PROMPT ? 'small' : 'large'
 }
 
 /** Linear-interpolated quantile, q in [0, 1]. */
@@ -221,7 +239,14 @@ export function recommend(
   current: Config | undefined,
   s: Settings,
   switchPenalty = 0,
+  promptChars?: number,
 ): Recommendation | undefined {
+  if (promptChars !== undefined) {
+    // Use only same-size jobs once there is enough of them for a fair comparison.
+    const bucket = sizeBucket(promptChars)
+    const same = records.filter(r => r.type !== type || sizeBucket(r.promptChars) === bucket)
+    if (same.filter(r => r.type === type).length >= 2 * s.minSamples) records = same
+  }
   const eligible = groups(records, type, s).filter(g => g.samples >= s.minSamples && g.successRate >= s.minSuccessRate)
   if (eligible.length === 0) return undefined
   const best = eligible.reduce((a, b) => (b.cost < a.cost ? b : a))
@@ -351,4 +376,31 @@ export function capBytes(records: LedgerRecord[], maxBytes = 3_000_000): LedgerR
     i -= 1
   }
   return records.slice(i)
+}
+
+/** Parses JSONL text into records, skipping lines that are not records. */
+export function parseJsonl(text: string): LedgerRecord[] {
+  const out: LedgerRecord[] = []
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue
+    try {
+      const r = JSON.parse(line) as LedgerRecord
+      if (r && r.v === 1 && typeof r.id === 'string' && typeof r.type === 'string') out.push(r)
+    } catch {
+      // A torn or foreign line is skipped, not fatal.
+    }
+  }
+  return out
+}
+
+/** Records from several sources, one per id (the later source wins), oldest first. */
+export function mergeById(...sources: LedgerRecord[][]): LedgerRecord[] {
+  const by = new Map<string, LedgerRecord>()
+  for (const src of sources) for (const r of src) by.set(r.id, r)
+  return [...by.values()].sort((a, b) => a.at - b.at)
+}
+
+/** A file-name-safe machine id. */
+export function machineId(name: string | undefined): string {
+  return (name ?? '').toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'machine'
 }
