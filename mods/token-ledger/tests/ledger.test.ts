@@ -2,7 +2,7 @@ import { describe, expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 import type { Engine } from 'claude-code/testing'
 
-import { capBytes, classify, commandNames, cost, evidenceFor, mergeById, migrate, parseJsonl, recommend, redact, splitTag, toSyncRecord } from '../hooks/ledger.ts'
+import { capBytes, classify, commandNames, cost, learnedDefaults, parseLearned, recommend, redact, splitTag } from '../hooks/ledger.ts'
 import type { LedgerRecord, Settings } from '../hooks/ledger.ts'
 
 const SETTINGS: Settings = { minSamples: 3, minSavingsPct: 15, minSuccessRate: 0.8, window: 50, modelWeights: {} }
@@ -98,40 +98,17 @@ describe('ledger logic', () => {
   })
 })
 
-describe('sharing and evidence', () => {
-  test('the shared copy drops paths, command names and error text', () => {
-    const r = rec('debug', 'm', 'e', 1)
-    r.cwd = 'C:/Users/max/secret-project'
-    r.commands = { git: 2 }
-    r.issues = [{ kind: 'tool-error', tool: 'Bash', detail: 'git push → auth failed for repo x' }]
-    const out = toSyncRecord(r)
-    expect(out.cwd).toBe('')
-    expect(out.commands).toEqual({})
-    expect(out.issues).toEqual([{ kind: 'tool-error', tool: 'Bash', detail: '' }])
-    expect(out.usage).toEqual(r.usage)
+describe('learned settings and evidence', () => {
+  test('learned settings carry only the choice per type', () => {
+    const out = learnedDefaults(HISTORY, SETTINGS, new Date('2026-10-18'))
+    expect(out).toEqual({ generated: '2026-10-18', types: { debug: { model: 'claude-sonnet', effort: 'medium', samples: 3, successRate: 1 } } })
+    expect(JSON.stringify(out)).not.toContain('/w')
   })
 
-  test('merging keeps the later source for the same id and orders by time', () => {
-    const old = { ...rec('debug', 'm', 'e', 1), id: 'x', at: 5 }
-    const rated = { ...old, rating: 'bad' as const }
-    const other = { ...rec('debug', 'm', 'e', 1), id: 'y', at: 1 }
-    const merged = mergeById([old, other], [rated])
-    expect(merged.map(r => r.id)).toEqual(['y', 'x'])
-    expect(merged[1]?.rating).toBe('bad')
-  })
-
-  test('reads only records it understands, and survives torn lines', () => {
-    const good = JSON.stringify(rec('test', 'm', 'e', 1))
-    const out = parseJsonl(`${good}\n{"v":2,"id":"z","type":"t"}\n{"v":1,"id":"trunc`)
-    expect(out).toHaveLength(1)
-    expect(migrate({ v: 1, id: 'a', type: 't' })?.issues).toEqual([])
-  })
-
-  test('uses local evidence once it is enough, else every machine\'s', () => {
-    const local = [rec('debug', 'm', 'e', 1)]
-    const pooled = [...local, ...HISTORY]
-    expect(evidenceFor('debug', local, pooled, 3)).toBe(pooled)
-    expect(evidenceFor('debug', HISTORY, pooled, 3)).toBe(HISTORY)
+  test('reads a learned file and ignores malformed ones', () => {
+    expect(parseLearned('{"generated":"x","types":{"debug":{"model":"m","effort":"low","samples":9}}}')?.types.debug?.model).toBe('m')
+    expect(parseLearned('{"types":{"debug":{"model":1}}}')?.types).toEqual({})
+    expect(parseLearned('not json')).toBeUndefined()
   })
 
   test('old runs age out of the window', () => {

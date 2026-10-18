@@ -75,7 +75,7 @@ From a shell: `claude plugin marketplace add <hub>/mods`, then
 /token-ledger last                     ← full breakdown of the last turn
 /token-ledger recommend [type]         ← cheapest reliable model/effort per type
 /token-ledger rate good|bad            ← mark the last finished turn (runs at once, even mid-turn); bad runs count as failures
-/token-ledger share                    ← write this session's shared file now and re-read every machine's
+/token-ledger learned [path]           ← main machine: write learned settings to ship with the setup (default ~/.claude/learned-defaults.json)
 /token-ledger export [path]            ← write all local records as JSONL (default ~/.claude/token-ledger.jsonl)
 /token-ledger reset confirm            ← delete all records
 ```
@@ -85,22 +85,21 @@ Options: `mode`, `minSamples` (8), `minSavingsPct` (15), `modelWeights` (for exa
 models), and `logPath` (a JSONL file rewritten after every turn; relative to Claude Code's working
 folder, `~` not expanded). If saving fails, the status line says `ledger: not saved`.
 
-### Sharing across machines
+### Main machine and other machines
 
-Set `shareDir` to a folder every machine sees, such as a folder in your OneDrive-synced hub.
-Each session writes `<shareDir>/<machine>/<session>.jsonl` every 5 turns and at the end of the
-session, and every session reads all machines' files at start (files over 1 MB or older than
-180 days are skipped). Per-session files mean two sessions never overwrite each other.
+Records never leave the machine that made them: no syncing, no network, nothing written
+outside that machine. This keeps a company computer's data inside the company's network.
 
-- **What is shared:** a trimmed copy of each record: task type, model, effort, tokens,
-  tool counts, outcome, rating and issue kinds. No working-folder paths, no shell command
-  names, no error text.
-- **Which evidence is used:** this machine's own records once it has `minSamples` runs of a
-  type; until then, every machine's; until then, the provider guide.
-- **No network:** the mod never runs git. To keep the shared records on GitHub as well,
-  run `scripts/Sync-TokenLedger.ps1 -ShareDir <shareDir> -RepoDir <clone of your private
-  data repo>` yourself. It copies the files, commits and pushes, and refuses a repository
-  that GitHub reports as public.
+What travels is the setup, one way, from your main machine through GitHub:
+
+1. On the main machine, `/token-ledger learned` writes `learned-defaults.json`: per task type,
+   the cheapest reliable model and effort its own evidence supports, with sample size and
+   success rate. It holds no records, paths, commands or machine names.
+2. Copy it to `mods/token-ledger/guide/learned-defaults.json` in the setup source (OneDrive
+   `STAGED/mods/token-ledger/guide/`) and publish as usual.
+3. Every machine that installs or updates the setup starts from those settings. Until a
+   machine has `minSamples` runs of a type it uses, in order: the main machine's learned
+   setting, then the provider guide. After that its own evidence decides.
 
 ### Limits
 
@@ -110,7 +109,7 @@ session, and every session reads all machines' files at start (files over 1 MB o
 - Switching models (`auto`) starts a new prompt cache. The switch penalty accounts for this when deciding, but the switched-to setting's own records still carry that re-caching cost.
 - Subagent work is counted against the turn whose Agent call started it, even when it finishes later. Loops no Agent call started (Claude Code's own internal calls, teammates started another way) are not counted.
 - A turn in progress while the mod reloads is not recorded.
-- Local records (the mod's store, `logPath`, `export`) include the working-folder path, command names and clipped error text; keep those files out of public repositories (the hub's `.gitignore` ignores `token-ledger*.jsonl`). Only the trimmed copy goes to `shareDir`.
+- Local records (the mod's store, `logPath`, `export`) include the working-folder path, command names and clipped error text; keep those files out of public repositories (the hub's `.gitignore` ignores `token-ledger*.jsonl`).
 
 ### Verify
 

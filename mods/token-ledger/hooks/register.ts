@@ -16,22 +16,20 @@ import {
   emptyUsage,
   fromApiUsage,
   isComplaint,
-  evidenceFor,
   k,
+  learnedDefaults,
   machineId,
-  mergeById,
   modelWeight,
-  parseJsonl,
   parseWeights,
   recommend,
   redact,
   splitTag,
   summary,
   toJsonl,
-  toSyncRecord,
   totalTokens,
 } from './ledger.ts'
-import type { Config, Issue, LedgerRecord, Recommendation, Settings } from './ledger.ts'
+import type { Config, Issue, Learned, LedgerRecord, Recommendation, Settings } from './ledger.ts'
+import { parseLearned } from './ledger.ts'
 
 const STORE_KEY = 'records'
 const NAMED_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
@@ -55,37 +53,9 @@ async function persist($: EngineInterface, records: LedgerRecord[], mirror: stri
   }
 }
 
-// Shared folder (e.g. in the OneDrive hub): <shareDir>/<machine>/<session>.jsonl.
-// The mod only writes files; it never runs git or reaches the network.
-const SHARE_EVERY_TURNS = 5
-const SHARE_MAX_FILE = 1_000_000
-const SHARE_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000
-
-/** Reads every machine's session files from the shared folder; skips large, old or unreadable ones. */
-async function readShared($: EngineInterface, dir: string): Promise<LedgerRecord[]> {
-  const now = Date.now()
-  const all: LedgerRecord[][] = []
-  for (const m of await $.fs.list(dir).catch(() => [])) {
-    if (m.kind !== 'dir') continue
-    for (const f of await $.fs.list(`${dir}/${m.name}`).catch(() => [])) {
-      if (f.kind !== 'file' || !f.name.endsWith('.jsonl') || f.size > SHARE_MAX_FILE || now - f.mtimeMs > SHARE_MAX_AGE_MS) continue
-      all.push(parseJsonl(await $.fs.read(`${dir}/${m.name}/${f.name}`).catch(() => '')))
-    }
-  }
-  return mergeById(...all)
-}
-
-/** Writes this session's records, trimmed for sharing, to its own file in the shared folder. */
-async function writeShared($: EngineInterface, file: string, mine: LedgerRecord[]): Promise<string | undefined> {
-  try {
-    await $.fs.write(file, toJsonl(capBytes(mine.map(toSyncRecord), SHARE_MAX_FILE)))
-    return undefined
-  } catch (err) {
-    const why = clip(String(err), 80)
-    $.ui.status(`ledger: not shared: ${why}`)
-    return why
-  }
-}
+// Settings learned on the main machine and shipped with the setup: per task type, the
+// cheapest reliable model and effort. No records, paths or machine names: only the choice.
+const LEARNED_FILE = 'guide/learned-defaults.json'
 
 type Live = {
   record: LedgerRecord
@@ -105,7 +75,6 @@ export const register: Register = (on, options) => {
     modelWeights: parseWeights(String(options.modelWeights ?? '')),
   }
   const logPath = String(options.logPath ?? '')
-  const shareDir = String(options.shareDir ?? '').replace(/[\\/]+$/, '')
 
   // Module state: rebuilt from $.store at every (re)load's session.start.
   let records: LedgerRecord[] = []
@@ -119,27 +88,22 @@ export const register: Register = (on, options) => {
   const suspended = new Set<string>()
   const toasted = new Set<string>()
   const turnsByType = new Map<string, number>()
-  let shared: LedgerRecord[] = []
   let machine = 'machine'
-  let shareFile = ''
-  let unshared = 0
   let home = ''
-  // This session's own records: what its shared file holds.
-  const mine = () => records.filter(r => r.machine === machine && sessionTurns.has(r.id))
-  const sessionTurns = new Set<string>()
-  // Local evidence first; every machine's once local is thin (local wins on the same id).
-  const pooled = () => (shared.length ? mergeById(shared, records) : records)
-  const evidence = (type: string) => evidenceFor(type, records, pooled(), settings.minSamples)
+  let learned: Learned | undefined
   // Subagent id -> the main turn whose Agent call started it.
   const agentOwner = new Map<string, string>()
 
   const keep = (r: LedgerRecord[]) => capBytes(r.slice(-MAX_RECORDS))
-  // Until a type has minSamples finished runs, start from the provider guide's setting.
+  // Until this machine has minSamples finished runs of a type, start from the main
+  // machine's learned setting, else the provider guide's.
   const starting = (type: string, cur: Config): Recommendation | undefined => {
-    const d = CLAUDE_DEFAULTS[type]
-    const runs = pooled().filter(r => r.type === type && r.outcome !== 'aborted').length
-    if (!d || runs >= settings.minSamples || configKey(d) === configKey(cur)) return undefined
-    return { type, model: d.model, effort: d.effort, samples: 0, cost: 0, successRate: 0 }
+    const runs = records.filter(r => r.type === type && r.outcome !== 'aborted').length
+    if (runs >= settings.minSamples) return undefined
+    const fromLearned = learned?.types[type]
+    const d = fromLearned ?? CLAUDE_DEFAULTS[type]
+    if (!d || configKey(d) === configKey(cur)) return undefined
+    return { type, model: d.model, effort: d.effort, samples: 0, cost: 0, successRate: 0, source: fromLearned ? 'learned' : 'guide' }
   }
   const issue = (l: Live, i: Issue) => {
     if (l.record.issues.length < MAX_ISSUES) l.record.issues.push(i)
@@ -151,15 +115,12 @@ export const register: Register = (on, options) => {
     cwd = e.cwd
     machine = machineId((await $.env.get('COMPUTERNAME')) ?? (await $.env.get('HOSTNAME')))
     home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')) ?? ''
-    if (shareDir) {
-      shareFile = `${shareDir}/${machine}/${await $.session.id()}.jsonl`
-      shared = await readShared($, shareDir)
-    }
+    learned = parseLearned(await $.fs.read(`${$.plugin.root}/${LEARNED_FILE}`).catch(() => ''))
     try {
       await $.command.register({
         name: 'token-ledger',
         description: 'Token use by task type, issues, and the cheapest reliable model/effort',
-        argumentHint: '[report|last|recommend [type]|rate good|bad|share|export [path]|reset confirm]',
+        argumentHint: '[report|last|recommend [type]|rate good|bad|learned [path]|export [path]|reset confirm]',
         immediate: true,
       })
     } catch {
@@ -209,7 +170,6 @@ export const register: Register = (on, options) => {
       issues: [],
     }
     live.set(e.turnId, { record, apply: false, decided: false })
-    sessionTurns.add(e.turnId)
     mainTurn = e.turnId
     $.ui.status(`ledger: ${type}`)
     return next(e)
@@ -228,19 +188,19 @@ export const register: Register = (on, options) => {
         turnsByType.set(type, n)
         // Moving to another model re-caches the context: ~1.15x the tokens last read from cache.
         const penalty = 1.15 * lastCacheRead * modelWeight(current.model, settings.modelWeights)
-        const rec = recommend(evidence(type), type, current, settings, penalty, l.record.promptChars) ?? starting(type, current)
+        const rec = recommend(records, type, current, settings, penalty, l.record.promptChars) ?? starting(type, current)
         if (rec && !suspended.has(configKey(rec))) {
           l.rec = rec
           l.apply = mode === 'auto' && n % EXPLORE_EVERY !== 0
           const saving = rec.savingsPct === undefined ? '' : ` (−${rec.savingsPct}% est.)`
-          const from = rec.samples === 0 ? ' (provider guide)' : ''
+          const from = rec.source === 'learned' ? ' (main machine)' : rec.source === 'guide' ? ' (provider guide)' : ''
           $.ui.status(`ledger: ${type} → ${l.apply ? 'using' : 'try'} ${rec.model} / ${rec.effort}${saving}${from}`)
           if (!l.apply && rec.savingsPct !== undefined && !toasted.has(type)) {
             toasted.add(type)
             $.ui.toast(`token-ledger: past ${type} jobs ran cheapest on ${rec.model} / effort ${rec.effort}${saving}, n=${rec.samples}`)
           } else if (!l.apply && rec.samples === 0 && !toasted.has(type)) {
             toasted.add(type)
-            $.ui.toast(`token-ledger: no evidence for ${type} yet; the provider guide suggests ${rec.model} / effort ${rec.effort}`)
+            $.ui.toast(`token-ledger: no evidence for ${type} on this machine yet; the ${rec.source === 'learned' ? "main machine's results suggest" : 'provider guide suggests'} ${rec.model} / effort ${rec.effort}`)
           }
         }
       }
@@ -328,21 +288,11 @@ export const register: Register = (on, options) => {
     if (r.applied && l.rec && (e.reason === 'error' || e.reason === 'refusal')) suspended.add(configKey(l.rec))
     records = keep([...records, r])
     const failed = await persist($, records, logPath)
-    if (shareFile && ++unshared >= SHARE_EVERY_TURNS) {
-      unshared = 0
-      await writeShared($, shareFile, mine())
-    }
     if (!failed) {
       const total = totalTokens(addUsage(r.usage, r.subagents.usage))
       $.ui.status(`ledger: ${r.type} · ${k(total)} tok · ${r.issues.length} issue${r.issues.length === 1 ? '' : 's'}`)
     }
     return result
-  })
-
-  // A fast local write; nothing here waits on the network.
-  on('session.end', async ($, e, next) => {
-    if (shareFile && unshared > 0) await writeShared($, shareFile, mine())
-    return next(e)
   })
 
   on('command.run', { command: 'token-ledger' }, async ($, e) => {
@@ -352,20 +302,20 @@ export const register: Register = (on, options) => {
     switch (verb) {
       case 'report':
         return { text: summary(records, settings) }
-      case 'share': {
-        if (!shareFile) return { text: 'token-ledger: no shared folder set (option shareDir).' }
-        unshared = 0
-        const failed = await writeShared($, shareFile, mine())
-        shared = await readShared($, shareDir)
-        const machines = new Set(shared.map(r => r.machine ?? '?')).size
-        return { text: failed ? `token-ledger: not shared: ${failed}` : `token-ledger: shared this session; ${shared.length} records from ${machines} machine(s) in ${shareDir}.` }
+      case 'learned': {
+        // On the main machine: the learned settings to ship with the setup (no records).
+        const out = learnedDefaults(records, settings)
+        const path = arg || (home ? `${home}/.claude/learned-defaults.json` : 'learned-defaults.json')
+        await $.fs.write(path, JSON.stringify(out, null, 2) + '\n')
+        const n = Object.keys(out.types).length
+        return { text: `token-ledger: wrote learned settings for ${n} task type${n === 1 ? '' : 's'} to ${path}. To ship them, copy it to mods/token-ledger/${LEARNED_FILE} in the setup source and publish.` }
       }
       case 'last':
         return { text: last ? describe(last, settings) : 'token-ledger: no turns recorded yet.' }
       case 'recommend': {
         const types = arg ? [arg] : [...new Set(records.map(r => r.type))].sort()
         const lines = types.map(t => {
-          const r = recommend(evidence(t), t, current, settings)
+          const r = recommend(records, t, current, settings)
           if (!r) return `- ${t}: keep current settings (no cheaper reliable setting with ${settings.minSamples}+ runs)`
           const saving = r.savingsPct === undefined ? '' : `, ~${r.savingsPct}% cheaper than now`
           return `- ${t}: ${r.model} / effort ${r.effort} — expected cost ${k(r.cost)}, n=${r.samples}${saving}`
@@ -379,7 +329,6 @@ export const register: Register = (on, options) => {
         if (arg !== 'good' && arg !== 'bad') return { text: 'Usage: /token-ledger rate good|bad' }
         last.rating = arg
         const failed = await persist($, records, logPath)
-        if (!failed && shareFile && sessionTurns.has(last.id)) await writeShared($, shareFile, mine())
         return { text: failed ? `token-ledger: rating not saved: ${failed}` : `token-ledger: rated the last \`${last.type}\` turn ${arg}.` }
       }
       case 'export': {
@@ -397,7 +346,7 @@ export const register: Register = (on, options) => {
       default:
         return {
           text: [
-            'Usage: /token-ledger [report|last|recommend [type]|rate good|bad|share|export [path]|reset confirm]',
+            'Usage: /token-ledger [report|last|recommend [type]|rate good|bad|learned [path]|export [path]|reset confirm]',
             'Tag a prompt with a leading type (e.g. `#debug fix the login test`, or `#type:migration ...`).',
           ].join('\n'),
         }
