@@ -68,3 +68,6 @@ Thumbs.db
 /01.PROJECT/
 /10.OPERATION/
 /skills/cloud-sync/evals/
+
+# token-ledger records (personal data; never publish)
+token-ledger*.jsonl

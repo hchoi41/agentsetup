@@ -21,7 +21,7 @@
       "type": "number",
       "title": "Minimum samples",
       "description": "Runs of one model/effort on a task type before it can be recommended",
-      "default": 5
+      "default": 8
     },
     "minSavingsPct": {
       "type": "number",
@@ -38,7 +38,13 @@
     "logPath": {
       "type": "string",
       "title": "JSONL mirror path",
-      "description": "If set, every recorded turn rewrites this JSONL file. A relative path resolves against Claude Code's working folder; ~ is not expanded.",
+      "description": "If set, every recorded turn rewrites this JSONL file (full local records, including paths and error text: keep it out of any public repository). A relative path resolves against Claude Code's working folder; ~ is not expanded.",
+      "default": ""
+    },
+    "shareDir": {
+      "type": "string",
+      "title": "Shared folder",
+      "description": "Absolute path of a folder all your machines see (e.g. inside the OneDrive hub). Each session writes a trimmed records file there (no paths, commands or error text) and every machine reads them all. The mod never runs git or uses the network.",
       "default": ""
     }
   }

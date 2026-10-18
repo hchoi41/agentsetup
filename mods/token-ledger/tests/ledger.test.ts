@@ -2,7 +2,7 @@ import { describe, expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 import type { Engine } from 'claude-code/testing'
 
-import { capBytes, classify, commandNames, cost, recommend, redact, splitTag } from '../hooks/ledger.ts'
+import { capBytes, classify, commandNames, cost, evidenceFor, mergeById, migrate, parseJsonl, recommend, redact, splitTag, toSyncRecord } from '../hooks/ledger.ts'
 import type { LedgerRecord, Settings } from '../hooks/ledger.ts'
 
 const SETTINGS: Settings = { minSamples: 3, minSavingsPct: 15, minSuccessRate: 0.8, window: 50, modelWeights: {} }
@@ -37,7 +37,10 @@ function bottom(on: On, seen: { models: string[] }) {
     seen.models.push(`${e.model}/${String(e.effort)}`)
     return { turnId: e.turnId, index: e.index, answer: '', toolUses: [], stopReason: 'end_turn' as const, usage: null }
   })
-  on('tool.call', () => ({ result: '', text: 'exit 1: command not found', isError: true }) as never)
+  on('tool.call', ($, e) =>
+    (String(e.tool) === 'Agent'
+      ? { result: { agentId: 'sub-1' }, text: 'launched' }
+      : { result: '', text: 'exit 1: command not found', isError: true }) as never)
   on('turn.complete', ($, e) => ({ text: e.answer, usage: e.usage }))
 }
 
@@ -92,6 +95,51 @@ describe('ledger logic', () => {
     const kept = capBytes(many, 3000)
     expect(kept.length).toBeLessThan(50)
     expect(kept[kept.length - 1]).toBe(many[49])
+  })
+})
+
+describe('sharing and evidence', () => {
+  test('the shared copy drops paths, command names and error text', () => {
+    const r = rec('debug', 'm', 'e', 1)
+    r.cwd = 'C:/Users/max/secret-project'
+    r.commands = { git: 2 }
+    r.issues = [{ kind: 'tool-error', tool: 'Bash', detail: 'git push → auth failed for repo x' }]
+    const out = toSyncRecord(r)
+    expect(out.cwd).toBe('')
+    expect(out.commands).toEqual({})
+    expect(out.issues).toEqual([{ kind: 'tool-error', tool: 'Bash', detail: '' }])
+    expect(out.usage).toEqual(r.usage)
+  })
+
+  test('merging keeps the later source for the same id and orders by time', () => {
+    const old = { ...rec('debug', 'm', 'e', 1), id: 'x', at: 5 }
+    const rated = { ...old, rating: 'bad' as const }
+    const other = { ...rec('debug', 'm', 'e', 1), id: 'y', at: 1 }
+    const merged = mergeById([old, other], [rated])
+    expect(merged.map(r => r.id)).toEqual(['y', 'x'])
+    expect(merged[1]?.rating).toBe('bad')
+  })
+
+  test('reads only records it understands, and survives torn lines', () => {
+    const good = JSON.stringify(rec('test', 'm', 'e', 1))
+    const out = parseJsonl(`${good}\n{"v":2,"id":"z","type":"t"}\n{"v":1,"id":"trunc`)
+    expect(out).toHaveLength(1)
+    expect(migrate({ v: 1, id: 'a', type: 't' })?.issues).toEqual([])
+  })
+
+  test('uses local evidence once it is enough, else every machine\'s', () => {
+    const local = [rec('debug', 'm', 'e', 1)]
+    const pooled = [...local, ...HISTORY]
+    expect(evidenceFor('debug', local, pooled, 3)).toBe(pooled)
+    expect(evidenceFor('debug', HISTORY, pooled, 3)).toBe(HISTORY)
+  })
+
+  test('old runs age out of the window', () => {
+    const old = Array.from({ length: 3 }, () => rec('debug', 'claude-haiku', 'low', 100))
+    const recent = Array.from({ length: 50 }, () => rec('debug', 'claude-opus', 'high', 9000))
+    const s = { ...SETTINGS, window: 50 }
+    expect(recommend([...old, ...recent], 'debug', undefined, s)?.model).toBe('claude-opus')
+    expect(recommend([...recent, ...old], 'debug', undefined, s)?.model).toBe('claude-haiku')
   })
 })
 
@@ -185,5 +233,48 @@ describe('token-ledger hooks', () => {
     await $.turn.start({ text: 'what does this flag do?', turnId: 't8' })
     await step($, { turnId: 't8', index: 0, model: 'claude-opus-5-5', effort: 'high', messageCount: 1 })
     expect(seen.models).toEqual(['claude-haiku-5-5/low'])
+  })
+
+  test('a subagent is counted against the turn that started it, even after it ended', async ($, on) => {
+    mock.store(on)
+    bottom(on, { models: [] })
+    await $.session.start({ cwd: '/work', surface: null, isInteractive: false })
+    await $.turn.start({ text: 'research two libraries', turnId: 'm1' })
+    await $.tool.call({ tool: 'Agent', description: 'look', prompt: 'look', tool_use_id: 'u9' } as never)
+    await $.turn.complete({ answer: 'ok', durationMs: 10, isAborted: false, turnId: 'm1', reason: 'answer', usage: USAGE })
+    await $.turn.start({ text: 'write the docs', turnId: 'm2' })
+    await $.turn.complete({ answer: 'r', durationMs: 5, isAborted: false, turnId: 'x', agentId: 'sub-1', reason: 'answer', usage: { ...USAGE, model: 'claude-haiku' } })
+    await $.turn.complete({ answer: 'r', durationMs: 5, isAborted: false, turnId: 'y', agentId: 'fork-9', reason: 'answer', usage: USAGE })
+    await $.turn.complete({ answer: 'ok', durationMs: 10, isAborted: false, turnId: 'm2', reason: 'answer', usage: USAGE })
+    const report = await $.command.run({ command: 'token-ledger', args: '', ...RUN })
+    expect(report.text).toContain('| research | 1 |')
+    const last = await $.command.run({ command: 'token-ledger', args: 'last', ...RUN })
+    expect(last.text).toContain('subagents: 0 runs')
+  })
+
+  test('a complaint right after an answer marks it as a likely failure', async ($, on) => {
+    mock.store(on)
+    bottom(on, { models: [] })
+    await $.session.start({ cwd: '/work', surface: null, isInteractive: false })
+    await $.turn.start({ text: 'fix the parser', turnId: 'c1' })
+    await $.turn.complete({ answer: 'done', durationMs: 10, isAborted: false, turnId: 'c1', reason: 'answer', usage: USAGE })
+    await $.turn.start({ text: "that's wrong, it still fails", turnId: 'c2' })
+    await $.turn.complete({ answer: 'ok', durationMs: 10, isAborted: false, turnId: 'c2', reason: 'answer', usage: USAGE })
+    const report = await $.command.run({ command: 'token-ledger', args: '', ...RUN })
+    expect(report.text).toContain('| debug | 2 | 50% |')
+  })
+
+  test('rate, reset and unknown commands answer', async ($, on) => {
+    mock.store(on)
+    bottom(on, { models: [] })
+    await $.session.start({ cwd: '/work', surface: null, isInteractive: false })
+    expect((await $.command.run({ command: 'token-ledger', args: 'rate bad', ...RUN })).text).toContain('no turn to rate')
+    await $.turn.start({ text: 'build a page', turnId: 'r1' })
+    await $.turn.complete({ answer: 'ok', durationMs: 10, isAborted: false, turnId: 'r1', reason: 'answer', usage: USAGE })
+    expect((await $.command.run({ command: 'token-ledger', args: 'rate bad', ...RUN })).text).toContain('rated the last `build` turn bad')
+    expect((await $.command.run({ command: 'token-ledger', args: 'reset', ...RUN })).text).toContain('reset confirm')
+    expect((await $.command.run({ command: 'token-ledger', args: 'reset confirm', ...RUN })).text).toContain('deleted')
+    expect((await $.command.run({ command: 'token-ledger', args: 'last', ...RUN })).text).toContain('no turns recorded')
+    expect((await $.command.run({ command: 'token-ledger', args: 'nope', ...RUN })).text).toContain('Usage:')
   })
 })

@@ -38,7 +38,7 @@ export type LedgerRecord = {
   rating?: 'good' | 'bad'
   /** Set when the next prompt soon after reads like a complaint about this answer. */
   suspect?: boolean
-  /** Which machine recorded it (set by the GitHub sync). */
+  /** Which machine recorded it, set when the record is made. */
   machine?: string
 }
 
@@ -384,8 +384,8 @@ export function parseJsonl(text: string): LedgerRecord[] {
   for (const line of text.split('\n')) {
     if (!line.trim()) continue
     try {
-      const r = JSON.parse(line) as LedgerRecord
-      if (r && r.v === 1 && typeof r.id === 'string' && typeof r.type === 'string') out.push(r)
+      const r = migrate(JSON.parse(line))
+      if (r) out.push(r)
     } catch {
       // A torn or foreign line is skipped, not fatal.
     }
@@ -393,11 +393,50 @@ export function parseJsonl(text: string): LedgerRecord[] {
   return out
 }
 
+/**
+ * Brings a parsed record to the current schema, or `undefined` when it is not one.
+ * Version 1 is current; a later schema adds its upgrade step here, so history is kept.
+ */
+export function migrate(raw: unknown): LedgerRecord | undefined {
+  const r = raw as Partial<LedgerRecord> | null
+  if (!r || typeof r !== 'object' || typeof r.id !== 'string' || typeof r.type !== 'string') return undefined
+  if (r.v === 1) {
+    return {
+      ...(r as LedgerRecord),
+      usage: r.usage ?? emptyUsage(),
+      subagents: r.subagents ?? { runs: 0, usage: emptyUsage() },
+      tools: r.tools ?? {},
+      commands: r.commands ?? {},
+      issues: r.issues ?? [],
+    }
+  }
+  return undefined
+}
+
 /** Records from several sources, one per id (the later source wins), oldest first. */
 export function mergeById(...sources: LedgerRecord[][]): LedgerRecord[] {
   const by = new Map<string, LedgerRecord>()
   for (const src of sources) for (const r of src) by.set(r.id, r)
-  return [...by.values()].sort((a, b) => a.at - b.at)
+  return [...by.values()].sort((a, b) => a.at - b.at || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+}
+
+/**
+ * What leaves the machine: only what the optimizer needs. No working folder, no
+ * shell command names, no error text (issues keep their kind and tool only).
+ */
+export function toSyncRecord(r: LedgerRecord): LedgerRecord {
+  return {
+    ...r,
+    cwd: '',
+    commands: {},
+    issues: r.issues.map(i => ({ kind: i.kind, ...(i.tool ? { tool: i.tool } : {}), detail: '' })),
+  }
+}
+
+/** Evidence for one task type: this machine's own once it has enough, else every machine's. */
+export function evidenceFor(type: string, local: LedgerRecord[], pooled: LedgerRecord[], minSamples: number): LedgerRecord[] {
+  const own = local.filter(r => r.type === type && r.outcome !== 'aborted').length
+  return own >= minSamples || pooled.length === 0 ? local : pooled
 }
 
 /** A file-name-safe machine id. */
