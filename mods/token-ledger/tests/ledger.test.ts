@@ -2,7 +2,7 @@ import { describe, expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 import type { Engine } from 'claude-code/testing'
 
-import { classify, commandNames, recommend, splitTag } from '../hooks/ledger.ts'
+import { capBytes, classify, commandNames, cost, recommend, redact, splitTag } from '../hooks/ledger.ts'
 import type { LedgerRecord, Settings } from '../hooks/ledger.ts'
 
 const SETTINGS: Settings = { minSamples: 3, minSavingsPct: 15, minSuccessRate: 0.8, window: 50, modelWeights: {} }
@@ -60,6 +60,10 @@ describe('ledger logic', () => {
     expect(splitTag('#research compare two libs')).toEqual({ tag: 'research', rest: 'compare two libs' })
     expect(splitTag('# Heading').tag).toBeUndefined()
     expect(commandNames('FOO=1 npm test && git status | head -5')).toEqual(['npm', 'git', 'head'])
+    expect(commandNames('for f in *; do python $f; done')).toEqual(['python'])
+    expect(splitTag('#include <stdio.h>').tag).toBeUndefined()
+    expect(splitTag('#type:migration move the db').tag).toBe('migration')
+    expect(redact('curl -H "Authorization: Bearer abc.def" API_KEY=xyz')).toBe('curl -H "Authorization: Bearer ***" API_KEY=***')
   })
 
   test('recommends the cheapest reliable setting once evidence is enough', () => {
@@ -75,7 +79,23 @@ describe('ledger logic', () => {
     const flaky = [...HISTORY, rec('debug', 'claude-sonnet', 'medium', 1, 'error'), rec('debug', 'claude-sonnet', 'medium', 1, 'error')]
     expect(recommend(flaky, 'debug', { model: 'claude-opus', effort: 'high' }, SETTINGS)).toBeUndefined()
   })
+
+  test('prices subagent tokens at their own model weight', () => {
+    const r = rec('build', 'claude-opus', 'high', 0)
+    r.usage = { input: 1000, output: 0, cacheRead: 0, cacheWrite: 0 }
+    r.subagents = { runs: 1, usage: { input: 1000, output: 0, cacheRead: 0, cacheWrite: 0 }, byModel: { 'claude-haiku': { input: 1000, output: 0, cacheRead: 0, cacheWrite: 0 } } }
+    expect(cost(r, { opus: 5, haiku: 1 })).toBe(6000)
+  })
+
+  test('keeps the store under its byte cap, newest first', () => {
+    const many = Array.from({ length: 50 }, (_, i) => rec('build', 'm', 'e', i))
+    const kept = capBytes(many, 3000)
+    expect(kept.length).toBeLessThan(50)
+    expect(kept[kept.length - 1]).toBe(many[49])
+  })
 })
+
+const AUTO = { options: { mode: 'auto', minSamples: 3 } }
 
 describe('token-ledger hooks', () => {
   test('records a turn: type, tokens, commands and issues', async ($, on) => {
@@ -110,7 +130,7 @@ describe('token-ledger hooks', () => {
     expect(last.text).toContain('type `research` (tag)')
   })
 
-  test('auto mode switches the turn to the cheapest reliable setting', { options: { mode: 'auto' } }, async ($, on) => {
+  test('auto mode switches the turn to the cheapest reliable setting', AUTO, async ($, on) => {
     mock.store(on, { records: HISTORY })
     const seen = { models: [] as string[] }
     bottom(on, seen)
@@ -124,7 +144,7 @@ describe('token-ledger hooks', () => {
     expect(last.text).toContain('(applied by token-ledger)')
   })
 
-  test('suggest mode leaves the model alone', async ($, on) => {
+  test('suggest mode leaves the model alone', { options: { minSamples: 3 } }, async ($, on) => {
     mock.store(on, { records: HISTORY })
     const seen = { models: [] as string[] }
     bottom(on, seen)
@@ -132,5 +152,28 @@ describe('token-ledger hooks', () => {
     await $.turn.start({ text: 'fix the crash on save', turnId: 't4' })
     await step($, { turnId: 't4', index: 0, model: 'claude-opus', effort: 'high', messageCount: 1 })
     expect(seen.models).toEqual(['claude-opus/high'])
+  })
+
+  test('auto mode does nothing when the session already runs the best setting', AUTO, async ($, on) => {
+    mock.store(on, { records: HISTORY })
+    const seen = { models: [] as string[] }
+    bottom(on, seen)
+    await $.session.start({ cwd: '/work', surface: null, isInteractive: false })
+    await $.turn.start({ text: 'fix the crash on save', turnId: 't5' })
+    await step($, { turnId: 't5', index: 0, model: 'claude-sonnet', effort: 'medium', messageCount: 1 })
+    expect(seen.models).toEqual(['claude-sonnet/medium'])
+  })
+
+  test('an applied setting that errors is not applied again', AUTO, async ($, on) => {
+    mock.store(on, { records: HISTORY })
+    const seen = { models: [] as string[] }
+    bottom(on, seen)
+    await $.session.start({ cwd: '/work', surface: null, isInteractive: false })
+    await $.turn.start({ text: 'fix the crash on save', turnId: 't6' })
+    await step($, { turnId: 't6', index: 0, model: 'claude-opus', effort: 'high', messageCount: 1 })
+    await $.turn.complete({ answer: '', durationMs: 10, isAborted: false, turnId: 't6', reason: 'error' })
+    await $.turn.start({ text: 'fix the crash on save', turnId: 't7' })
+    await step($, { turnId: 't7', index: 0, model: 'claude-opus', effort: 'high', messageCount: 1 })
+    expect(seen.models).toEqual(['claude-sonnet/medium', 'claude-opus/high'])
   })
 })

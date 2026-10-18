@@ -21,7 +21,7 @@
       "type": "number",
       "title": "Minimum samples",
       "description": "Runs of one model/effort on a task type before it can be recommended",
-      "default": 3
+      "default": 5
     },
     "minSavingsPct": {
       "type": "number",
@@ -38,7 +38,7 @@
     "logPath": {
       "type": "string",
       "title": "JSONL mirror path",
-      "description": "If set, every recorded turn rewrites this JSONL file (relative paths resolve against the session folder)",
+      "description": "If set, every recorded turn rewrites this JSONL file. A relative path resolves against Claude Code's working folder; ~ is not expanded.",
       "default": ""
     }
   }

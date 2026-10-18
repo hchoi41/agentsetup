@@ -31,7 +31,7 @@ export type LedgerRecord = {
   durationMs: number
   outcome: Outcome
   usage: Usage
-  subagents: { runs: number; usage: Usage }
+  subagents: { runs: number; usage: Usage; byModel?: Record<string, Usage> }
   tools: Record<string, number>
   commands: Record<string, number>
   issues: Issue[]
@@ -46,8 +46,8 @@ export type Config = {
 export type Recommendation = Config & {
   type: string
   samples: number
-  medianCost: number
-  currentMedianCost?: number
+  cost: number
+  currentCost?: number
   savingsPct?: number
   successRate: number
 }
@@ -69,20 +69,24 @@ const TYPE_RULES: ReadonlyArray<[string, RegExp]> = [
   ['test', /\b(tests?|pytest|unit test|coverage|spec)\b/i],
   ['review', /\b(review|audit|critique|check over)\b/i],
   ['refactor', /\b(refactor|clean ?up|simplify|rename|restructure)\b/i],
-  ['docs', /\b(readme|docs?|documentation|write[- ]?up|draft|summari[sz]e|rewrite)\b/i],
+  ['docs', /\b(readme|docs?|documentation|write[- ]?up|draft|summari[sz]e)\b/i],
   ['research', /\b(research|investigate|compare|find out|look up|feasib)/i],
   ['build', /\b(implement|add|build|create|make|scaffold|set ?up|install|write (a|the|an))\b/i],
   ['ops', /\b(deploy|release|publish|push|commit|merge|pr\b|pull request|ci)\b/i],
   ['question', /^(what|why|how|when|where|who|which|is|are|can|does|do|should)\b|\?\s*$/i],
 ]
 
-const TAG = /^\s*#([a-z][a-z0-9_-]{1,31})(?=\s|$)/i
+export const TYPES: readonly string[] = [...TYPE_RULES.map(([t]) => t), 'other']
 
-/** Splits a leading `#type` tag off the prompt; `undefined` when none. */
+// `#debug` for a known type, `#type:anything` for a custom one; `#include` stays text.
+const TAG = /^\s*#(type:)?([a-z][a-z0-9_-]{1,31})(?=\s|$)/i
+
+/** Splits a leading type tag off the prompt; `undefined` when none. */
 export function splitTag(text: string): { tag?: string; rest: string } {
   const m = TAG.exec(text)
-  if (!m) return { rest: text }
-  return { tag: (m[1] ?? '').toLowerCase(), rest: text.slice(m[0].length).replace(/^\s+/, '') }
+  const tag = (m?.[2] ?? '').toLowerCase()
+  if (!m || (!m[1] && !TYPES.includes(tag))) return { rest: text }
+  return { tag, rest: text.slice(m[0].length).replace(/^\s+/, '') }
 }
 
 /** Keyword classifier: free, deterministic, and good enough to group jobs. */
@@ -138,9 +142,12 @@ export function modelWeight(model: string, weights: Record<string, number>): num
   return 1
 }
 
-/** The figure the optimizer minimises: weighted tokens, main loop plus subagents. */
+/** The figure the optimizer minimises: weighted tokens, each model at its own weight. */
 export function cost(r: LedgerRecord, weights: Record<string, number>): number {
-  return weightedTokens(addUsage(r.usage, r.subagents.usage)) * modelWeight(r.model, weights)
+  const main = weightedTokens(r.usage) * modelWeight(r.model, weights)
+  const by = r.subagents.byModel
+  if (!by) return main + weightedTokens(r.subagents.usage) * modelWeight(r.model, weights)
+  return Object.entries(by).reduce((sum, [model, u]) => sum + weightedTokens(u) * modelWeight(model, weights), main)
 }
 
 /** Parses `haiku=1,sonnet=3,opus=5` into weights; bad pairs are skipped. */
@@ -158,69 +165,79 @@ export function isSuccess(r: LedgerRecord): boolean {
   return r.outcome === 'answer' && r.rating !== 'bad'
 }
 
-export function median(xs: number[]): number {
+/** Linear-interpolated quantile, q in [0, 1]. */
+export function quantile(xs: number[], q: number): number {
   if (xs.length === 0) return 0
   const s = [...xs].sort((a, b) => a - b)
-  const mid = s.length >> 1
-  const hi = s[mid] ?? 0
-  return s.length % 2 ? hi : ((s[mid - 1] ?? hi) + hi) / 2
+  const at = (s.length - 1) * q
+  const lo = s[Math.floor(at)] ?? 0
+  const hi = s[Math.ceil(at)] ?? lo
+  return lo + (hi - lo) * (at - Math.floor(at))
+}
+
+export function median(xs: number[]): number {
+  return quantile(xs, 0.5)
 }
 
 export function configKey(c: Config): string {
   return `${c.model}|${c.effort}`
 }
 
-type Group = Config & { samples: number; successRate: number; medianCost: number }
+type Group = Config & { samples: number; successRate: number; cost: number; p75: number }
+
+// Aborted turns are mostly steering, not failure: they are left out of the evidence.
+function group(rs: LedgerRecord[], s: Settings): Group | undefined {
+  const done = rs.filter(r => r.outcome !== 'aborted')
+  const first = done[0]
+  if (!first) return undefined
+  const ok = done.filter(isSuccess)
+  const successRate = ok.length / done.length
+  const costs = ok.map(r => cost(r, s.modelWeights))
+  return {
+    model: first.model,
+    effort: first.effort,
+    samples: done.length,
+    successRate,
+    // Expected cost of getting the job done: failed runs have to be paid for again.
+    cost: successRate > 0 ? median(costs) / successRate : Infinity,
+    p75: quantile(costs, 0.75),
+  }
+}
 
 function groups(records: LedgerRecord[], type: string, s: Settings): Group[] {
-  const recent = records.filter(r => r.type === type).slice(-s.window)
   const by = new Map<string, LedgerRecord[]>()
-  for (const r of recent) {
-    const k = configKey(r)
-    by.set(k, [...(by.get(k) ?? []), r])
-  }
-  return [...by.entries()].map(([key, rs]) => {
-    const ok = rs.filter(isSuccess)
-    const [model = '', effort = DEFAULT_EFFORT] = key.split('|')
-    return {
-      model,
-      effort,
-      samples: rs.length,
-      successRate: ok.length / rs.length,
-      // Cost of getting the job done: failed runs are not cheaper answers.
-      medianCost: median(ok.map(r => cost(r, s.modelWeights))),
-    }
-  })
+  for (const r of records.filter(r => r.type === type).slice(-s.window)) by.set(configKey(r), [...(by.get(configKey(r)) ?? []), r])
+  return [...by.values()].map(rs => group(rs, s)).filter((g): g is Group => g !== undefined)
 }
 
 /**
- * The cheapest model/effort that has done this type of job reliably, when it
- * beats `current` by at least `minSavingsPct`; `undefined` while evidence is thin.
+ * The cheapest model/effort that has done this type of job reliably, when it beats
+ * `current` by `minSavingsPct` after `switchPenalty` (the cost of re-caching the
+ * context on another model); `undefined` while evidence is thin or not convincing.
  */
 export function recommend(
   records: LedgerRecord[],
   type: string,
   current: Config | undefined,
   s: Settings,
+  switchPenalty = 0,
 ): Recommendation | undefined {
-  const all = groups(records, type, s)
-  const eligible = all.filter(g => g.samples >= s.minSamples && g.successRate >= s.minSuccessRate)
+  const eligible = groups(records, type, s).filter(g => g.samples >= s.minSamples && g.successRate >= s.minSuccessRate)
   if (eligible.length === 0) return undefined
-  const best = eligible.reduce((a, b) => (b.medianCost < a.medianCost ? b : a))
-  const here = current && all.find(g => configKey(g) === configKey(current))
-  const rec: Recommendation = {
-    type,
-    model: best.model,
-    effort: best.effort,
-    samples: best.samples,
-    medianCost: best.medianCost,
-    successRate: best.successRate,
-  }
-  if (!current || !here || here.medianCost === 0) return rec
+  const best = eligible.reduce((a, b) => (b.cost < a.cost ? b : a))
+  const rec: Recommendation = { type, model: best.model, effort: best.effort, samples: best.samples, cost: best.cost, successRate: best.successRate }
+  if (!current) return rec
   if (configKey(best) === configKey(current)) return undefined
-  const savingsPct = Math.round((1 - best.medianCost / here.medianCost) * 100)
-  if (savingsPct < s.minSavingsPct) return undefined
-  return { ...rec, currentMedianCost: here.medianCost, savingsPct }
+  // The current setting is judged on its own recent runs, inside the window or not.
+  const mine = records.filter(r => r.type === type && configKey(r) === configKey(current)).slice(-s.window)
+  const here = group(mine, s)
+  if (!here || here.samples < s.minSamples) return rec
+  const proposed = best.cost + (best.model === current.model ? 0 : switchPenalty)
+  const savingsPct = Math.round((1 - proposed / here.cost) * 100)
+  // Robustness: the proposal's typical bad run must still beat the current setting's typical run.
+  const hereMedian = median(mine.filter(isSuccess).map(r => cost(r, s.modelWeights)))
+  if (savingsPct < s.minSavingsPct || best.p75 >= hereMedian) return undefined
+  return { ...rec, currentCost: here.cost, savingsPct }
 }
 
 export function k(n: number): string {
@@ -229,7 +246,7 @@ export function k(n: number): string {
 
 function top(counts: Record<string, number>, n: number): string {
   const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, n)
-  return rows.length ? rows.map(([name, c]) => `${name}×${c}`).join(', ') : '-'
+  return rows.length ? rows.map(([name, n]) => `${name}×${n}`).join(', ') : '-'
 }
 
 function merge(into: Record<string, number>, from: Record<string, number>): void {
@@ -268,11 +285,11 @@ export function summary(records: LedgerRecord[], s: Settings): string {
   lines.push('', '**Cheapest reliable settings by type**')
   if (recs.length === 0) lines.push(`- not enough evidence yet (need ${s.minSamples}+ runs of one setting per type)`)
   for (const r of recs)
-    lines.push(`- ${r.type}: ${r.model} / effort ${r.effort} — median cost ${k(r.medianCost)}, n=${r.samples}, success ${Math.round(r.successRate * 100)}%`)
+    lines.push(`- ${r.type}: ${r.model} / effort ${r.effort} — expected cost ${k(r.cost)}, n=${r.samples}, success ${Math.round(r.successRate * 100)}%`)
   const kinds: Record<string, number> = {}
   for (const r of records) for (const i of r.issues) kinds[`${i.kind}${i.tool ? `:${i.tool}` : ''}`] = (kinds[`${i.kind}${i.tool ? `:${i.tool}` : ''}`] ?? 0) + 1
   lines.push('', `**Most common issues:** ${top(kinds, 5)}`)
-  lines.push('', '_cost = input + 5×output + 1.25×cache write + 0.1×cache read, × model weight_')
+  lines.push('', '_cost = input + 5×output + 1.25×cache write + 0.1×cache read, × model weight; expected cost = median cost ÷ success rate_')
   return lines.join('\n')
 }
 
@@ -292,15 +309,26 @@ export function describe(r: LedgerRecord, s: Settings): string {
   return lines.join('\n')
 }
 
+const SHELL_WORDS = new Set(['sudo', 'for', 'do', 'done', 'if', 'then', 'else', 'elif', 'fi', 'while', 'until', 'case', 'esac', 'time', 'exec'])
+
 /** First word of each command in a shell line, skipping env assignments and sudo. */
 export function commandNames(line: string): string[] {
   const names: string[] = []
   for (const part of line.split(/&&|\|\||;|\|/)) {
-    const words = part.trim().split(/\s+/).filter(w => !/^[A-Z_][A-Z0-9_]*=/.test(w) && w !== 'sudo')
+    if (/^\s*(for|case|select)\s/.test(part)) continue // a loop header names a variable, not a command
+    const words = part.trim().split(/\s+/).filter(w => !/^[A-Z_][A-Z0-9_]*=/.test(w) && !SHELL_WORDS.has(w))
     const head = words[0]?.replace(/^.*[\\/]/, '')
     if (head && /^[\w.+-]+$/.test(head)) names.push(head)
   }
   return names
+}
+
+/** Masks values that look like credentials: `key=value` secrets, bearer tokens, long hex/base64 runs. */
+export function redact(text: string): string {
+  return text
+    .replace(/\bBearer\s+[^\s"']+/gi, 'Bearer ***')
+    .replace(/\b(\w*(?:key|token|secret|password|passwd|pwd|auth)\w*)\s*[=:]\s*(?!Bearer\b)[^\s"']+/gi, '$1=***')
+    .replace(/\b[A-Za-z0-9+/_-]{32,}={0,2}/g, '***')
 }
 
 export function clip(text: string, n = 160): string {
@@ -310,4 +338,17 @@ export function clip(text: string, n = 160): string {
 
 export function toJsonl(records: LedgerRecord[]): string {
   return records.map(r => JSON.stringify(r)).join('\n') + (records.length ? '\n' : '')
+}
+
+/** The newest records whose JSON fits in `maxBytes` (the store holds 4 MiB in all). */
+export function capBytes(records: LedgerRecord[], maxBytes = 3_000_000): LedgerRecord[] {
+  let size = 2
+  let i = records.length
+  while (i > 0) {
+    const next = JSON.stringify(records[i - 1]).length + 1
+    if (size + next > maxBytes) break
+    size += next
+    i -= 1
+  }
+  return records.slice(i)
 }
