@@ -1,0 +1,5 @@
+{
+  "lastChecked": "2026-10-18",
+  "includeOpenModels": false,
+  "providers": ["Claude", "ChatGPT", "Gemini", "Grok", "Muse"]
+}

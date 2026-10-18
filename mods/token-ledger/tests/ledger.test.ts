@@ -176,4 +176,14 @@ describe('token-ledger hooks', () => {
     await step($, { turnId: 't7', index: 0, model: 'claude-opus', effort: 'high', messageCount: 1 })
     expect(seen.models).toEqual(['claude-sonnet/medium', 'claude-opus/high'])
   })
+
+  test('starts from the provider guide while a type has no evidence', { options: { mode: 'auto' } }, async ($, on) => {
+    mock.store(on)
+    const seen = { models: [] as string[] }
+    bottom(on, seen)
+    await $.session.start({ cwd: '/work', surface: null, isInteractive: false })
+    await $.turn.start({ text: 'what does this flag do?', turnId: 't8' })
+    await step($, { turnId: 't8', index: 0, model: 'claude-opus-5-5', effort: 'high', messageCount: 1 })
+    expect(seen.models).toEqual(['claude-haiku-5-5/low'])
+  })
 })

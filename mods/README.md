@@ -40,6 +40,14 @@ when all of these hold:
 Cost is `input + 5×output + 1.25×cache write + 0.1×cache read` (the API's price ratios),
 each model's tokens multiplied by its weight from `modelWeights`, subagents included.
 
+**Starting point.** Until a task type has `minSamples` finished runs, token-ledger starts from
+the provider guide's setting for that type (`token-ledger/hooks/defaults.ts`, documented with
+sources in [`token-ledger/guide/MODEL_GUIDE.md`](token-ledger/guide/MODEL_GUIDE.md)). The guide
+also lists starting settings for ChatGPT, Gemini, Grok and Muse for the other agents. A scheduled
+task re-checks the official pages on the first of each month and opens a pull request when
+something changed. Open-weight models are added only on request (`includeOpenModels` in
+`token-ledger/guide/config.json`).
+
 **Modes** (`/config` → token-ledger):
 
 - `record`: log only.

@@ -1,5 +1,7 @@
 import type { EngineInterface, Register } from 'claude-code'
 
+import { CLAUDE_DEFAULTS } from './defaults.ts'
+
 import {
   DEFAULT_EFFORT,
   MAX_ISSUES,
@@ -78,6 +80,13 @@ export const register: Register = (on, options) => {
   const turnsByType = new Map<string, number>()
 
   const keep = (r: LedgerRecord[]) => capBytes(r.slice(-MAX_RECORDS))
+  // Until a type has minSamples finished runs, start from the provider guide's setting.
+  const starting = (type: string, cur: Config): Recommendation | undefined => {
+    const d = CLAUDE_DEFAULTS[type]
+    const runs = records.filter(r => r.type === type && r.outcome !== 'aborted').length
+    if (!d || runs >= settings.minSamples || configKey(d) === configKey(cur)) return undefined
+    return { type, model: d.model, effort: d.effort, samples: 0, cost: 0, successRate: 0 }
+  }
   const issue = (l: Live, i: Issue) => {
     if (l.record.issues.length < MAX_ISSUES) l.record.issues.push(i)
   }
@@ -155,15 +164,19 @@ export const register: Register = (on, options) => {
         turnsByType.set(type, n)
         // Moving to another model re-caches the context: ~1.15x the tokens last read from cache.
         const penalty = 1.15 * lastCacheRead * modelWeight(current.model, settings.modelWeights)
-        const rec = recommend(records, type, current, settings, penalty)
+        const rec = recommend(records, type, current, settings, penalty) ?? starting(type, current)
         if (rec && !suspended.has(configKey(rec))) {
           l.rec = rec
           l.apply = mode === 'auto' && n % EXPLORE_EVERY !== 0
           const saving = rec.savingsPct === undefined ? '' : ` (−${rec.savingsPct}% est.)`
-          $.ui.status(`ledger: ${type} → ${l.apply ? 'using' : 'try'} ${rec.model} / ${rec.effort}${saving}`)
+          const from = rec.samples === 0 ? ' (provider guide)' : ''
+          $.ui.status(`ledger: ${type} → ${l.apply ? 'using' : 'try'} ${rec.model} / ${rec.effort}${saving}${from}`)
           if (!l.apply && rec.savingsPct !== undefined && !toasted.has(type)) {
             toasted.add(type)
             $.ui.toast(`token-ledger: past ${type} jobs ran cheapest on ${rec.model} / effort ${rec.effort}${saving}, n=${rec.samples}`)
+          } else if (!l.apply && rec.samples === 0 && !toasted.has(type)) {
+            toasted.add(type)
+            $.ui.toast(`token-ledger: no evidence for ${type} yet; the provider guide suggests ${rec.model} / effort ${rec.effort}`)
           }
         }
       }
