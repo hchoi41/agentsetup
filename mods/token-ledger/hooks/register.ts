@@ -18,6 +18,7 @@ import {
   isComplaint,
   k,
   learnedDefaults,
+  lessons,
   machineId,
   modelWeight,
   parseWeights,
@@ -29,9 +30,11 @@ import {
   totalTokens,
 } from './ledger.ts'
 import type { Config, Issue, Learned, LedgerRecord, Recommendation, Settings } from './ledger.ts'
-import { parseLearned } from './ledger.ts'
+import { parseLearned, parseLessons } from './ledger.ts'
 
 const STORE_KEY = 'records'
+// Lessons carried in by hand from other machines (main machine): choices per type only.
+const IMPORTED_KEY = 'imported'
 const NAMED_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 type NamedEffort = (typeof NAMED_EFFORTS)[number]
 // In auto mode every Nth turn of a type keeps your own setting, so it keeps being measured.
@@ -91,6 +94,7 @@ export const register: Register = (on, options) => {
   let machine = 'machine'
   let home = ''
   let learned: Learned | undefined
+  let imported: Learned['types'] = {}
   // Subagent id -> the main turn whose Agent call started it.
   const agentOwner = new Map<string, string>()
 
@@ -100,7 +104,7 @@ export const register: Register = (on, options) => {
   const starting = (type: string, cur: Config): Recommendation | undefined => {
     const runs = records.filter(r => r.type === type && r.outcome !== 'aborted').length
     if (runs >= settings.minSamples) return undefined
-    const fromLearned = learned?.types[type]
+    const fromLearned = learned?.types[type] ?? imported[type]
     const d = fromLearned ?? CLAUDE_DEFAULTS[type]
     if (!d || configKey(d) === configKey(cur)) return undefined
     return { type, model: d.model, effort: d.effort, samples: 0, cost: 0, successRate: 0, source: fromLearned ? 'learned' : 'guide' }
@@ -115,12 +119,14 @@ export const register: Register = (on, options) => {
     cwd = e.cwd
     machine = machineId((await $.env.get('COMPUTERNAME')) ?? (await $.env.get('HOSTNAME')))
     home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')) ?? ''
+    const carried = await $.store.get(IMPORTED_KEY)
+    imported = carried && typeof carried === 'object' ? (carried as Learned['types']) : {}
     learned = parseLearned(await $.fs.read(`${$.plugin.root}/${LEARNED_FILE}`).catch(() => ''))
     try {
       await $.command.register({
         name: 'token-ledger',
         description: 'Token use by task type, issues, and the cheapest reliable model/effort',
-        argumentHint: '[report|last|recommend [type]|rate good|bad|learned [path]|export [path]|reset confirm]',
+        argumentHint: '[report|last|recommend [type]|rate good|bad|lessons [path]|lessons-in <file>|learned [path]|export [path]|reset confirm]',
         immediate: true,
       })
     } catch {
@@ -302,9 +308,25 @@ export const register: Register = (on, options) => {
     switch (verb) {
       case 'report':
         return { text: summary(records, settings) }
+      case 'lessons': {
+        const note = lessons(records, settings)
+        if (arg) await $.fs.write(arg, note + '\n')
+        return { text: arg ? `${note}\n\n(saved to ${arg})` : note }
+      }
+      case 'lessons-in': {
+        if (!arg) return { text: 'Usage: /token-ledger lessons-in <file holding a lessons note>' }
+        const found = parseLessons(await $.fs.read(arg))
+        const n = Object.keys(found).length
+        if (n === 0) return { text: 'token-ledger: no "N. type: use model / effort ... (n=…, …% success)" lines found in that file.' }
+        imported = { ...imported, ...found }
+        await $.store.set(IMPORTED_KEY, imported)
+        return { text: `token-ledger: took in lessons for ${Object.keys(found).join(', ')}. They fill task types this machine has no evidence for, and go out with \`/token-ledger learned\`.` }
+      }
       case 'learned': {
         // On the main machine: the learned settings to ship with the setup (no records).
-        const out = learnedDefaults(records, settings)
+        // This machine's evidence wins; lessons carried in fill the types it has no evidence for.
+        const own = learnedDefaults(records, settings)
+        const out = { ...own, types: { ...imported, ...own.types } }
         const path = arg || (home ? `${home}/.claude/learned-defaults.json` : 'learned-defaults.json')
         await $.fs.write(path, JSON.stringify(out, null, 2) + '\n')
         const n = Object.keys(out.types).length
@@ -346,7 +368,7 @@ export const register: Register = (on, options) => {
       default:
         return {
           text: [
-            'Usage: /token-ledger [report|last|recommend [type]|rate good|bad|learned [path]|export [path]|reset confirm]',
+            'Usage: /token-ledger [report|last|recommend [type]|rate good|bad|lessons [path]|lessons-in <file>|learned [path]|export [path]|reset confirm]',
             'Tag a prompt with a leading type (e.g. `#debug fix the login test`, or `#type:migration ...`).',
           ].join('\n'),
         }

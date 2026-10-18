@@ -415,3 +415,53 @@ export function parseLearned(text: string): Learned | undefined {
     return undefined
   }
 }
+
+const LESSON_LINE = /^\s*\d+\.\s+([a-z][\w-]*):\s+use\s+(\S+)\s*\/\s*(\S+)\b.*\(n=(\d+),\s*(\d+)%\s+success\)/i
+
+/**
+ * A short, human-readable note of what this machine has learned, safe to carry by hand:
+ * per task type the setting that worked, settings to avoid, and the common problems.
+ * Only model names, effort levels, task types, counts and issue kinds appear in it.
+ */
+export function lessons(records: LedgerRecord[], s: Settings, today = new Date()): string {
+  const done = records.filter(r => r.outcome !== 'aborted')
+  const lines = [`token-ledger lessons, ${today.toISOString().slice(0, 10)}, ${done.length} turns`]
+  let n = 0
+  const avoid: string[] = []
+  for (const type of [...new Set(done.map(r => r.type))].sort()) {
+    const rs = done.filter(r => r.type === type)
+    const rec = recommend(records, type, undefined, s)
+    if (rec) {
+      // Compared with the setting used most for this type, when that is a different one.
+      const counts = new Map<string, number>()
+      for (const r of rs) counts.set(configKey(r), (counts.get(configKey(r)) ?? 0) + 1)
+      const usual = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
+      const [um = '', ue = ''] = (usual ?? '').split('|')
+      const versus = usual && usual !== configKey(rec) ? recommend(records, type, { model: um, effort: ue }, { ...s, minSavingsPct: -Infinity }) : undefined
+      const saving = versus?.savingsPct !== undefined ? `, ${versus.savingsPct}% cheaper than ${um} / ${ue}` : ''
+      lines.push(`${++n}. ${type}: use ${rec.model} / ${rec.effort}${saving} (n=${rec.samples}, ${Math.round(rec.successRate * 100)}% success)`)
+    }
+    for (const key of new Set(rs.map(configKey))) {
+      const g = rs.filter(r => configKey(r) === key)
+      const ok = g.filter(isSuccess).length
+      if (g.length >= 3 && ok / g.length < s.minSuccessRate) avoid.push(`${type} on ${key.replace('|', ' / ')} (${g.length - ok} of ${g.length} failed)`)
+    }
+  }
+  if (n === 0) lines.push(`No task type has ${s.minSamples}+ reliable runs of one setting yet.`)
+  if (avoid.length) lines.push(`Avoid: ${avoid.slice(0, 4).join('; ')}`)
+  const kinds: Record<string, number> = {}
+  for (const r of done) for (const i of r.issues) kinds[`${i.kind}${i.tool ? ` (${i.tool})` : ''}`] = (kinds[`${i.kind}${i.tool ? ` (${i.tool})` : ''}`] ?? 0) + 1
+  const top = Object.entries(kinds).sort((a, b) => b[1] - a[1]).slice(0, 3)
+  if (top.length) lines.push(`Common problems: ${top.map(([k2, c]) => `${k2} ×${c}`).join(', ')}`)
+  return lines.join('\n')
+}
+
+/** Reads the "N. type: use model / effort ... (n=…, …% success)" lines of a lessons note. */
+export function parseLessons(text: string): Learned['types'] {
+  const types: Learned['types'] = {}
+  for (const line of text.split(/\r?\n/)) {
+    const m = LESSON_LINE.exec(line)
+    if (m) types[(m[1] ?? '').toLowerCase()] = { model: m[2] ?? '', effort: m[3] ?? '', samples: Number(m[4]), successRate: Number(m[5]) / 100 }
+  }
+  return types
+}

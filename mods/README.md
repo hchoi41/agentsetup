@@ -75,6 +75,8 @@ From a shell: `claude plugin marketplace add <hub>/mods`, then
 /token-ledger last                     ← full breakdown of the last turn
 /token-ledger recommend [type]         ← cheapest reliable model/effort per type
 /token-ledger rate good|bad            ← mark the last finished turn (runs at once, even mid-turn); bad runs count as failures
+/token-ledger lessons [path]           ← any machine: a short, plain-language lessons note (optionally saved to a file)
+/token-ledger lessons-in <file>        ← main machine: take in a lessons note carried from another machine
 /token-ledger learned [path]           ← main machine: write learned settings to ship with the setup (default ~/.claude/learned-defaults.json)
 /token-ledger export [path]            ← write all local records as JSONL (default ~/.claude/token-ledger.jsonl)
 /token-ledger reset confirm            ← delete all records
@@ -100,6 +102,26 @@ What travels is the setup, one way, from your main machine through GitHub:
 3. Every machine that installs or updates the setup starts from those settings. Until a
    machine has `minSamples` runs of a type it uses, in order: the main machine's learned
    setting, then the provider guide. After that its own evidence decides.
+
+### Carrying lessons by hand
+
+A machine that must not send data out (a company computer) can still teach the main machine,
+through you. `/token-ledger lessons` prints a note like this:
+
+```text
+token-ledger lessons, 2026-10-18, 32 turns
+1. debug: use claude-sonnet-5-5 / high, 44% cheaper than claude-opus-5-5 / medium (n=9, 100% success)
+2. question: use claude-haiku-5-5 / low (n=10, 100% success)
+Avoid: build on claude-sonnet-5-5 / low (2 of 4 failed)
+Common problems: tool-error (Bash) ×4, retry (Bash) ×3
+```
+
+It holds only task types, model names, effort levels, counts and issue kinds: no paths,
+commands, prompts or error text. Read it, check it is fine to take out under your company's
+rules, and carry it to the main machine (retyping the numbered lines is enough). There, save
+it to a file and run `/token-ledger lessons-in <file>`. The numbered lines fill task types the
+main machine has no evidence for, and go out to every machine with the next
+`/token-ledger learned` and publish.
 
 ### Limits
 

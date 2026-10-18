@@ -2,7 +2,7 @@ import { describe, expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 import type { Engine } from 'claude-code/testing'
 
-import { capBytes, classify, commandNames, cost, learnedDefaults, parseLearned, recommend, redact, splitTag } from '../hooks/ledger.ts'
+import { capBytes, classify, commandNames, cost, learnedDefaults, lessons, parseLearned, parseLessons, recommend, redact, splitTag } from '../hooks/ledger.ts'
 import type { LedgerRecord, Settings } from '../hooks/ledger.ts'
 
 const SETTINGS: Settings = { minSamples: 3, minSavingsPct: 15, minSuccessRate: 0.8, window: 50, modelWeights: {} }
@@ -103,6 +103,22 @@ describe('learned settings and evidence', () => {
     const out = learnedDefaults(HISTORY, SETTINGS, new Date('2026-10-18'))
     expect(out).toEqual({ generated: '2026-10-18', types: { debug: { model: 'claude-sonnet', effort: 'medium', samples: 3, successRate: 1 } } })
     expect(JSON.stringify(out)).not.toContain('/w')
+  })
+
+  test('a lessons note is short, readable, safe and reads back in', () => {
+    const r = rec('debug', 'claude-opus', 'high', 9000)
+    r.cwd = 'C:/Users/max/secret'
+    r.commands = { 'deploy-secret': 1 }
+    r.issues = [{ kind: 'tool-error', tool: 'Bash', detail: 'token abc failed on host x' }]
+    const flaky = Array.from({ length: 3 }, () => rec('build', 'claude-haiku', 'low', 10, 'error'))
+    const note = lessons([...HISTORY, r, ...flaky], SETTINGS, new Date('2026-10-18'))
+    expect(note).toContain('1. debug: use claude-sonnet / medium, ')
+    expect(note).toContain('cheaper than claude-opus / high (n=3, 100% success)')
+    expect(note).toContain('Avoid: build on claude-haiku / low (3 of 3 failed)')
+    expect(note).toContain('Common problems: tool-error (Bash) ×1')
+    for (const secret of ['secret', 'deploy', 'host x', 'abc']) expect(note).not.toContain(secret)
+    expect(note.split('\n').length).toBeLessThanOrEqual(12)
+    expect(parseLessons(note)).toEqual({ debug: { model: 'claude-sonnet', effort: 'medium', samples: 3, successRate: 1 } })
   })
 
   test('reads a learned file and ignores malformed ones', () => {
