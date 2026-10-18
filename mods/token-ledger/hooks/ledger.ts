@@ -1,0 +1,313 @@
+// Pure ledger logic: task typing, cost, summaries and recommendations.
+// No `$` here, so the same code runs in hooks and in tests.
+
+export type Usage = {
+  input: number
+  output: number
+  cacheRead: number
+  cacheWrite: number
+}
+
+export type Issue = {
+  kind: 'tool-error' | 'denied' | 'retry' | 'turn-end'
+  tool?: string
+  detail: string
+}
+
+export type Outcome = 'answer' | 'aborted' | 'refusal' | 'error'
+
+export type LedgerRecord = {
+  v: 1
+  id: string
+  at: number
+  cwd: string
+  type: string
+  typeSource: 'tag' | 'auto'
+  promptChars: number
+  model: string
+  effort: string
+  applied: boolean
+  steps: number
+  durationMs: number
+  outcome: Outcome
+  usage: Usage
+  subagents: { runs: number; usage: Usage }
+  tools: Record<string, number>
+  commands: Record<string, number>
+  issues: Issue[]
+  rating?: 'good' | 'bad'
+}
+
+export type Config = {
+  model: string
+  effort: string
+}
+
+export type Recommendation = Config & {
+  type: string
+  samples: number
+  medianCost: number
+  currentMedianCost?: number
+  savingsPct?: number
+  successRate: number
+}
+
+export type Settings = {
+  minSamples: number
+  minSavingsPct: number
+  minSuccessRate: number
+  window: number
+  modelWeights: Record<string, number>
+}
+
+export const MAX_RECORDS = 1500
+export const MAX_ISSUES = 8
+export const DEFAULT_EFFORT = 'default'
+
+const TYPE_RULES: ReadonlyArray<[string, RegExp]> = [
+  ['debug', /\b(debug|fix|bug|error|fail(s|ing|ed)?|broken|crash|traceback|exception)\b/i],
+  ['test', /\b(tests?|pytest|unit test|coverage|spec)\b/i],
+  ['review', /\b(review|audit|critique|check over)\b/i],
+  ['refactor', /\b(refactor|clean ?up|simplify|rename|restructure)\b/i],
+  ['docs', /\b(readme|docs?|documentation|write[- ]?up|draft|summari[sz]e|rewrite)\b/i],
+  ['research', /\b(research|investigate|compare|find out|look up|feasib)/i],
+  ['build', /\b(implement|add|build|create|make|scaffold|set ?up|install|write (a|the|an))\b/i],
+  ['ops', /\b(deploy|release|publish|push|commit|merge|pr\b|pull request|ci)\b/i],
+  ['question', /^(what|why|how|when|where|who|which|is|are|can|does|do|should)\b|\?\s*$/i],
+]
+
+const TAG = /^\s*#([a-z][a-z0-9_-]{1,31})(?=\s|$)/i
+
+/** Splits a leading `#type` tag off the prompt; `undefined` when none. */
+export function splitTag(text: string): { tag?: string; rest: string } {
+  const m = TAG.exec(text)
+  if (!m) return { rest: text }
+  return { tag: (m[1] ?? '').toLowerCase(), rest: text.slice(m[0].length).replace(/^\s+/, '') }
+}
+
+/** Keyword classifier: free, deterministic, and good enough to group jobs. */
+export function classify(text: string): string {
+  const head = text.slice(0, 600)
+  for (const [type, rule] of TYPE_RULES) if (rule.test(head)) return type
+  return 'other'
+}
+
+export function emptyUsage(): Usage {
+  return { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
+}
+
+export function addUsage(a: Usage, b: Usage): Usage {
+  return {
+    input: a.input + b.input,
+    output: a.output + b.output,
+    cacheRead: a.cacheRead + b.cacheRead,
+    cacheWrite: a.cacheWrite + b.cacheWrite,
+  }
+}
+
+export function fromApiUsage(u: {
+  input_tokens: number
+  output_tokens: number
+  cache_read_input_tokens: number
+  cache_creation_input_tokens: number
+}): Usage {
+  return {
+    input: u.input_tokens,
+    output: u.output_tokens,
+    cacheRead: u.cache_read_input_tokens,
+    cacheWrite: u.cache_creation_input_tokens,
+  }
+}
+
+export function totalTokens(u: Usage): number {
+  return u.input + u.output + u.cacheRead + u.cacheWrite
+}
+
+/**
+ * Compute in input-token equivalents at one model's prices, using the API's
+ * standard ratios: output 5x, cache write 1.25x, cache read 0.1x.
+ */
+export function weightedTokens(u: Usage): number {
+  return u.input + 5 * u.output + 1.25 * u.cacheWrite + 0.1 * u.cacheRead
+}
+
+/** The model's relative price from `modelWeights`, matched by substring; 1 if unknown. */
+export function modelWeight(model: string, weights: Record<string, number>): number {
+  const id = model.toLowerCase()
+  for (const [key, w] of Object.entries(weights)) if (id.includes(key.toLowerCase())) return w
+  return 1
+}
+
+/** The figure the optimizer minimises: weighted tokens, main loop plus subagents. */
+export function cost(r: LedgerRecord, weights: Record<string, number>): number {
+  return weightedTokens(addUsage(r.usage, r.subagents.usage)) * modelWeight(r.model, weights)
+}
+
+/** Parses `haiku=1,sonnet=3,opus=5` into weights; bad pairs are skipped. */
+export function parseWeights(text: string): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const pair of text.split(',')) {
+    const [k, v] = pair.split('=').map(s => s.trim())
+    const n = Number(v)
+    if (k && Number.isFinite(n) && n > 0) out[k] = n
+  }
+  return out
+}
+
+export function isSuccess(r: LedgerRecord): boolean {
+  return r.outcome === 'answer' && r.rating !== 'bad'
+}
+
+export function median(xs: number[]): number {
+  if (xs.length === 0) return 0
+  const s = [...xs].sort((a, b) => a - b)
+  const mid = s.length >> 1
+  const hi = s[mid] ?? 0
+  return s.length % 2 ? hi : ((s[mid - 1] ?? hi) + hi) / 2
+}
+
+export function configKey(c: Config): string {
+  return `${c.model}|${c.effort}`
+}
+
+type Group = Config & { samples: number; successRate: number; medianCost: number }
+
+function groups(records: LedgerRecord[], type: string, s: Settings): Group[] {
+  const recent = records.filter(r => r.type === type).slice(-s.window)
+  const by = new Map<string, LedgerRecord[]>()
+  for (const r of recent) {
+    const k = configKey(r)
+    by.set(k, [...(by.get(k) ?? []), r])
+  }
+  return [...by.entries()].map(([key, rs]) => {
+    const ok = rs.filter(isSuccess)
+    const [model = '', effort = DEFAULT_EFFORT] = key.split('|')
+    return {
+      model,
+      effort,
+      samples: rs.length,
+      successRate: ok.length / rs.length,
+      // Cost of getting the job done: failed runs are not cheaper answers.
+      medianCost: median(ok.map(r => cost(r, s.modelWeights))),
+    }
+  })
+}
+
+/**
+ * The cheapest model/effort that has done this type of job reliably, when it
+ * beats `current` by at least `minSavingsPct`; `undefined` while evidence is thin.
+ */
+export function recommend(
+  records: LedgerRecord[],
+  type: string,
+  current: Config | undefined,
+  s: Settings,
+): Recommendation | undefined {
+  const all = groups(records, type, s)
+  const eligible = all.filter(g => g.samples >= s.minSamples && g.successRate >= s.minSuccessRate)
+  if (eligible.length === 0) return undefined
+  const best = eligible.reduce((a, b) => (b.medianCost < a.medianCost ? b : a))
+  const here = current && all.find(g => configKey(g) === configKey(current))
+  const rec: Recommendation = {
+    type,
+    model: best.model,
+    effort: best.effort,
+    samples: best.samples,
+    medianCost: best.medianCost,
+    successRate: best.successRate,
+  }
+  if (!current || !here || here.medianCost === 0) return rec
+  if (configKey(best) === configKey(current)) return undefined
+  const savingsPct = Math.round((1 - best.medianCost / here.medianCost) * 100)
+  if (savingsPct < s.minSavingsPct) return undefined
+  return { ...rec, currentMedianCost: here.medianCost, savingsPct }
+}
+
+export function k(n: number): string {
+  return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : `${Math.round(n)}`
+}
+
+function top(counts: Record<string, number>, n: number): string {
+  const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, n)
+  return rows.length ? rows.map(([name, c]) => `${name}×${c}`).join(', ') : '-'
+}
+
+function merge(into: Record<string, number>, from: Record<string, number>): void {
+  for (const [key, c] of Object.entries(from)) into[key] = (into[key] ?? 0) + c
+}
+
+/** Markdown report by task type: quantity (tokens, tools) and quality (issues). */
+export function summary(records: LedgerRecord[], s: Settings): string {
+  if (records.length === 0) return 'token-ledger: no turns recorded yet.'
+  const types = [...new Set(records.map(r => r.type))].sort()
+  const lines = [
+    `**token-ledger** — ${records.length} turns recorded`,
+    '',
+    '| type | turns | success | median tokens | median cost | top tools | top commands | issues/turn |',
+    '|---|---:|---:|---:|---:|---|---|---:|',
+  ]
+  for (const type of types) {
+    const rs = records.filter(r => r.type === type)
+    const tools: Record<string, number> = {}
+    const commands: Record<string, number> = {}
+    for (const r of rs) {
+      merge(tools, r.tools)
+      merge(commands, r.commands)
+    }
+    const issues = rs.reduce((n, r) => n + r.issues.length, 0)
+    lines.push(
+      `| ${type} | ${rs.length} | ${Math.round((rs.filter(isSuccess).length / rs.length) * 100)}% | ` +
+        `${k(median(rs.map(r => totalTokens(addUsage(r.usage, r.subagents.usage)))))} | ` +
+        `${k(median(rs.map(r => cost(r, s.modelWeights))))} | ${top(tools, 3)} | ${top(commands, 3)} | ` +
+        `${(issues / rs.length).toFixed(1)} |`,
+    )
+  }
+  const recs = types
+    .map(t => recommend(records, t, undefined, s))
+    .filter((r): r is Recommendation => r !== undefined)
+  lines.push('', '**Cheapest reliable settings by type**')
+  if (recs.length === 0) lines.push(`- not enough evidence yet (need ${s.minSamples}+ runs of one setting per type)`)
+  for (const r of recs)
+    lines.push(`- ${r.type}: ${r.model} / effort ${r.effort} — median cost ${k(r.medianCost)}, n=${r.samples}, success ${Math.round(r.successRate * 100)}%`)
+  const kinds: Record<string, number> = {}
+  for (const r of records) for (const i of r.issues) kinds[`${i.kind}${i.tool ? `:${i.tool}` : ''}`] = (kinds[`${i.kind}${i.tool ? `:${i.tool}` : ''}`] ?? 0) + 1
+  lines.push('', `**Most common issues:** ${top(kinds, 5)}`)
+  lines.push('', '_cost = input + 5×output + 1.25×cache write + 0.1×cache read, × model weight_')
+  return lines.join('\n')
+}
+
+/** Markdown breakdown of one turn. */
+export function describe(r: LedgerRecord, s: Settings): string {
+  const u = addUsage(r.usage, r.subagents.usage)
+  const lines = [
+    `**Last turn** — type \`${r.type}\` (${r.typeSource}), ${r.model} / effort ${r.effort}${r.applied ? ' (applied by token-ledger)' : ''}`,
+    `- outcome: ${r.outcome}${r.rating ? `, rated ${r.rating}` : ''}; ${r.steps} model requests; ${(r.durationMs / 1000).toFixed(1)}s`,
+    `- tokens: ${k(totalTokens(u))} total (in ${k(u.input)}, out ${k(u.output)}, cache read ${k(u.cacheRead)}, cache write ${k(u.cacheWrite)}); cost ${k(cost(r, s.modelWeights))}`,
+    `- subagents: ${r.subagents.runs} runs, ${k(totalTokens(r.subagents.usage))} tokens`,
+    `- tools: ${top(r.tools, 8)}`,
+    `- commands: ${top(r.commands, 8)}`,
+    `- issues: ${r.issues.length ? '' : 'none'}`,
+  ]
+  for (const i of r.issues) lines.push(`  - ${i.kind}${i.tool ? ` (${i.tool})` : ''}: ${i.detail}`)
+  return lines.join('\n')
+}
+
+/** First word of each command in a shell line, skipping env assignments and sudo. */
+export function commandNames(line: string): string[] {
+  const names: string[] = []
+  for (const part of line.split(/&&|\|\||;|\|/)) {
+    const words = part.trim().split(/\s+/).filter(w => !/^[A-Z_][A-Z0-9_]*=/.test(w) && w !== 'sudo')
+    const head = words[0]?.replace(/^.*[\\/]/, '')
+    if (head && /^[\w.+-]+$/.test(head)) names.push(head)
+  }
+  return names
+}
+
+export function clip(text: string, n = 160): string {
+  const one = text.replace(/\s+/g, ' ').trim()
+  return one.length > n ? `${one.slice(0, n - 1)}…` : one
+}
+
+export function toJsonl(records: LedgerRecord[]): string {
+  return records.map(r => JSON.stringify(r)).join('\n') + (records.length ? '\n' : '')
+}

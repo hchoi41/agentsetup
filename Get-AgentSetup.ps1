@@ -105,7 +105,7 @@ foreach ($doc in @('PROJECT_GOVERNANCE.md','CLAUDE.md','orchestration_protocol.m
 Add-File 'AGENT_TARGETS.json' '00.ABOUT/AGENT_TARGETS.json' $true
 Add-File 'START-HERE.md' '00.ABOUT/AGENT_CLI_ONBOARDING.md'
 Add-File 'template/10.OPERATION/OPERATIONS_DASHBOARD.md' '10.OPERATION/OPERATIONS_DASHBOARD.md' $true
-foreach ($tree in @('skills','scripts','orchestrate','tests')) {
+foreach ($tree in @('skills','scripts','orchestrate','tests','mods')) {
   $root=Join-Path $SourceRoot $tree
   if (-not (Test-Path -LiteralPath $root -PathType Container)) { throw "Required payload folder missing: $tree" }
   Check-Chain $root
@@ -120,7 +120,7 @@ foreach ($tree in @('skills','scripts','orchestrate','tests')) {
 foreach ($skill in @('start-project','project-complete','cloud-sync','operationalize','projectify')) {
   if (-not $plan.Contains('skills/'+$skill+'/SKILL.md')) { throw "Core skill missing: $skill" }
 }
-foreach ($required in @('scripts/operation_switch.ps1','scripts/deploy_new_project.ps1','scripts/sync_agent_adapters.ps1','scripts/adapter_templates/prompt-file.md','scripts/adapter_templates/self-contained.md','scripts/Setup-AgentCLIs.ps1','scripts/Assert-AgentCliSelection.ps1','skills/setup-agents/SKILL.md','scripts/operation_name.ps1','skills/operationalize/scripts/operation_name.ps1','skills/projectify/scripts/operation_name.ps1')) {
+foreach ($required in @('scripts/operation_switch.ps1','scripts/deploy_new_project.ps1','scripts/sync_agent_adapters.ps1','scripts/adapter_templates/prompt-file.md','scripts/adapter_templates/self-contained.md','scripts/Setup-AgentCLIs.ps1','scripts/Assert-AgentCliSelection.ps1','skills/setup-agents/SKILL.md','scripts/operation_name.ps1','skills/operationalize/scripts/operation_name.ps1','skills/projectify/scripts/operation_name.ps1','mods/.claude-plugin/marketplace.json','mods/token-ledger/.claude-plugin/plugin.json','mods/token-ledger/hooks/hooks.json','mods/token-ledger/hooks/register.ts','mods/token-ledger/hooks/ledger.ts')) {
   if (-not $plan.Contains($required)) { throw "Required runtime file missing: $required" }
 }
 $seeds=[ordered]@{
