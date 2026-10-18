@@ -4,9 +4,9 @@ Starting settings for token-ledger, and a reference for choosing a model and rea
 task type across providers. Last checked: 2026-10-18. A scheduled task re-checks the official
 pages monthly (first of the month) and opens a pull request when something changed.
 
-**How it is used.** token-ledger suggests the Claude column (`hooks/defaults.ts`) for a task type
-until it has `minSamples` of your own runs of that type; from then on your measured evidence
-decides. The other columns are a reference for the other agents in the Max setup.
+**How it is used.** For a task type without `minSamples` of your own runs, token-ledger uses
+lessons carried in by hand, then the main machine's shipped learned settings, then the Claude
+column here (`hooks/defaults.ts`); from then on your measured evidence decides. The other columns are a reference for the other agents in the Max setup.
 
 **Status of sources.** Anthropic's pages were read in full. OpenAI, Google, xAI and Meta pages
 could not be fetched on 2026-10-18 (network); their rows come from search snippets of the

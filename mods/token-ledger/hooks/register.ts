@@ -30,7 +30,7 @@ import {
   totalTokens,
 } from './ledger.ts'
 import type { Config, Issue, Learned, LedgerRecord, Recommendation, Settings } from './ledger.ts'
-import { parseLearned, parseLessons } from './ledger.ts'
+import { EMPTY_LEARNED, isAvoided, mergeLearned, parseLearned, parseLessons } from './ledger.ts'
 
 const STORE_KEY = 'records'
 // Lessons carried in by hand from other machines (main machine): choices per type only.
@@ -94,7 +94,9 @@ export const register: Register = (on, options) => {
   let machine = 'machine'
   let home = ''
   let learned: Learned | undefined
-  let imported: Learned['types'] = {}
+  let imported: Learned = EMPTY_LEARNED
+  // What other machines taught: the shipped learned file, overridden by fresher lessons carried in by hand.
+  const taught = () => mergeLearned(learned ?? EMPTY_LEARNED, imported)
   // Subagent id -> the main turn whose Agent call started it.
   const agentOwner = new Map<string, string>()
 
@@ -104,11 +106,17 @@ export const register: Register = (on, options) => {
   const starting = (type: string, cur: Config): Recommendation | undefined => {
     const runs = records.filter(r => r.type === type && r.outcome !== 'aborted').length
     if (runs >= settings.minSamples) return undefined
-    const fromLearned = learned?.types[type] ?? imported[type]
-    const d = fromLearned ?? CLAUDE_DEFAULTS[type]
-    if (!d || configKey(d) === configKey(cur)) return undefined
-    return { type, model: d.model, effort: d.effort, samples: 0, cost: 0, successRate: 0, source: fromLearned ? 'learned' : 'guide' }
+    const t = taught()
+    // The first candidate not marked to avoid: taught by other machines, then the provider guide.
+    const candidates: [Config | undefined, 'learned' | 'guide'][] = [[t.types[type], 'learned'], [CLAUDE_DEFAULTS[type], 'guide']]
+    for (const [d, source] of candidates) {
+      if (!d || isAvoided(t, type, d)) continue
+      if (configKey(d) === configKey(cur)) return undefined
+      return { type, model: d.model, effort: d.effort, samples: 0, cost: 0, successRate: 0, source }
+    }
+    return undefined
   }
+
   const issue = (l: Live, i: Issue) => {
     if (l.record.issues.length < MAX_ISSUES) l.record.issues.push(i)
   }
@@ -120,13 +128,14 @@ export const register: Register = (on, options) => {
     machine = machineId((await $.env.get('COMPUTERNAME')) ?? (await $.env.get('HOSTNAME')))
     home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')) ?? ''
     const carried = await $.store.get(IMPORTED_KEY)
-    imported = carried && typeof carried === 'object' ? (carried as Learned['types']) : {}
+    // Older versions stored only the per-type settings map.
+    imported = !carried || typeof carried !== 'object' || Array.isArray(carried) ? EMPTY_LEARNED : 'types' in carried ? (carried as Learned) : { ...EMPTY_LEARNED, types: carried as Learned['types'] }
     learned = parseLearned(await $.fs.read(`${$.plugin.root}/${LEARNED_FILE}`).catch(() => ''))
     try {
       await $.command.register({
         name: 'token-ledger',
         description: 'Token use by task type, issues, and the cheapest reliable model/effort',
-        argumentHint: '[report|last|recommend [type]|rate good|bad|lessons [path]|lessons-in <file>|learned [path]|export [path]|reset confirm]',
+        argumentHint: '[report|last|recommend [type]|rate good|bad|lessons [path]|lessons-in <file>|forget <type>|learned [path]|export [path]|reset confirm]',
         immediate: true,
       })
     } catch {
@@ -306,8 +315,15 @@ export const register: Register = (on, options) => {
     const arg = rest.join(' ')
     const last = records[records.length - 1]
     switch (verb) {
-      case 'report':
-        return { text: summary(records, settings) }
+      case 'report': {
+        const t = taught()
+        const avoid = Object.entries(t.avoid ?? {}).flatMap(([type, keys]) => keys.map(x => `${type} on ${x.replace('|', ' / ')}`))
+        const notes = [
+          avoid.length ? `- avoid (from other machines): ${avoid.join('; ')}` : '',
+          t.problems?.length ? `- common problems (from other machines): ${t.problems.join(', ')}` : '',
+        ].filter(Boolean)
+        return { text: summary(records, settings) + (notes.length ? `\n\n**Taught by other machines**\n${notes.join('\n')}` : '') }
+      }
       case 'lessons': {
         const note = lessons(records, settings)
         if (arg) await $.fs.write(arg, note + '\n')
@@ -316,17 +332,28 @@ export const register: Register = (on, options) => {
       case 'lessons-in': {
         if (!arg) return { text: 'Usage: /token-ledger lessons-in <file holding a lessons note>' }
         const found = parseLessons(await $.fs.read(arg))
-        const n = Object.keys(found).length
-        if (n === 0) return { text: 'token-ledger: no "N. type: use model / effort ... (n=…, …% success)" lines found in that file.' }
-        imported = { ...imported, ...found }
-        await $.store.set(IMPORTED_KEY, imported)
-        return { text: `token-ledger: took in lessons for ${Object.keys(found).join(', ')}. They fill task types this machine has no evidence for, and go out with \`/token-ledger learned\`.` }
+        const kinds = Object.keys(found.types)
+        const avoids = Object.values(found.avoid ?? {}).flat().length
+        if (kinds.length + avoids + (found.problems?.length ?? 0) === 0) return { text: 'token-ledger: no lessons lines ("N. type: use …", "Avoid: …", "Common problems: …") found in that file.' }
+        const next = mergeLearned(imported, found)
+        // Kept only once it is saved, so a failed save changes nothing.
+        await $.store.set(IMPORTED_KEY, next)
+        imported = next
+        return { text: `token-ledger: took in ${kinds.length} setting(s)${kinds.length ? ` (${kinds.join(', ')})` : ''}, ${avoids} to avoid, ${found.problems?.length ?? 0} problem note(s). Settings fill task types without local evidence; avoided settings are not suggested until this machine's own runs show them working; all go out with \`/token-ledger learned\`.` }
+      }
+      case 'forget': {
+        if (!arg) return { text: 'Usage: /token-ledger forget <type>|all (drops lessons carried in for that type)' }
+        const next = arg === 'all' ? EMPTY_LEARNED : { ...imported, types: Object.fromEntries(Object.entries(imported.types).filter(([t]) => t !== arg)), avoid: Object.fromEntries(Object.entries(imported.avoid ?? {}).filter(([t]) => t !== arg)) }
+        await $.store.set(IMPORTED_KEY, next)
+        imported = next
+        return { text: `token-ledger: forgot carried-in lessons for ${arg}.` }
       }
       case 'learned': {
         // On the main machine: the learned settings to ship with the setup (no records).
         // This machine's evidence wins; lessons carried in fill the types it has no evidence for.
         const own = learnedDefaults(records, settings)
-        const out = { ...own, types: { ...imported, ...own.types } }
+        // Shipped settings, then lessons carried in, then this machine's own evidence (newest wins).
+        const out = mergeLearned(taught(), own)
         const path = arg || (home ? `${home}/.claude/learned-defaults.json` : 'learned-defaults.json')
         await $.fs.write(path, JSON.stringify(out, null, 2) + '\n')
         const n = Object.keys(out.types).length
@@ -368,7 +395,7 @@ export const register: Register = (on, options) => {
       default:
         return {
           text: [
-            'Usage: /token-ledger [report|last|recommend [type]|rate good|bad|lessons [path]|lessons-in <file>|learned [path]|export [path]|reset confirm]',
+            'Usage: /token-ledger [report|last|recommend [type]|rate good|bad|lessons [path]|lessons-in <file>|forget <type>|learned [path]|export [path]|reset confirm]',
             'Tag a prompt with a leading type (e.g. `#debug fix the login test`, or `#type:migration ...`).',
           ].join('\n'),
         }

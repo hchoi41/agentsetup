@@ -38,7 +38,7 @@
     "logPath": {
       "type": "string",
       "title": "JSONL mirror path",
-      "description": "If set, every recorded turn rewrites this JSONL file (full local records, including paths and error text: keep it out of any public repository). A relative path resolves against Claude Code's working folder; ~ is not expanded.",
+      "description": "If set, every recorded turn rewrites this JSONL file of full local records (paths, command names, error text). Keep it out of public repositories and, on a machine whose data must stay inside, out of synced folders such as OneDrive. A relative path resolves against Claude Code's working folder; ~ is not expanded.",
       "default": ""
     }
   }

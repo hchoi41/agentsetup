@@ -62,7 +62,13 @@ export type Recommendation = Config & {
 export type Learned = {
   generated: string
   types: Record<string, Config & { samples: number; successRate: number }>
+  /** Per task type, settings ("model|effort") that failed too often there. */
+  avoid?: Record<string, string[]>
+  /** The most common problems seen, as short "kind (tool) ×count" notes. */
+  problems?: string[]
 }
+
+export const EMPTY_LEARNED: Learned = { generated: '', types: {}, avoid: {}, problems: [] }
 
 export type Settings = {
   minSamples: number
@@ -398,7 +404,9 @@ export function learnedDefaults(records: LedgerRecord[], s: Settings, today = ne
     const r = recommend(records, type, undefined, s)
     if (r) types[type] = { model: r.model, effort: r.effort, samples: r.samples, successRate: Math.round(r.successRate * 100) / 100 }
   }
-  return { generated: today.toISOString().slice(0, 10), types }
+  const avoid: Record<string, string[]> = {}
+  for (const [type, list] of Object.entries(failing(records, s))) avoid[type] = list.map(f => f.key)
+  return { generated: today.toISOString().slice(0, 10), types, avoid, problems: [] }
 }
 
 /** Reads a learned-settings file; anything malformed is ignored, not fatal. */
@@ -410,10 +418,22 @@ export function parseLearned(text: string): Learned | undefined {
     for (const [type, v] of Object.entries(raw.types)) {
       if (v && typeof v.model === 'string' && typeof v.effort === 'string') types[type] = { model: v.model, effort: v.effort, samples: Number(v.samples) || 0, successRate: Number(v.successRate) || 0 }
     }
-    return { generated: String(raw.generated ?? ''), types }
+    const avoid: Record<string, string[]> = {}
+    for (const [type, keys] of Object.entries(raw.avoid ?? {})) if (Array.isArray(keys)) avoid[type] = keys.filter(x => typeof x === 'string')
+    const problems = Array.isArray(raw.problems) ? raw.problems.filter(x => typeof x === 'string').slice(0, 10) : []
+    return { generated: String(raw.generated ?? ''), types, avoid, problems }
   } catch {
     return undefined
   }
+}
+
+/**
+ * A tool name safe to carry out: built-in tool names as they are; MCP and plugin tools,
+ * whose names carry server or company names, become "mcp" or "other".
+ */
+export function safeTool(tool: string): string {
+  if (tool.startsWith('mcp__')) return 'mcp'
+  return /^[A-Z][A-Za-z]{1,30}$/.test(tool) ? tool : 'other'
 }
 
 const LESSON_LINE = /^\s*\d+\.\s+([a-z][\w-]*):\s+use\s+(\S+)\s*\/\s*(\S+)\b.*\(n=(\d+),\s*(\d+)%\s+success\)/i
@@ -431,7 +451,7 @@ export function lessons(records: LedgerRecord[], s: Settings, today = new Date()
   for (const type of [...new Set(done.map(r => r.type))].sort()) {
     const rs = done.filter(r => r.type === type)
     const rec = recommend(records, type, undefined, s)
-    if (rec) {
+    if (rec && n < MAX_TAUGHT_TYPES) {
       // Compared with the setting used most for this type, when that is a different one.
       const counts = new Map<string, number>()
       for (const r of rs) counts.set(configKey(r), (counts.get(configKey(r)) ?? 0) + 1)
@@ -441,27 +461,80 @@ export function lessons(records: LedgerRecord[], s: Settings, today = new Date()
       const saving = versus?.savingsPct !== undefined ? `, ${versus.savingsPct}% cheaper than ${um} / ${ue}` : ''
       lines.push(`${++n}. ${type}: use ${rec.model} / ${rec.effort}${saving} (n=${rec.samples}, ${Math.round(rec.successRate * 100)}% success)`)
     }
-    for (const key of new Set(rs.map(configKey))) {
-      const g = rs.filter(r => configKey(r) === key)
-      const ok = g.filter(isSuccess).length
-      if (g.length >= 3 && ok / g.length < s.minSuccessRate) avoid.push(`${type} on ${key.replace('|', ' / ')} (${g.length - ok} of ${g.length} failed)`)
-    }
   }
   if (n === 0) lines.push(`No task type has ${s.minSamples}+ reliable runs of one setting yet.`)
+  for (const [type, list] of Object.entries(failing(records, s))) for (const f of list) avoid.push(`${type} on ${f.key.replace('|', ' / ')} (${f.failed} of ${f.total} failed)`)
   if (avoid.length) lines.push(`Avoid: ${avoid.slice(0, 4).join('; ')}`)
   const kinds: Record<string, number> = {}
-  for (const r of done) for (const i of r.issues) kinds[`${i.kind}${i.tool ? ` (${i.tool})` : ''}`] = (kinds[`${i.kind}${i.tool ? ` (${i.tool})` : ''}`] ?? 0) + 1
+  for (const r of done) for (const i of r.issues) {
+    const kind = `${i.kind}${i.tool ? ` (${safeTool(i.tool)})` : ''}`
+    kinds[kind] = (kinds[kind] ?? 0) + 1
+  }
   const top = Object.entries(kinds).sort((a, b) => b[1] - a[1]).slice(0, 3)
   if (top.length) lines.push(`Common problems: ${top.map(([k2, c]) => `${k2} ×${c}`).join(', ')}`)
   return lines.join('\n')
 }
 
-/** Reads the "N. type: use model / effort ... (n=…, …% success)" lines of a lessons note. */
-export function parseLessons(text: string): Learned['types'] {
+// A carried-in note is typed by a person: model and effort names are checked before use.
+const SAFE_NAME = /^[\w.-]{1,64}$/
+const MAX_TAUGHT_TYPES = 30
+
+const AVOID_ITEM = /^\s*([a-z][\w-]*)\s+on\s+(\S+)\s*\/\s*(\S+)/i
+
+/** Reads a lessons note back: the "N. type: use …" lines, the Avoid line and Common problems. */
+export function parseLessons(text: string): Learned {
   const types: Learned['types'] = {}
+  const avoid: Record<string, string[]> = {}
+  let problems: string[] = []
   for (const line of text.split(/\r?\n/)) {
     const m = LESSON_LINE.exec(line)
-    if (m) types[(m[1] ?? '').toLowerCase()] = { model: m[2] ?? '', effort: m[3] ?? '', samples: Number(m[4]), successRate: Number(m[5]) / 100 }
+    if (m && Object.keys(types).length < MAX_TAUGHT_TYPES && SAFE_NAME.test(m[2] ?? '') && SAFE_NAME.test(m[3] ?? '')) {
+      types[(m[1] ?? '').toLowerCase()] = { model: m[2] ?? '', effort: m[3] ?? '', samples: Math.min(Number(m[4]), 100_000), successRate: Math.min(Number(m[5]), 100) / 100 }
+    }
+    const av = /^\s*avoid:\s*(.+)$/i.exec(line)
+    if (av) for (const item of (av[1] ?? '').split(';')) {
+      const x = AVOID_ITEM.exec(item)
+      if (x && SAFE_NAME.test(x[2] ?? '') && SAFE_NAME.test(x[3] ?? '') && Object.keys(avoid).length < MAX_TAUGHT_TYPES) (avoid[(x[1] ?? '').toLowerCase()] ??= []).push(`${x[2]}|${x[3]}`)
+    }
+    const cp = /^\s*common problems:\s*(.+)$/i.exec(line)
+    if (cp) problems = (cp[1] ?? '').split(',').map(x => x.trim().slice(0, 80)).filter(Boolean).slice(0, 5)
   }
-  return types
+  return { generated: '', types, avoid, problems }
+}
+
+/** Settings that failed too often for a type (5+ runs, 2+ failures, success below the floor). */
+export function failing(records: LedgerRecord[], s: Settings): Record<string, { key: string; failed: number; total: number }[]> {
+  const out: Record<string, { key: string; failed: number; total: number }[]> = {}
+  const done = records.filter(r => r.outcome !== 'aborted')
+  for (const type of [...new Set(done.map(r => r.type))].sort()) {
+    const rs = done.filter(r => r.type === type)
+    for (const key of new Set(rs.map(configKey))) {
+      const g = rs.filter(r => configKey(r) === key)
+      const ok = g.filter(isSuccess).length
+      // Enough runs and at least two real failures before a setting is called failing.
+      if (g.length >= 5 && g.length - ok >= 2 && ok / g.length < s.minSuccessRate) (out[type] ??= []).push({ key, failed: g.length - ok, total: g.length })
+    }
+  }
+  return out
+}
+
+/**
+ * Two learned sets combined, `over` being the newer: it wins on a type's setting, and for
+ * every type it mentions its avoid list replaces the older one, so stale avoids drop out.
+ */
+export function mergeLearned(base: Learned, over: Learned): Learned {
+  const avoid: Record<string, string[]> = { ...(base.avoid ?? {}) }
+  for (const type of new Set([...Object.keys(over.types), ...Object.keys(over.avoid ?? {})])) avoid[type] = over.avoid?.[type] ?? []
+  for (const type of Object.keys(avoid)) if (avoid[type]?.length === 0) delete avoid[type]
+  return {
+    generated: over.generated || base.generated,
+    types: { ...base.types, ...over.types },
+    avoid,
+    problems: [...new Set([...(over.problems ?? []), ...(base.problems ?? [])])].slice(0, 10),
+  }
+}
+
+/** Whether a learned set says this setting fails for this type. */
+export function isAvoided(l: Learned | undefined, type: string, c: Config): boolean {
+  return !!l?.avoid?.[type]?.includes(configKey(c))
 }

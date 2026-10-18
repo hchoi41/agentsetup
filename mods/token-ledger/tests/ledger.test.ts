@@ -2,7 +2,7 @@ import { describe, expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 import type { Engine } from 'claude-code/testing'
 
-import { capBytes, classify, commandNames, cost, learnedDefaults, lessons, parseLearned, parseLessons, recommend, redact, splitTag } from '../hooks/ledger.ts'
+import { EMPTY_LEARNED, capBytes, classify, commandNames, cost, isAvoided, learnedDefaults, lessons, mergeLearned, parseLearned, parseLessons, recommend, redact, splitTag } from '../hooks/ledger.ts'
 import type { LedgerRecord, Settings } from '../hooks/ledger.ts'
 
 const SETTINGS: Settings = { minSamples: 3, minSavingsPct: 15, minSuccessRate: 0.8, window: 50, modelWeights: {} }
@@ -101,7 +101,7 @@ describe('ledger logic', () => {
 describe('learned settings and evidence', () => {
   test('learned settings carry only the choice per type', () => {
     const out = learnedDefaults(HISTORY, SETTINGS, new Date('2026-10-18'))
-    expect(out).toEqual({ generated: '2026-10-18', types: { debug: { model: 'claude-sonnet', effort: 'medium', samples: 3, successRate: 1 } } })
+    expect(out).toEqual({ generated: '2026-10-18', types: { debug: { model: 'claude-sonnet', effort: 'medium', samples: 3, successRate: 1 } }, avoid: {}, problems: [] })
     expect(JSON.stringify(out)).not.toContain('/w')
   })
 
@@ -109,16 +109,50 @@ describe('learned settings and evidence', () => {
     const r = rec('debug', 'claude-opus', 'high', 9000)
     r.cwd = 'C:/Users/max/secret'
     r.commands = { 'deploy-secret': 1 }
-    r.issues = [{ kind: 'tool-error', tool: 'Bash', detail: 'token abc failed on host x' }]
-    const flaky = Array.from({ length: 3 }, () => rec('build', 'claude-haiku', 'low', 10, 'error'))
+    r.issues = [
+      { kind: 'tool-error', tool: 'Bash', detail: 'token abc failed on host x' },
+      { kind: 'tool-error', tool: 'mcp__acme-internal-jira__query', detail: 'acme' },
+    ]
+    const flaky = Array.from({ length: 5 }, (_, i) => rec('build', 'claude-haiku', 'low', 10, i < 2 ? 'error' : 'answer'))
     const note = lessons([...HISTORY, r, ...flaky], SETTINGS, new Date('2026-10-18'))
     expect(note).toContain('1. debug: use claude-sonnet / medium, ')
     expect(note).toContain('cheaper than claude-opus / high (n=3, 100% success)')
-    expect(note).toContain('Avoid: build on claude-haiku / low (3 of 3 failed)')
-    expect(note).toContain('Common problems: tool-error (Bash) ×1')
-    for (const secret of ['secret', 'deploy', 'host x', 'abc']) expect(note).not.toContain(secret)
+    expect(note).toContain('Avoid: build on claude-haiku / low (2 of 5 failed)')
+    expect(note).toContain('tool-error (Bash) ×1')
+    expect(note).toContain('tool-error (mcp) ×1')
+    for (const secret of ['secret', 'deploy', 'host x', 'abc', 'acme', 'jira']) expect(note).not.toContain(secret)
     expect(note.split('\n').length).toBeLessThanOrEqual(12)
-    expect(parseLessons(note)).toEqual({ debug: { model: 'claude-sonnet', effort: 'medium', samples: 3, successRate: 1 } })
+    expect(parseLessons(note)).toEqual({
+      generated: '',
+      types: { debug: { model: 'claude-sonnet', effort: 'medium', samples: 3, successRate: 1 } },
+      avoid: { build: ['claude-haiku|low'] },
+      problems: ['tool-error (Bash) ×1', 'tool-error (mcp) ×1'],
+    })
+  })
+
+  test('one failure in a few runs does not mark a setting to avoid', () => {
+    const few = Array.from({ length: 5 }, (_, i) => rec('test', 'm', 'low', 10, i === 0 ? 'error' : 'answer'))
+    expect(lessons(few, SETTINGS)).not.toContain('Avoid')
+  })
+
+  test('a typed-in note with odd model names or too many types is cut down', () => {
+    const lines = ['1. debug: use ../../etc/passwd / high (n=9, 90% success)', '2. test: use m / low (n=999999999, 500% success)']
+    for (let i = 0; i < 40; i++) lines.push(`${i + 3}. t${i}: use m / low (n=9, 90% success)`)
+    const got = parseLessons(lines.join('\n'))
+    expect(got.types.debug).toBeUndefined()
+    expect(got.types.test).toEqual({ model: 'm', effort: 'low', samples: 100000, successRate: 1 })
+    expect(Object.keys(got.types).length).toBe(30)
+  })
+
+  test('merged teachings: newer setting wins, a newer avoid list replaces the older one', () => {
+    const a = { ...EMPTY_LEARNED, types: { debug: { model: 'x', effort: 'low', samples: 9, successRate: 1 } }, avoid: { build: ['m|low'] }, problems: ['p1'] }
+    const b = { ...EMPTY_LEARNED, types: { debug: { model: 'y', effort: 'high', samples: 9, successRate: 1 } }, avoid: { build: ['n|high'] }, problems: ['p2'] }
+    const m = mergeLearned(a, b)
+    expect(m.types.debug?.model).toBe('y')
+    expect(m.avoid?.build).toEqual(['n|high'])
+    expect(isAvoided(m, 'build', { model: 'n', effort: 'high' })).toBe(true)
+    expect(isAvoided(m, 'build', { model: 'm', effort: 'low' })).toBe(false)
+    expect(isAvoided(m, 'debug', { model: 'n', effort: 'high' })).toBe(false)
   })
 
   test('reads a learned file and ignores malformed ones', () => {
