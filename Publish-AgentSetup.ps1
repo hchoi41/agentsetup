@@ -197,7 +197,8 @@ foreach ($item in $mf.include) {
   if (-not $roots.ContainsKey($parts[0])) { Say "  ?? unknown root in '$($item.src)'" 'Red'; continue }
   $src = if ($parts.Count -gt 1) { Join-Path $roots[$parts[0]] ($parts[1] -replace '/', '\') } else { $roots[$parts[0]] }
   $dst = Join-Path $RepoRoot ("$($item.dest)" -replace '/', '\')
-  if (-not (Test-Path -LiteralPath $src)) { Say "  MISSING  $src" 'Red'; continue }
+  # A missing source would publish its deletion (the mirror was emptied above): stop instead.
+  if (-not (Test-Path -LiteralPath $src)) { throw "Payload source missing: $src (manifest dest '$($item.dest)'). Nothing was committed; restore the source or remove the manifest entry, then publish again." }
 
   if ($item.mode -eq 'file') {
     if (Test-Excluded $src) { $skipped++; continue }

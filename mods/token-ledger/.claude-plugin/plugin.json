@@ -1,0 +1,45 @@
+{
+  "name": "token-ledger",
+  "version": "0.1.0",
+  "description": "Records token use, tools, commands and issues per task type, and recommends (or applies) the cheapest reliable model and effort for similar jobs",
+  "author": {
+    "name": "hchoi41"
+  },
+  "userConfig": {
+    "mode": {
+      "type": "string",
+      "title": "Mode",
+      "description": "record: log only. suggest: log and show the cheapest reliable model/effort. auto: also switch model/effort for the turn.",
+      "default": "suggest",
+      "options": [
+        "record",
+        "suggest",
+        "auto"
+      ]
+    },
+    "minSamples": {
+      "type": "number",
+      "title": "Minimum samples",
+      "description": "Runs of one model/effort on a task type before it can be recommended",
+      "default": 8
+    },
+    "minSavingsPct": {
+      "type": "number",
+      "title": "Minimum savings (%)",
+      "description": "Recommend a change only when its median cost is at least this much lower",
+      "default": 15
+    },
+    "modelWeights": {
+      "type": "string",
+      "title": "Model price weights",
+      "description": "Relative price per token by model name fragment, e.g. haiku=1,sonnet=3,opus=5. Empty compares raw weighted tokens.",
+      "default": ""
+    },
+    "logPath": {
+      "type": "string",
+      "title": "JSONL mirror path",
+      "description": "If set, every recorded turn rewrites this JSONL file of full local records (paths, command names, error text). Keep it out of public repositories and, on a machine whose data must stay inside, out of synced folders such as OneDrive. A relative path resolves against Claude Code's working folder; ~ is not expanded.",
+      "default": ""
+    }
+  }
+}

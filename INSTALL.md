@@ -104,6 +104,7 @@ It does not change user environment variables or install account-wide skills.
 ├── scripts\                          Local tools and adapter generator
 ├── orchestrate\                      Conductor and configuration templates
 ├── tests\                            Bundled verification tools
+├── mods\                             Opt-in Claude Code mods (not enabled by install)
 ├── .claude\skills\                   Claude Code skill copies by default
 ├── .agents\skills\                   Codex skill copies by default
 ├── .opencode\skills\                 OpenCode skill copies by default

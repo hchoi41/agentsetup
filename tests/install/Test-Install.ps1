@@ -44,7 +44,7 @@ foreach ($skill in @('start-project','project-complete','cloud-sync','operationa
   Assert (Test-Path -LiteralPath (Join-Path $dest ('.github/prompts/'+$skill+'.prompt.md'))) "$skill Copilot prompt exists"
   Assert (Test-Path -LiteralPath (Join-Path $dest ('microsoft_copilot/'+$skill+'.md'))) "$skill self-contained pack exists"
 }
-foreach ($file in @('scripts/operation_switch.ps1','scripts/deploy_new_project.ps1','skills/cloud-sync/scripts/sync_project.ps1','10.OPERATION/OPERATIONS_DASHBOARD.md','CLAUDE.md')) {
+foreach ($file in @('scripts/operation_switch.ps1','scripts/deploy_new_project.ps1','skills/cloud-sync/scripts/sync_project.ps1','10.OPERATION/OPERATIONS_DASHBOARD.md','CLAUDE.md','mods/.claude-plugin/marketplace.json','mods/token-ledger/hooks/register.ts')) {
   Assert (Test-Path -LiteralPath (Join-Path $dest $file) -PathType Leaf) "runtime file $file"
 }
 $index=Get-Content -LiteralPath (Join-Path $dest '00.ABOUT/PROJECT_INDEX.md') -Raw
