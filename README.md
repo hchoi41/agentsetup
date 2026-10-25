@@ -180,8 +180,25 @@ entrypoints with fake tools, proving disabled choices stop before provider calls
 | `skills/` | Canonical unpacked skill sources — each a `SKILL.md` |
 | `scripts/` | `sync_agent_adapters.ps1`, memory layer, hub health checks |
 | `orchestrate/` | The multi-LLM conductor: engine, README, generic gate, diagrams |
+| `mods/` | Opt-in Claude Code mods (local marketplace `max-mods`), e.g. `token-ledger` |
 | `tests/` | Memory-layer pytest and disposable Windows installer verification |
 | `global_instructions/` | Standalone global fallback for when no project folder is mounted |
+
+---
+
+## Claude Code mods (opt-in)
+
+`mods/` is a local Claude Code plugin marketplace (`max-mods`). The installer copies it into the
+hub but enables nothing. `token-ledger` records tokens, tools, shell commands and issues per task
+type and recommends (or, in `auto` mode, applies) the cheapest model and effort that has done
+that type of job reliably. Enable it from Claude Code:
+
+```text
+/plugin marketplace add <hub>/mods
+/plugin install token-ledger@max-mods
+```
+
+See [mods/README.md](mods/README.md) for what it records, how it chooses, and its limits.
 
 ---
 

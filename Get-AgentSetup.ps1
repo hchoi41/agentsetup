@@ -105,9 +105,12 @@ foreach ($doc in @('PROJECT_GOVERNANCE.md','CLAUDE.md','orchestration_protocol.m
 Add-File 'AGENT_TARGETS.json' '00.ABOUT/AGENT_TARGETS.json' $true
 Add-File 'START-HERE.md' '00.ABOUT/AGENT_CLI_ONBOARDING.md'
 Add-File 'template/10.OPERATION/OPERATIONS_DASHBOARD.md' '10.OPERATION/OPERATIONS_DASHBOARD.md' $true
-foreach ($tree in @('skills','scripts','orchestrate','tests')) {
+foreach ($tree in @('skills','scripts','orchestrate','tests','mods')) {
   $root=Join-Path $SourceRoot $tree
-  if (-not (Test-Path -LiteralPath $root -PathType Container)) { throw "Required payload folder missing: $tree" }
+  if (-not (Test-Path -LiteralPath $root -PathType Container)) {
+    if ($tree -eq 'mods') { Say 'Optional payload folder missing: mods (Claude Code mods are not installed).'; continue }
+    throw "Required payload folder missing: $tree"
+  }
   Check-Chain $root
   foreach ($entry in Get-ChildItem -LiteralPath $root -Force -Recurse) {
     if ($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Reparse point in payload: $($entry.Name)" }

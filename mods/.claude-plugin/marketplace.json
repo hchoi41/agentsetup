@@ -1,0 +1,13 @@
+{
+  "name": "max-mods",
+  "description": "Opt-in Claude Code mods for the Max agent setup",
+  "owner": {
+    "name": "hchoi41"
+  },
+  "plugins": [
+    {
+      "name": "token-ledger",
+      "source": "./token-ledger"
+    }
+  ]
+}

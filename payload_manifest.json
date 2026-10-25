@@ -451,6 +451,24 @@
       "dest": "tests/install/Test-OperationSync.ps1",
       "mode": "file",
       "note": "Disposable operation naming and RAM/sync compatibility regression."
+    },
+    {
+      "src": "STAGED/mods/.claude-plugin/marketplace.json",
+      "dest": "mods/.claude-plugin/marketplace.json",
+      "mode": "file",
+      "note": "local marketplace 'max-mods' listing the bundled Claude Code mods; opt-in via claude plugin marketplace add"
+    },
+    {
+      "src": "STAGED/mods/README.md",
+      "dest": "mods/README.md",
+      "mode": "file",
+      "note": "how to enable, use and verify the bundled mods"
+    },
+    {
+      "src": "STAGED/mods/token-ledger",
+      "dest": "mods/token-ledger",
+      "mode": "tree",
+      "note": "token-ledger mod: per-task token/tool/issue ledger with model/effort recommendations; claude plugin validate + claude plugin test"
     }
   ],
   "exclude_always": [
