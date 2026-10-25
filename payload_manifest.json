@@ -211,6 +211,12 @@
       "note": "added 2026-09-19; delimiter normalization + inline-enumeration compression (distinct from declutter-nested-list)"
     },
     {
+      "src": "AGENTS_SETUP/write-analytical-style",
+      "dest": "skills/write-analytical-style",
+      "mode": "tree",
+      "note": "added 2026-10-26; analytic, numbers-first rewriting of feedback/reports (distinct from audit-only de-mannerism)"
+    },
+    {
       "src": "HUB/scripts/sync_agent_adapters.ps1",
       "dest": "scripts/sync_agent_adapters.ps1",
       "mode": "file",
