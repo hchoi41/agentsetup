@@ -217,6 +217,12 @@
       "note": "added 2026-10-26; analytic, numbers-first rewriting of feedback/reports (distinct from audit-only de-mannerism)"
     },
     {
+      "src": "AGENTS_SETUP/drawio-drill-updown",
+      "dest": "skills/drawio-drill-updown",
+      "mode": "tree",
+      "note": "added 2026-11-07; multi-level draw.io diagrams (L0 one box .. L4 implementation) compiled from a JSON spec by scripts/drawio_spec.py; drill up/down on an existing .drawio"
+    },
+    {
       "src": "HUB/scripts/sync_agent_adapters.ps1",
       "dest": "scripts/sync_agent_adapters.ps1",
       "mode": "file",

@@ -1,0 +1,43 @@
+{
+  "sheets": [
+    {
+      "id": "l1",
+      "name": "L1 Overview",
+      "width": 1000,
+      "height": 560,
+      "cells": [
+        {"type": "text", "id": "title", "text": "Query Checker plugin: one picture", "x": 20, "y": 10, "w": 700, "h": 30, "font": 16},
+        {"type": "text", "id": "sub", "text": "Two answers written independently, compared by code, judged by Max at named gates. Every step leaves a file Max can audit.", "x": 20, "y": 40, "w": 900, "h": 24, "font": 11, "bold": false},
+
+        {"id": "ask", "role": "human", "text": "Max asks a question\n(metric, population, period)", "x": 20, "y": 120, "w": 170, "h": 80, "font": 11, "bold": true},
+
+        {"id": "plugin", "role": "plain", "text": "", "x": 240, "y": 90, "w": 500, "h": 330, "square": true, "fill": "#FAFAFA"},
+        {"type": "text", "id": "plugin_title", "text": "The plugin", "x": 250, "y": 94, "w": 200, "h": 24, "font": 12},
+        {"id": "gates", "role": "human", "text": "Max decides at gates\napprove - freeze the card - confirm tables - accept differences - rename", "x": 260, "y": 125, "w": 460, "h": 50, "font": 10, "bold": true},
+        {"id": "propose", "role": "propose", "text": "Skills propose\ndraft the card, shortlist tables, write query B, explain results", "x": 260, "y": 190, "w": 220, "h": 70, "font": 10},
+        {"id": "decide", "role": "decide", "text": "Scripts decide\nsplit, run one step at a time, compare, sample, test; exit code is the verdict", "x": 500, "y": 190, "w": 220, "h": 70, "font": 10},
+        {"id": "guard", "role": "guard", "text": "Hooks guard\nread-only warehouse identity, byte cap, no writes outside scratch, scrubbed spawns", "x": 260, "y": 275, "w": 460, "h": 50, "font": 10},
+        {"id": "audit", "role": "record", "text": "Audit folder\none CSV per step, manifest, checks, report; kept until the retention date", "x": 260, "y": 340, "w": 460, "h": 60, "font": 10},
+
+        {"id": "whole", "role": "outside", "text": "Whole A\nwritten blind by the Codex seat or by Max", "x": 790, "y": 110, "w": 190, "h": 70, "font": 10},
+        {"id": "wh", "role": "outside", "text": "Warehouse\nBigQuery first; read-only principal; pinned to one point in time", "x": 790, "y": 200, "w": 190, "h": 80, "font": 10},
+        {"id": "ref", "role": "outside", "text": "Independent reference\nGL or control total", "x": 790, "y": 300, "w": 190, "h": 60, "font": 10},
+
+        {"id": "verdict", "role": "human", "text": "Verdict to Max\nverified - reconciled - consistent - not reconciled\n(wording fixed by independence, pin status, reference)", "x": 20, "y": 300, "w": 170, "h": 100, "font": 10, "bold": true},
+
+        {"type": "edge", "from": "ask", "to": "plugin", "exit": [1, 0.5], "entry": [0, 0.3], "width": 2},
+        {"type": "edge", "from": "gates", "to": "propose", "role": "human", "exit": [0.25, 1], "entry": [0.5, 0]},
+        {"type": "edge", "from": "gates", "to": "decide", "role": "human", "exit": [0.75, 1], "entry": [0.5, 0]},
+        {"type": "edge", "from": "propose", "to": "decide", "label": "query B", "role": "propose", "exit": [1, 0.5], "entry": [0, 0.5], "width": 2},
+        {"type": "edge", "from": "decide", "to": "audit", "role": "decide", "exit": [0.5, 1], "entry": [0.75, 0]},
+        {"type": "edge", "from": "whole", "to": "decide", "label": "compared by code", "role": "outside", "exit": [0, 0.6], "entry": [1, 0.3], "width": 2},
+        {"type": "edge", "from": "wh", "to": "decide", "label": "one job per step", "role": "outside", "exit": [0, 0.5], "entry": [1, 0.7]},
+        {"type": "edge", "from": "ref", "to": "decide", "label": "tie-out", "role": "outside", "exit": [0, 0.5], "entry": [1, 0.95]},
+        {"type": "edge", "from": "plugin", "to": "verdict", "exit": [0, 0.8], "entry": [1, 0.5], "width": 2},
+
+        {"id": "why", "role": "note", "text": "Why two answers: comparing a query against its own split caught 0 of 9 planted faults; comparing against an independently written whole caught 9 of 9. Without an independent reference the strongest verdict is reconciled, never verified.", "x": 20, "y": 440, "w": 960, "h": 50, "font": 10, "align": "left"},
+        {"id": "legend", "role": "note", "text": "Colour: yellow = a person decides. blue = a skill proposes, never passes or fails. green = code decides. orange = hooks. purple = outside the plugin. dashed = audit record.", "x": 20, "y": 500, "w": 960, "h": 30, "font": 9, "align": "left"}
+      ]
+    }
+  ]
+}

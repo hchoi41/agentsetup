@@ -1,0 +1,2471 @@
+{
+ "sheets": [
+  {
+   "id": "l1",
+   "name": "L1 Overview",
+   "width": 1000,
+   "height": 560,
+   "cells": [
+    {
+     "type": "text",
+     "text": "Query Checker plugin: one picture",
+     "x": 20,
+     "y": 10,
+     "w": 700,
+     "h": 30,
+     "font": 16
+    },
+    {
+     "type": "text",
+     "text": "Two answers written independently, compared by code, judged by Max at named gates. Every step leaves a file Max can audit.",
+     "x": 20,
+     "y": 40,
+     "w": 900,
+     "h": 24,
+     "font": 11,
+     "bold": false
+    },
+    {
+     "text": "Max asks a question\n(metric, population, period)",
+     "role": "human",
+     "x": 20,
+     "y": 120,
+     "w": 170,
+     "h": 80,
+     "id": "ask",
+     "font": 11,
+     "bold": true
+    },
+    {
+     "text": "",
+     "role": "plain",
+     "x": 240,
+     "y": 90,
+     "w": 500,
+     "h": 330,
+     "id": "plugin",
+     "square": true,
+     "fill": "#FAFAFA"
+    },
+    {
+     "type": "text",
+     "text": "The plugin",
+     "x": 250,
+     "y": 94,
+     "w": 200,
+     "h": 24,
+     "font": 12
+    },
+    {
+     "text": "Max decides at gates\napprove - freeze the card - confirm tables - accept differences - rename",
+     "role": "human",
+     "x": 260,
+     "y": 125,
+     "w": 460,
+     "h": 50,
+     "id": "gates",
+     "font": 10,
+     "bold": true
+    },
+    {
+     "text": "Skills propose\ndraft the card, shortlist tables, write query B, explain results",
+     "role": "propose",
+     "x": 260,
+     "y": 190,
+     "w": 220,
+     "h": 70,
+     "id": "propose",
+     "font": 10
+    },
+    {
+     "text": "Scripts decide\nsplit, run one step at a time, compare, sample, test; exit code is the verdict",
+     "role": "decide",
+     "x": 500,
+     "y": 190,
+     "w": 220,
+     "h": 70,
+     "id": "decide",
+     "font": 10
+    },
+    {
+     "text": "Audit folder\none CSV per step, manifest, checks, report; kept until the retention date",
+     "role": "record",
+     "x": 260,
+     "y": 280,
+     "w": 460,
+     "h": 55,
+     "id": "audit",
+     "font": 10
+    },
+    {
+     "text": "Hooks guard\nread-only warehouse identity, byte cap, no writes outside scratch, scrubbed spawns",
+     "role": "guard",
+     "x": 260,
+     "y": 352,
+     "w": 460,
+     "h": 50,
+     "id": "guard",
+     "font": 10
+    },
+    {
+     "text": "Whole A\nwritten blind by the Codex seat or by Max",
+     "role": "outside",
+     "x": 790,
+     "y": 110,
+     "w": 190,
+     "h": 70,
+     "id": "whole",
+     "font": 10
+    },
+    {
+     "text": "Warehouse\nBigQuery first; read-only principal; pinned to one point in time",
+     "role": "outside",
+     "x": 790,
+     "y": 200,
+     "w": 190,
+     "h": 80,
+     "id": "wh",
+     "font": 10
+    },
+    {
+     "text": "Independent reference\nGL or control total",
+     "role": "outside",
+     "x": 790,
+     "y": 300,
+     "w": 190,
+     "h": 60,
+     "id": "ref",
+     "font": 10
+    },
+    {
+     "text": "Verdict to Max\nverified - reconciled - consistent - not reconciled\n(wording fixed by independence, pin status, reference)",
+     "role": "human",
+     "x": 20,
+     "y": 300,
+     "w": 170,
+     "h": 100,
+     "id": "verdict",
+     "font": 10,
+     "bold": true
+    },
+    {
+     "type": "edge",
+     "from": "ask",
+     "to": "plugin",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0,
+      0.3
+     ],
+     "width": 2
+    },
+    {
+     "type": "edge",
+     "from": "gates",
+     "to": "propose",
+     "role": "human",
+     "exit": [
+      0.25,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "gates",
+     "to": "decide",
+     "role": "human",
+     "exit": [
+      0.75,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "propose",
+     "to": "decide",
+     "label": "query B",
+     "role": "propose",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0,
+      0.5
+     ],
+     "width": 2
+    },
+    {
+     "type": "edge",
+     "from": "decide",
+     "to": "audit",
+     "role": "decide",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.75,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "whole",
+     "to": "decide",
+     "label": "compared by code",
+     "role": "outside",
+     "exit": [
+      0,
+      0.6
+     ],
+     "entry": [
+      1,
+      0.3
+     ],
+     "width": 2
+    },
+    {
+     "type": "edge",
+     "from": "wh",
+     "to": "decide",
+     "label": "one job per step",
+     "role": "outside",
+     "exit": [
+      0,
+      0.5
+     ],
+     "entry": [
+      1,
+      0.7
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "ref",
+     "to": "decide",
+     "label": "tie-out",
+     "role": "outside",
+     "exit": [
+      0,
+      0.5
+     ],
+     "entry": [
+      1,
+      0.95
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "plugin",
+     "to": "verdict",
+     "exit": [
+      0,
+      0.8
+     ],
+     "entry": [
+      1,
+      0.5
+     ],
+     "width": 2
+    },
+    {
+     "text": "Why two answers: comparing a query against its own split caught 0 of 9 planted faults; comparing against an independently written whole caught 9 of 9. Without an independent reference the strongest verdict is reconciled, never verified.",
+     "role": "note",
+     "x": 20,
+     "y": 440,
+     "w": 960,
+     "h": 50,
+     "font": 10,
+     "align": "left"
+    },
+    {
+     "text": "Colour: yellow = Max decides. blue = a skill proposes, never passes or fails. green = code decides. orange = hooks. purple = outside the plugin. dashed = audit record.",
+     "role": "note",
+     "x": 20,
+     "y": 500,
+     "w": 960,
+     "h": 30,
+     "font": 9,
+     "align": "left"
+    }
+   ]
+  },
+  {
+   "id": "l2",
+   "name": "L2 Stages and layers",
+   "width": 1500,
+   "height": 730,
+   "cells": [
+    {
+     "type": "text",
+     "text": "Query Checker plugin: four stages, five layers",
+     "x": 20,
+     "y": 8,
+     "w": 800,
+     "h": 28,
+     "font": 16
+    },
+    {
+     "type": "text",
+     "text": "Read a column top to bottom: what Max decides, what the skills propose, what the scripts decide, what is written for audit, what the plugin reaches outside for.",
+     "x": 20,
+     "y": 36,
+     "w": 1300,
+     "h": 18,
+     "font": 10,
+     "bold": false
+    },
+    {
+     "text": "Set up\nP0 preflight, P1 card, P2 find tables, P3 pin",
+     "role": "stage",
+     "x": null,
+     "y": 64,
+     "w": null,
+     "h": 36,
+     "id": "st0",
+     "col": 0,
+     "font": 9,
+     "bold": true,
+     "square": true
+    },
+    {
+     "text": "Author two ways\nP4 whole A and query B, P5 split B into steps",
+     "role": "stage",
+     "x": null,
+     "y": 64,
+     "w": null,
+     "h": 36,
+     "id": "st1",
+     "col": 1,
+     "font": 9,
+     "bold": true,
+     "square": true
+    },
+    {
+     "text": "Run and compare\nP6 one job per step, P7 reconcile",
+     "role": "stage",
+     "x": null,
+     "y": 64,
+     "w": null,
+     "h": 36,
+     "id": "st2",
+     "col": 2,
+     "font": 9,
+     "bold": true,
+     "square": true
+    },
+    {
+     "text": "Test and report\nP8 sample, P9 logic tests, P10 rename, P11 verdict",
+     "role": "stage",
+     "x": null,
+     "y": 64,
+     "w": null,
+     "h": 36,
+     "id": "st3",
+     "col": 3,
+     "font": 9,
+     "bold": true,
+     "square": true
+    },
+    {
+     "type": "edge",
+     "from": "st0",
+     "to": "st1",
+     "role": "stage",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0,
+      0.5
+     ],
+     "width": 2
+    },
+    {
+     "type": "edge",
+     "from": "st1",
+     "to": "st2",
+     "role": "stage",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0,
+      0.5
+     ],
+     "width": 2
+    },
+    {
+     "type": "edge",
+     "from": "st2",
+     "to": "st3",
+     "role": "stage",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0,
+      0.5
+     ],
+     "width": 2
+    },
+    {
+     "type": "lane",
+     "text": "Max decides (D2)",
+     "role": "human",
+     "x": 20,
+     "y": 112,
+     "w": 1450,
+     "h": 96,
+     "gutter": 150
+    },
+    {
+     "text": "Approve data classes and route; freeze the question and metric card; confirm the table shortlist, filter values, join keys",
+     "role": "human",
+     "x": null,
+     "y": 122,
+     "w": null,
+     "h": 76,
+     "col": 0,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "Optionally write whole A himself; waive lint findings with a reason; one-sentence readability test per step",
+     "role": "human",
+     "x": null,
+     "y": 122,
+     "w": null,
+     "h": 76,
+     "col": 1,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "Stop on a cap breach; accept or reject each residual difference with a reconciling-item category",
+     "role": "human",
+     "x": null,
+     "y": 122,
+     "w": null,
+     "h": 76,
+     "col": 2,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "Read the trace report; confirm reference provenance; rename columns one by one; accept the verdict wording",
+     "role": "human",
+     "x": null,
+     "y": 122,
+     "w": null,
+     "h": 76,
+     "col": 3,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "type": "lane",
+     "text": "Skills propose (D1/D2)",
+     "role": "propose",
+     "x": 20,
+     "y": 218,
+     "w": 1450,
+     "h": 96,
+     "gutter": 150
+    },
+    {
+     "text": "Ask the preflight questionnaire; draft the cards; propose candidate tables and synonyms; propose the pin",
+     "role": "propose",
+     "x": null,
+     "y": 228,
+     "w": null,
+     "h": 76,
+     "col": 0,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "Claude writes query B blind from the frozen packet; explains any construct the splitter refuses",
+     "role": "propose",
+     "x": null,
+     "y": 228,
+     "w": null,
+     "h": 76,
+     "col": 1,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "Narrate the step log; explain the classified differences (never adjudicate them)",
+     "role": "propose",
+     "x": null,
+     "y": 228,
+     "w": null,
+     "h": 76,
+     "col": 2,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "Write one sentence per sampled row; propose chain, MECE and tie-out tests; fill the verdict from the table",
+     "role": "propose",
+     "x": null,
+     "y": 228,
+     "w": null,
+     "h": 76,
+     "col": 3,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "type": "lane",
+     "text": "Scripts decide (D0)",
+     "role": "decide",
+     "x": 20,
+     "y": 324,
+     "w": 1450,
+     "h": 104,
+     "gutter": 150
+    },
+    {
+     "text": "Probe rights and caps (fail closed); hash-freeze the card; privilege-ladder discovery; grain and freshness tests; pin plan with batch marker",
+     "role": "decide",
+     "x": null,
+     "y": 334,
+     "w": null,
+     "h": 84,
+     "col": 0,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "Hash-freeze the packet and A before B starts; split B with sqlglot, inject the pin, lint, allow-list",
+     "role": "decide",
+     "x": null,
+     "y": 334,
+     "w": null,
+     "h": 84,
+     "col": 1,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "Run each step as its own dry-run-capped job; write CSV plus typed sidecar; compare B vs chain(B), then A vs chain(B); classify differences",
+     "role": "decide",
+     "x": null,
+     "y": 334,
+     "w": null,
+     "h": 84,
+     "col": 2,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "Hash-rank sample on local CSV; key-bounded traces; ratio chain, MECE universe, reference tie-out; exit non-zero on mismatch; close by manifest",
+     "role": "decide",
+     "x": null,
+     "y": 334,
+     "w": null,
+     "h": 84,
+     "col": 3,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "type": "lane",
+     "text": "Audit record written",
+     "role": "record",
+     "x": 20,
+     "y": 438,
+     "w": 1450,
+     "h": 64,
+     "gutter": 150
+    },
+    {
+     "text": "preflight.json, probe.csv, question + metric cards (hashes), table decision, value map, pin plan",
+     "role": "record",
+     "x": null,
+     "y": 448,
+     "w": null,
+     "h": 44,
+     "col": 0,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "packet/ (frozen), A.sql, B.sql, plan.json, lint report",
+     "role": "record",
+     "x": null,
+     "y": 448,
+     "w": null,
+     "h": 44,
+     "col": 1,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "step_NN.csv + types sidecar, checks, reconciliation decisions, mismatch rows",
+     "role": "record",
+     "x": null,
+     "y": 448,
+     "w": null,
+     "h": 44,
+     "col": 2,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "trace report, logic tests, renames.csv, report.md, manifest (retention date)",
+     "role": "record",
+     "x": null,
+     "y": 448,
+     "w": null,
+     "h": 44,
+     "col": 3,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "type": "lane",
+     "text": "Outside the plugin",
+     "role": "outside",
+     "x": 20,
+     "y": 512,
+     "w": 1450,
+     "h": 80,
+     "gutter": 150
+    },
+    {
+     "text": "Warehouse catalog and profiles (read-only principal)",
+     "role": "outside",
+     "x": null,
+     "y": 522,
+     "w": null,
+     "h": 60,
+     "col": 0,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "Codex seat or Max writes whole A in a scrubbed process",
+     "role": "outside",
+     "x": null,
+     "y": 522,
+     "w": null,
+     "h": 60,
+     "col": 1,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "Warehouse runs pinned jobs; DuckDB replays typed CSVs locally",
+     "role": "outside",
+     "x": null,
+     "y": 522,
+     "w": null,
+     "h": 60,
+     "col": 2,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "Independent reference (GL or control total) with provenance",
+     "role": "outside",
+     "x": null,
+     "y": 522,
+     "w": null,
+     "h": 60,
+     "col": 3,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "Hooks under every stage: scrubbed environment before any spawned CLI; SELECT / WITH allow-list; dry run and byte cap on every job; writes only to the scratch dataset and the project folder. The authorization boundary is the warehouse identity, not the hooks.",
+     "role": "guard",
+     "x": 20,
+     "y": 602,
+     "w": 1450,
+     "h": 40,
+     "font": 9
+    },
+    {
+     "text": "Independence levels: IND-0 existing query decomposed (consistent at best) - IND-2 whole A by another model family (reconciled) - IND-4 whole A by Max - IND-5 reference available (verified).",
+     "role": "note",
+     "x": 20,
+     "y": 650,
+     "w": 1450,
+     "h": 28,
+     "font": 9
+    }
+   ],
+   "grid": {
+    "x0": 180,
+    "pitch": 320,
+    "col_width": 300
+   }
+  },
+  {
+   "id": "l3",
+   "name": "L3 Detail P0 to P11",
+   "width": 1900,
+   "height": 860,
+   "cells": [
+    {
+     "type": "text",
+     "text": "Query Checker plugin: how one plugin runs the P0 to P11 procedure (from research synthesis v4, D-18)",
+     "x": 10,
+     "y": 8,
+     "w": 1300,
+     "h": 30,
+     "font": 14
+    },
+    {
+     "text": "Colour = who decides. Yellow: Max at a named gate (D2). Blue: a skill that proposes, explains, or authors; it never passes or fails anything (D1/D2). Green: a fixed script whose exit code is the verdict (D0). Orange: hooks that intercept every tool call. Purple: parts the plugin uses but does not contain.",
+     "role": "note",
+     "x": 1400,
+     "y": 6,
+     "w": 490,
+     "h": 40,
+     "font": 8,
+     "align": "left"
+    },
+    {
+     "type": "lane",
+     "text": "Max\nhuman gates\n(D2)",
+     "role": "human",
+     "x": 10,
+     "y": 50,
+     "w": 1880,
+     "h": 120,
+     "gutter": 150
+    },
+    {
+     "type": "lane",
+     "text": "Skills\njudgment, explicit-only\n(D1 / D2)",
+     "role": "propose",
+     "x": 10,
+     "y": 185,
+     "w": 1880,
+     "h": 165,
+     "gutter": 150
+    },
+    {
+     "type": "lane",
+     "text": "Scripts\nunder plugin scripts/\n(D0: every pass/fail)",
+     "role": "decide",
+     "x": 10,
+     "y": 365,
+     "w": 1880,
+     "h": 200,
+     "gutter": 150
+    },
+    {
+     "type": "lane",
+     "text": "Outside the plugin",
+     "role": "outside",
+     "x": 10,
+     "y": 605,
+     "w": 1880,
+     "h": 150,
+     "gutter": 150
+    },
+    {
+     "type": "lane",
+     "text": "Hooks\npolicy layer\n(not the boundary)",
+     "role": "guard",
+     "x": 10,
+     "y": 770,
+     "w": 1880,
+     "h": 75,
+     "gutter": 150
+    },
+    {
+     "text": "Orchestrator skill (explicit-only; invoked by name, never by phrases like reconcile or how many): walks P0 to P11 in order, stops at every gate, then invokes the phase skill; resumes from manifest.json",
+     "role": "propose",
+     "x": 160,
+     "y": 195,
+     "w": 1660,
+     "h": 28,
+     "id": "orch",
+     "font": 9,
+     "bold": true
+    },
+    {
+     "text": "G0a offline approval (data classes, route, retention)\nG0b technical preflight\nG14 scratch principal (default off)",
+     "role": "human",
+     "x": null,
+     "y": 65,
+     "w": null,
+     "h": 95,
+     "id": "g0",
+     "col": 0,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "P0 Preflight\nPreflight skill: asks the 28-question G0a set, shows probe results, never runs without approval",
+     "role": "propose",
+     "x": null,
+     "y": 240,
+     "w": null,
+     "h": 100,
+     "id": "s0",
+     "col": 0,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "probe.py: rights (testIamPermissions + dataset IAM reads), caps, time-travel window per dataset, env; fails closed",
+     "role": "decide",
+     "x": null,
+     "y": 375,
+     "w": null,
+     "h": 100,
+     "id": "x0",
+     "col": 0,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "00_preflight.json\n00_capability_probe.csv",
+     "role": "record",
+     "x": null,
+     "y": 490,
+     "w": null,
+     "h": 65,
+     "id": "a0",
+     "col": 0,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "type": "edge",
+     "from": "g0",
+     "to": "orch",
+     "label": "stops at the gate",
+     "role": "human",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.036,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "orch",
+     "to": "s0",
+     "label": "invokes",
+     "role": "propose",
+     "exit": [
+      0.036,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "s0",
+     "to": "x0",
+     "label": "runs",
+     "role": "decide",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "text": "G1a card intent frozen (hash)\nG6 registry read",
+     "role": "human",
+     "x": null,
+     "y": 65,
+     "w": null,
+     "h": 95,
+     "id": "g1",
+     "col": 1,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "P1 Card\nCard skill: drafts question card + metric card (ratio type, weight, chain) for Max to freeze",
+     "role": "propose",
+     "x": null,
+     "y": 240,
+     "w": null,
+     "h": 100,
+     "id": "s1",
+     "col": 1,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "card_freeze.py: intent hash (G1a), later bindings hash (G1b)",
+     "role": "decide",
+     "x": null,
+     "y": 375,
+     "w": null,
+     "h": 100,
+     "id": "x1",
+     "col": 1,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "01_question_card.md\n02_metric_card.md (two hashes)",
+     "role": "record",
+     "x": null,
+     "y": 490,
+     "w": null,
+     "h": 65,
+     "id": "a1",
+     "col": 1,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "type": "edge",
+     "from": "g1",
+     "to": "orch",
+     "label": "",
+     "role": "human",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.12,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "orch",
+     "to": "s1",
+     "label": "",
+     "role": "propose",
+     "exit": [
+      0.12,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "s1",
+     "to": "x1",
+     "label": "",
+     "role": "decide",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "text": "G2 shortlist + join keys\nG3 value map\nG1b bindings frozen (hash)\nG8 stop on disagreement",
+     "role": "human",
+     "x": null,
+     "y": 65,
+     "w": null,
+     "h": 95,
+     "id": "g2",
+     "col": 2,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "P2 Discovery\nDiscovery skill: proposes shortlist and synonyms, explains profiles; never reports absence from one search",
+     "role": "propose",
+     "x": null,
+     "y": 240,
+     "w": null,
+     "h": 100,
+     "id": "s2",
+     "col": 2,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "discover.py: privilege ladder, grain test, freshness x3 signals, value map",
+     "role": "decide",
+     "x": null,
+     "y": 375,
+     "w": null,
+     "h": 100,
+     "id": "x2",
+     "col": 2,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "13_table_decision.md\n11_value_map.csv",
+     "role": "record",
+     "x": null,
+     "y": 490,
+     "w": null,
+     "h": 65,
+     "id": "a2",
+     "col": 2,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "type": "edge",
+     "from": "g2",
+     "to": "orch",
+     "label": "",
+     "role": "human",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.205,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "orch",
+     "to": "s2",
+     "label": "",
+     "role": "propose",
+     "exit": [
+      0.205,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "s2",
+     "to": "x2",
+     "label": "",
+     "role": "decide",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "text": "G13 ask the data owner: late-arrival windows",
+     "role": "human",
+     "x": null,
+     "y": 65,
+     "w": null,
+     "h": 95,
+     "id": "g3",
+     "col": 3,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "P3 Pin plan\nPin skill: proposes as_of_utc + batch marker, lists the unpinnable",
+     "role": "propose",
+     "x": null,
+     "y": 240,
+     "w": null,
+     "h": 100,
+     "id": "s3",
+     "col": 3,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "pin_plan.py: as_of_utc, pin method per table, unpinnable list, late-arrival bands",
+     "role": "decide",
+     "x": null,
+     "y": 375,
+     "w": null,
+     "h": 100,
+     "id": "x3",
+     "col": 3,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "pin plan + batch marker in manifest.json",
+     "role": "record",
+     "x": null,
+     "y": 490,
+     "w": null,
+     "h": 65,
+     "id": "a3",
+     "col": 3,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "type": "edge",
+     "from": "g3",
+     "to": "orch",
+     "label": "",
+     "role": "human",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.289,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "orch",
+     "to": "s3",
+     "label": "",
+     "role": "propose",
+     "exit": [
+      0.289,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "s3",
+     "to": "x3",
+     "label": "",
+     "role": "decide",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "text": "Option: Max writes whole A himself (IND-4)",
+     "role": "human",
+     "x": null,
+     "y": 65,
+     "w": null,
+     "h": 95,
+     "id": "g4",
+     "col": 4,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "P4 Author\nAuthor skill: Claude writes query B blind, from the frozen packet only; declares its output contract",
+     "role": "propose",
+     "x": null,
+     "y": 240,
+     "w": null,
+     "h": 100,
+     "id": "s4",
+     "col": 4,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "packet_freeze.py: hash packet; A frozen before B starts; two output contracts",
+     "role": "decide",
+     "x": null,
+     "y": 375,
+     "w": null,
+     "h": 100,
+     "id": "x4",
+     "col": 4,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "packet/ (hash-frozen)\nA.sql (frozen), B.sql",
+     "role": "record",
+     "x": null,
+     "y": 490,
+     "w": null,
+     "h": 65,
+     "id": "a4",
+     "col": 4,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "type": "edge",
+     "from": "g4",
+     "to": "orch",
+     "label": "",
+     "role": "human",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.373,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "orch",
+     "to": "s4",
+     "label": "",
+     "role": "propose",
+     "exit": [
+      0.373,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "s4",
+     "to": "x4",
+     "label": "",
+     "role": "decide",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "text": "G9 lint waiver with reason\nG10 manual constructs\nG11 one-sentence test per step",
+     "role": "human",
+     "x": null,
+     "y": 65,
+     "w": null,
+     "h": 95,
+     "id": "g5",
+     "col": 5,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "P5 Decompose\nDecompose skill: explains refusals, collects waivers and the G11 wordings",
+     "role": "propose",
+     "x": null,
+     "y": 240,
+     "w": null,
+     "h": 100,
+     "id": "s5",
+     "col": 5,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "split.py (sqlglot) + compile.py (pin inject) + lint.py N1-N9 + allow-list; refuses NOT IN, scripting, DML",
+     "role": "decide",
+     "x": null,
+     "y": 375,
+     "w": null,
+     "h": 100,
+     "id": "x5",
+     "col": 5,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "plan.json\nlint_report.csv",
+     "role": "record",
+     "x": null,
+     "y": 490,
+     "w": null,
+     "h": 65,
+     "id": "a5",
+     "col": 5,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "type": "edge",
+     "from": "g5",
+     "to": "orch",
+     "label": "",
+     "role": "human",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.458,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "orch",
+     "to": "s5",
+     "label": "",
+     "role": "propose",
+     "exit": [
+      0.458,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "s5",
+     "to": "x5",
+     "label": "",
+     "role": "decide",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "text": "G15 step over cap: filter / local / scratch\nG7 row-level read (default denied)",
+     "role": "human",
+     "x": null,
+     "y": 65,
+     "w": null,
+     "h": 95,
+     "id": "g6",
+     "col": 6,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "P6 Run\nRun skill: narrates the step log; decides nothing",
+     "role": "propose",
+     "x": null,
+     "y": 240,
+     "w": null,
+     "h": 100,
+     "id": "s6",
+     "col": 6,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "run_steps.py: one job per step, dry run + cap, CSV + typed sidecar, manifest; B also runs whole",
+     "role": "decide",
+     "x": null,
+     "y": 375,
+     "w": null,
+     "h": 100,
+     "id": "x6",
+     "col": 6,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "step_NN.csv\nstep_NN.types.json",
+     "role": "record",
+     "x": null,
+     "y": 490,
+     "w": null,
+     "h": 65,
+     "id": "a6",
+     "col": 6,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "type": "edge",
+     "from": "g6",
+     "to": "orch",
+     "label": "",
+     "role": "human",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.542,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "orch",
+     "to": "s6",
+     "label": "",
+     "role": "propose",
+     "exit": [
+      0.542,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "s6",
+     "to": "x6",
+     "label": "",
+     "role": "decide",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "text": "G4 accept residual differences (reconciling-item categories)",
+     "role": "human",
+     "x": null,
+     "y": 65,
+     "w": null,
+     "h": 95,
+     "id": "g7",
+     "col": 7,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "P7 Reconcile\nReconcile skill: explains classified differences; the author of B never adjudicates them",
+     "role": "propose",
+     "x": null,
+     "y": 240,
+     "w": null,
+     "h": 100,
+     "id": "s7",
+     "col": 7,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "reconcile.py: B vs chain(B) first, then A vs chain(B); multiplicity diff; difference classifier",
+     "role": "decide",
+     "x": null,
+     "y": 375,
+     "w": null,
+     "h": 100,
+     "id": "x7",
+     "col": 7,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "checks/*.csv\nreconciliation_decisions.csv\nmismatch_rows.csv",
+     "role": "record",
+     "x": null,
+     "y": 490,
+     "w": null,
+     "h": 65,
+     "id": "a7",
+     "col": 7,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "type": "edge",
+     "from": "g7",
+     "to": "orch",
+     "label": "",
+     "role": "human",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.627,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "orch",
+     "to": "s7",
+     "label": "",
+     "role": "propose",
+     "exit": [
+      0.627,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "s7",
+     "to": "x7",
+     "label": "",
+     "role": "decide",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "text": "G12 Max reads the trace report\nG7 masked rows only",
+     "role": "human",
+     "x": null,
+     "y": 65,
+     "w": null,
+     "h": 95,
+     "id": "g8",
+     "col": 8,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "P8 Sample + trace\nSample skill: turns traces into one sentence per sampled row for Max",
+     "role": "propose",
+     "x": null,
+     "y": 240,
+     "w": null,
+     "h": 100,
+     "id": "s8",
+     "col": 8,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "sample.py (local CSV, hash-rank, 0 warehouse bytes) + trace.py (key-bounded lookups)",
+     "role": "decide",
+     "x": null,
+     "y": 375,
+     "w": null,
+     "h": 100,
+     "id": "x8",
+     "col": 8,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "trace_report.md\nsamples/",
+     "role": "record",
+     "x": null,
+     "y": 490,
+     "w": null,
+     "h": 65,
+     "id": "a8",
+     "col": 8,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "type": "edge",
+     "from": "g8",
+     "to": "orch",
+     "label": "",
+     "role": "human",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.711,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "orch",
+     "to": "s8",
+     "label": "",
+     "role": "propose",
+     "exit": [
+      0.711,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "s8",
+     "to": "x8",
+     "label": "",
+     "role": "decide",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "text": "G13 close status, restatements\nreference provenance confirmed",
+     "role": "human",
+     "x": null,
+     "y": 65,
+     "w": null,
+     "h": 95,
+     "id": "g9",
+     "col": 9,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "P9 Logic tests\nLogic skill: proposes chain, MECE universe, reference tie-out",
+     "role": "propose",
+     "x": null,
+     "y": 240,
+     "w": null,
+     "h": 100,
+     "id": "s9",
+     "col": 9,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "logic_tests.py: ratio chain (pooled or within-entity), MECE with explicit universe, reference tie-out",
+     "role": "decide",
+     "x": null,
+     "y": 375,
+     "w": null,
+     "h": 100,
+     "id": "x9",
+     "col": 9,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "logic_tests.csv",
+     "role": "record",
+     "x": null,
+     "y": 490,
+     "w": null,
+     "h": 65,
+     "id": "a9",
+     "col": 9,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "type": "edge",
+     "from": "g9",
+     "to": "orch",
+     "label": "",
+     "role": "human",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.795,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "orch",
+     "to": "s9",
+     "label": "",
+     "role": "propose",
+     "exit": [
+      0.795,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "s9",
+     "to": "x9",
+     "label": "",
+     "role": "decide",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "text": "G5 per-column rename (skippable)",
+     "role": "human",
+     "x": null,
+     "y": 65,
+     "w": null,
+     "h": 95,
+     "id": "g10",
+     "col": 10,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "P10 Rename\nRename skill: one column at a time with Max; originals kept",
+     "role": "propose",
+     "x": null,
+     "y": 240,
+     "w": null,
+     "h": 100,
+     "id": "s10",
+     "col": 10,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "rename_apply.py: map applied to view copies; step CSVs keep original names",
+     "role": "decide",
+     "x": null,
+     "y": 375,
+     "w": null,
+     "h": 100,
+     "id": "x10",
+     "col": 10,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "renames.csv",
+     "role": "record",
+     "x": null,
+     "y": 490,
+     "w": null,
+     "h": 65,
+     "id": "a10",
+     "col": 10,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "type": "edge",
+     "from": "g10",
+     "to": "orch",
+     "label": "",
+     "role": "human",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.88,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "orch",
+     "to": "s10",
+     "label": "",
+     "role": "propose",
+     "exit": [
+      0.88,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "s10",
+     "to": "x10",
+     "label": "",
+     "role": "decide",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "text": "G6 registry entries + hash lock\nverdict wording per table\nretention_until",
+     "role": "human",
+     "x": null,
+     "y": 65,
+     "w": null,
+     "h": 95,
+     "id": "g11",
+     "col": 11,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "P11 Report + close\nReport skill: fills the verdict from the verdict table (IND level x pin status x reference)",
+     "role": "propose",
+     "x": null,
+     "y": 240,
+     "w": null,
+     "h": 100,
+     "id": "s11",
+     "col": 11,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "report.py + close.py: verdict table, exit non-zero on mismatch, delete by manifest at retention date",
+     "role": "decide",
+     "x": null,
+     "y": 375,
+     "w": null,
+     "h": 100,
+     "id": "x11",
+     "col": 11,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "report.md\nmanifest.json (replayable, retention_until)\nexposure_log.jsonl",
+     "role": "record",
+     "x": null,
+     "y": 490,
+     "w": null,
+     "h": 65,
+     "id": "a11",
+     "col": 11,
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "type": "edge",
+     "from": "g11",
+     "to": "orch",
+     "label": "",
+     "role": "human",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.964,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "orch",
+     "to": "s11",
+     "label": "",
+     "role": "propose",
+     "exit": [
+      0.964,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "s11",
+     "to": "x11",
+     "label": "",
+     "role": "decide",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.5,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "s0",
+     "to": "s1",
+     "role": "propose",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0,
+      0.5
+     ],
+     "width": 2
+    },
+    {
+     "type": "edge",
+     "from": "s1",
+     "to": "s2",
+     "role": "propose",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0,
+      0.5
+     ],
+     "width": 2
+    },
+    {
+     "type": "edge",
+     "from": "s2",
+     "to": "s3",
+     "role": "propose",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0,
+      0.5
+     ],
+     "width": 2
+    },
+    {
+     "type": "edge",
+     "from": "s3",
+     "to": "s4",
+     "role": "propose",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0,
+      0.5
+     ],
+     "width": 2
+    },
+    {
+     "type": "edge",
+     "from": "s4",
+     "to": "s5",
+     "role": "propose",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0,
+      0.5
+     ],
+     "width": 2
+    },
+    {
+     "type": "edge",
+     "from": "s5",
+     "to": "s6",
+     "role": "propose",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0,
+      0.5
+     ],
+     "width": 2
+    },
+    {
+     "type": "edge",
+     "from": "s6",
+     "to": "s7",
+     "role": "propose",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0,
+      0.5
+     ],
+     "width": 2
+    },
+    {
+     "type": "edge",
+     "from": "s7",
+     "to": "s8",
+     "role": "propose",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0,
+      0.5
+     ],
+     "width": 2
+    },
+    {
+     "type": "edge",
+     "from": "s8",
+     "to": "s9",
+     "role": "propose",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0,
+      0.5
+     ],
+     "width": 2
+    },
+    {
+     "type": "edge",
+     "from": "s9",
+     "to": "s10",
+     "role": "propose",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0,
+      0.5
+     ],
+     "width": 2
+    },
+    {
+     "type": "edge",
+     "from": "s10",
+     "to": "s11",
+     "role": "propose",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0,
+      0.5
+     ],
+     "width": 2
+    },
+    {
+     "text": "Independence levels: IND-0 existing query decomposed (consistent at best); IND-2 whole A by another model family (reconciled); IND-4 whole A by Max; IND-5 independent reference available (verified). Levels are recorded in the manifest and fix the verdict wording.",
+     "role": "note",
+     "x": 160,
+     "y": 620,
+     "w": 520,
+     "h": 120,
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "Codex seat (or Max): writes whole A blind from the frozen packet, in a fresh scrubbed process; A is hash-frozen before B starts. Independence IND-2 (IND-4 when Max writes it). The plugin verifies A; it never writes it.",
+     "role": "outside",
+     "x": 700,
+     "y": 620,
+     "w": 420,
+     "h": 120,
+     "id": "codex",
+     "font": 9,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "BigQuery (first release): read-only analysis principal (jobUser + dataViewer); optional scratch principal on one expiring dataset (G14). Pinned by FOR SYSTEM_TIME AS OF within the time-travel window, or CTAS freeze. Not bundled: Python client under ADC, or the remote BigQuery MCP.",
+     "role": "outside",
+     "x": 1140,
+     "y": 620,
+     "w": 250,
+     "h": 120,
+     "id": "bq",
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "DuckDB, local: typed replay of step CSVs (read_csv with sidecar types, allow_quoted_nulls=false) and sampling at 0 warehouse bytes. EXACT only under a tested engine-pair compatibility contract; otherwise PROVISIONAL.",
+     "role": "outside",
+     "x": 1400,
+     "y": 620,
+     "w": 280,
+     "h": 120,
+     "id": "duck",
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "text": "Independent reference: GL or control total with provenance (source, as_of, grain, basis, tolerance). Without it the strongest verdict is reconciled, never verified.",
+     "role": "outside",
+     "x": 1700,
+     "y": 620,
+     "w": 190,
+     "h": 120,
+     "id": "ref",
+     "font": 8,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "type": "edge",
+     "from": "x4",
+     "to": "codex",
+     "label": "frozen packet",
+     "role": "outside",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0.357,
+      0
+     ],
+     "points": [
+      [
+       850,
+       425
+      ]
+     ],
+     "label_at": 0.8,
+     "label_offset": [
+      -48,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "codex",
+     "to": "x7",
+     "label": "whole A (hash-frozen)",
+     "role": "outside",
+     "exit": [
+      0.69,
+      0
+     ],
+     "entry": [
+      0.05,
+      1
+     ],
+     "points": [
+      [
+       990,
+       482
+      ],
+      [
+       1146,
+       482
+      ]
+     ],
+     "label_at": -0.75,
+     "label_offset": [
+      70,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "x6",
+     "to": "bq",
+     "label": "one pinned job per step (and B whole)",
+     "role": "outside",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0.05,
+      0
+     ],
+     "points": [
+      [
+       1130,
+       425
+      ],
+      [
+       1130,
+       596
+      ],
+      [
+       1152,
+       596
+      ]
+     ],
+     "label_at": 0.7,
+     "label_offset": [
+      95,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "x8",
+     "to": "duck",
+     "label": "local sample + replay",
+     "role": "outside",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0.036,
+      0
+     ],
+     "points": [
+      [
+       1410,
+       425
+      ]
+     ],
+     "label_at": 0.8,
+     "label_offset": [
+      62,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "ref",
+     "to": "x9",
+     "label": "tie-out",
+     "role": "outside",
+     "exit": [
+      0,
+      0.3
+     ],
+     "entry": [
+      0.95,
+      1
+     ],
+     "points": [
+      [
+       1690,
+       656
+      ],
+      [
+       1690,
+       482
+      ],
+      [
+       1534,
+       482
+      ]
+     ],
+     "label_at": -0.6,
+     "label_offset": [
+      -28,
+      0
+     ]
+    },
+    {
+     "text": "Hooks are a policy layer, not the authorization boundary: the boundary is the warehouse identity itself (D-08). Hub-level hooks and plugin hooks stack; their interaction is an open point (section 7).",
+     "role": "note",
+     "x": 160,
+     "y": 783,
+     "w": 520,
+     "h": 50,
+     "font": 8,
+     "align": "left"
+    },
+    {
+     "text": "Env scrub before any spawned CLI: no session tokens reach the Codex seat",
+     "role": "guard",
+     "x": 700,
+     "y": 783,
+     "w": 420,
+     "h": 50,
+     "id": "h0",
+     "font": 8
+    },
+    {
+     "text": "Statement allow-list on every job: SELECT / WITH only; no UDF, remote function, EXTERNAL_QUERY, DML",
+     "role": "guard",
+     "x": 1140,
+     "y": 783,
+     "w": 250,
+     "h": 50,
+     "id": "h1",
+     "font": 8
+    },
+    {
+     "text": "Dry run + maximum_bytes_billed cap + job label on every warehouse call; result cache off",
+     "role": "guard",
+     "x": 1400,
+     "y": 783,
+     "w": 280,
+     "h": 50,
+     "id": "h2",
+     "font": 8
+    },
+    {
+     "text": "Writes only to the scratch dataset (if G14) and the project folder; everything else refused",
+     "role": "guard",
+     "x": 1700,
+     "y": 783,
+     "w": 190,
+     "h": 50,
+     "id": "h3",
+     "font": 8
+    },
+    {
+     "type": "edge",
+     "from": "h0",
+     "to": "codex",
+     "label": "scrubbed spawn",
+     "role": "guard",
+     "dashed": true,
+     "exit": [
+      0.5,
+      0
+     ],
+     "entry": [
+      0.5,
+      1
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "h1",
+     "to": "bq",
+     "label": "intercepts every job",
+     "role": "guard",
+     "dashed": true,
+     "exit": [
+      0.5,
+      0
+     ],
+     "entry": [
+      0.5,
+      1
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "h2",
+     "to": "bq",
+     "role": "guard",
+     "dashed": true,
+     "exit": [
+      0.2,
+      0
+     ],
+     "entry": [
+      0.9,
+      1
+     ]
+    }
+   ],
+   "grid": {
+    "x0": 160,
+    "pitch": 140,
+    "col_width": 120
+   }
+  }
+ ]
+}

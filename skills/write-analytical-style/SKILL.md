@@ -62,7 +62,7 @@ When comparing numbers, say how each was computed and over what unit (customers,
 Statements about what was not done ("일괄 0으로 채우지 않고", "t검정이 없어") and counts ("결측치 3건") are claims. Confirm them in the file before writing. If the file documents cases or categories rather than individual cells, say "사례" or "종류", not "건".
 
 ### 8. Point to the reader's own file
-Instructions that touch a file name the file, sheet, and columns, and say why those columns ("제출하신 `delivery_app_data.xlsx`의 `Data` 시트에서, 마지막 열인 R열 오른쪽의 빈 S열과 T열 2행에 머리글을 입력합니다"). Each formula gets one sentence on what it returns.
+Spreadsheet locations are a cell or a range with row numbers (`B5`, `D4:D9`, "4행이 1월"), never a column alone ("D열"); if a column holds many rows, say which row is which item. Instructions that touch a file name the file, sheet, and columns, and say why those columns ("제출하신 `delivery_app_data.xlsx`의 `Data` 시트에서, 마지막 열인 R열 오른쪽의 빈 S열과 T열 2행에 머리글을 입력합니다"). Each formula gets one sentence on what it returns.
 
 ### 9. Quotes are verbatim
 Quote only text you have read in the source, character for character. When shortening, keep the words in order and do not merge two quotes. When quoting the user, keep hedges such as "가급적".
