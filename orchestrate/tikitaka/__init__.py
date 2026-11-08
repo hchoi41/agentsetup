@@ -2,4 +2,4 @@
 
 Standard library only. Entry point: ``python -m tikitaka run --config <job.json>`` (run from ``orchestrate/``).
 """
-__version__ = "1.0.0"
+__version__ = "1.1.0"

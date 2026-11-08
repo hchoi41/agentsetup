@@ -2,7 +2,7 @@
 
 tikitaka is the build-and-review loop engine in `orchestrate/tikitaka`. You give it a job config (a JSON file) that names a spec, the sources the artifact must be accurate to, and the roles that build, review, judge, check and audit. The engine runs the loop. Gates, access control and the records are enforced in code. It then writes everything it did to a run directory.
 
-This README is for Max and for any AI agent setting up a job.
+This README is for the user and for any AI agent setting up a job.
 
 ## Authority and tests
 
@@ -20,6 +20,9 @@ Run these commands from `orchestrate/`:
 ```
 python -m tikitaka run --config job.json [--config-from-user] [--project SLUG] [--session ID]
                        [--override role=ENV1,ENV2] [--hub PATH] [--run-dir PATH]
+python -m tikitaka profiles [--no-status]
+python -m tikitaka profiles create --cli claude|codex --name NAME
+python -m tikitaka profiles login  --cli claude|codex --name NAME
 python -m tikitaka clear-project-overrides SLUG
 ```
 
@@ -41,6 +44,24 @@ Two runners can never write to one run directory at the same time. A run holds `
 
 If the job config is invalid, `run` stops with a `ConfigError` before any run starts; Python prints a traceback and exits 1. Examples: a mandatory role is missing, `spec` is missing, or two roles share a seat alias.
 
+### Agent profiles
+
+The engine uses the agent profiles already set up on the machine. It ships with no profile names. A profile is a CLI's own config folder in the user's home directory:
+
+| CLI | Profile folders | Profile name | Given to the seat as |
+|---|---|---|---|
+| `claude` | `~/.claude`, `~/.claude-<x>` | `claude`, `claude-<x>` | `CLAUDE_CONFIG_DIR` |
+| `codex` | `~/.codex`, `~/.codex-<x>` | `codex`, `codex-<x>` | `CODEX_HOME` |
+
+A folder counts only when it holds the CLI's own files (`.claude.json`, `.credentials.json`, `settings.json` or `projects/` for claude; `auth.json` or `config.toml` for codex). A folder set in `CLAUDE_CONFIG_DIR` or `CODEX_HOME` is found too. `python -m tikitaka profiles` lists the profiles with each one's login status, read from the CLI's own status command (`claude auth status`, `codex login status`).
+
+Every `claude` and `codex` seat names its profile in the job config (`"profile": "claude-x"`). Before any model is called, `run` checks that each named profile exists and is logged in. If not:
+
+- **In a terminal**, it shows what is missing and the profiles that exist, then asks whether to create the profile or log in to it. If none are found at all, it asks "No agent profiles found. Create agent profiles now?". Creating a profile makes the folder and runs the CLI's own login (`claude auth login`, `codex login`). The engine never reads or stores credentials. Answering no stops the run and changes nothing.
+- **Without a terminal** (an agent running the job), it prints the exact `profiles create` or `profiles login` command, makes no change, and exits 3, so the agent must ask the user.
+
+`profiles create --name` takes `<cli>` (the default folder) or `<cli>-<name>` with lowercase letters, digits, `-` or `_`. It refuses a folder that is already a profile.
+
 ### `clear-project-overrides SLUG`
 
 Run this when a project is finished to drop its overrides and double-check setting; the hub's project-complete procedure calls it. It edits the project settings file for `SLUG`:
@@ -57,6 +78,7 @@ It prints `cleared overrides for project SLUG` and exits 0.
    - collects active overrides;
    - rejects overrides found in agent-writable places;
    - checks that every `claude` and `codex` CLI the roles use resolves to a real application file, not a shell function or alias;
+   - checks that every `claude` and `codex` seat's profile exists on this machine and is logged in (see [Agent profiles](#agent-profiles));
    - runs the `require_logins` checks.
 2. **Research (optional).** If a `researcher` role exists, it runs on the brief. Then any `before_plan` extension roles run.
 3. **Plan.** The engine writes `plan.md` from the brief, planned functions, milestones and roles. The judge must agree before the run continues. This is the `plan_approval` gate.
@@ -97,23 +119,25 @@ Reviews, verdicts, agreements and QA/QC results are validated by code. An invali
   "token_cap": null,
   "project": "my-project",
   "user_channel": true,
-  "require_logins": ["gcloud"],
-  "login_commands": {"gcloud": ["gcloud", "auth", "print-access-token", "--quiet"]},
+  "require_logins": ["cloud"],
+  "login_commands": {"cloud": ["gcloud", "auth", "print-access-token", "--quiet"]},
   "roles": {
-    "orchestrator":      {"seat": "engine",    "cli": "internal"},
-    "builder":           {"seat": "cc",        "cli": "claude", "model": "claude-opus-5-5", "effort": "high"},
-    "accuracy_reviewer": {"seat": "aera",      "cli": "codex",  "model": "gpt-6-astra", "effort": "ultra", "sandbox": "read-only",
-                          "replacement": {"seat": "cc.acc", "cli": "claude", "model": "claude-opus-5-5", "effort": "high"}},
-    "cold_reviewer":     {"seat": "dec",       "cli": "claude", "model": "claude-fable-5-1", "effort": "high"},
-    "judge":             {"seat": "dec.judge", "cli": "claude", "model": "claude-fable-5-1", "effort": "high"},
-    "qa_qc":             {"seat": "aera.qa",   "cli": "codex",  "model": "gpt-6-astra", "effort": "ultra"},
-    "auditor":           {"seat": "dec.audit", "cli": "claude", "model": "claude-fable-5-1", "effort": "medium"},
-    "style_checker":     {"seat": "sty",       "cli": "claude", "model": "claude-sonnet-5-5", "stage": "build",
+    "orchestrator":      {"seat": "engine",     "cli": "internal"},
+    "builder":           {"seat": "bld",        "cli": "claude", "profile": "claude",   "model": "claude-opus-5-5", "effort": "high"},
+    "accuracy_reviewer": {"seat": "rev1",       "cli": "codex",  "profile": "codex",    "model": "gpt-6-astra", "effort": "ultra", "sandbox": "read-only",
+                          "replacement": {"seat": "bld.acc", "cli": "claude", "profile": "claude", "model": "claude-opus-5-5", "effort": "high"}},
+    "cold_reviewer":     {"seat": "rev2",       "cli": "claude", "profile": "claude-b", "model": "claude-fable-5-1", "effort": "high"},
+    "judge":             {"seat": "rev2.judge", "cli": "claude", "profile": "claude-b", "model": "claude-fable-5-1", "effort": "high"},
+    "qa_qc":             {"seat": "rev1.qa",    "cli": "codex",  "profile": "codex",    "model": "gpt-6-astra", "effort": "ultra"},
+    "auditor":           {"seat": "rev2.audit", "cli": "claude", "profile": "claude-b", "model": "claude-fable-5-1", "effort": "medium"},
+    "style_checker":     {"seat": "sty",        "cli": "claude", "profile": "claude",   "model": "claude-sonnet-5-5", "stage": "build",
                           "receives": ["plan"], "hands_off_to": "builder",
                           "instruction": "List style rules the builder must follow."}
   }
 }
 ```
+
+Seat aliases (`bld`, `rev1`, ...) and profile names (`claude`, `claude-b`, `codex`) are examples: use the profiles `python -m tikitaka profiles` lists on your machine. `require_logins` is only for jobs that need an outside login (here a cloud CLI); most jobs leave it out.
 
 ### Top-level keys
 
@@ -131,8 +155,8 @@ Reviews, verdicts, agreements and QA/QC results are validated by code. An invali
 | `double_check` | `{"enabled": false}` | Adds a second reviewer pair. It is honoured only with `--config-from-user`. See [Double-check](#double-check). |
 | `project` | `null` | Project slug. It selects `projects/<slug>.json` in the settings root. `--project` replaces it. |
 | `user_channel` | `true` | Boolean. It is loaded into the job. The loop in this version does not act on it. |
-| `require_logins` | `[]` | Login names checked during preflight. A failed or missing login ends the run as `preflight_failed`. |
-| `login_commands` | built-in `gcloud` and `gws-company` | Map of login name to a command (argv list) that must exit 0 when the login is valid. It is merged over the built-ins. Every name in `require_logins` must have a command here or among the built-ins. |
+| `require_logins` | `[]` | Login names checked during preflight, for jobs that need an outside login (a cloud CLI, a workspace account). A failed login ends the run as `preflight_failed`. |
+| `login_commands` | `{}` | Map of login name to a command (argv list) that must exit 0 when the login is valid. There are no built-in logins: every name in `require_logins` needs a command here, or the config is rejected. |
 | `roles` | **required** | See [Roles block](#roles-block). |
 
 Do not put a top-level `overrides` key in the job config. The job config is an agent-writable source. Overrides found there are rejected, never applied, and logged in `overrides.json` and `process.md`.
@@ -158,11 +182,11 @@ Do not put a top-level `overrides` key in the job config. The job config is an a
 
 | Key | Meaning |
 |---|---|
-| `seat` | **Required.** The seat alias. It must be unique across all roles. It labels one role instance, so one agent can fill several roles under different aliases, for example `dec` and `dec.judge`. |
+| `seat` | **Required.** The seat alias. It must be unique across all roles. It labels one role instance, so one agent can fill several roles under different aliases, for example `rev2` and `rev2.judge`. |
 | `cli` | **Required.** One of `claude`, `codex`, `copilot`, `fake`, `internal`. Notes on some values: <ul><li>`internal` is accepted for any role by validation, but there is no `internal` seat adapter. Use it only for `orchestrator` (never dispatched) and `auditor` (the engine writes the fallback audit). Any other role set to `internal` fails when it is called.</li><li>`copilot` passes validation but has no seat adapter in this version, so a role that is actually called with it fails.</li><li>`fake` runs the Python script named by the role's `script` key, for tests.</li></ul> |
 | `model` | The model name. It is passed to the CLI (`--model` for claude, `-m` for codex). |
 | `effort` | Reasoning effort (`--effort` for claude, `model_reasoning_effort` for codex). Defaults to `high` at call time. |
-| `profile` | `claude` only. A config directory, `~` expanded, that is set as `CLAUDE_CONFIG_DIR` for that seat. |
+| `profile` | **Required for `claude` and `codex` seats.** The name of an agent profile on this machine (`claude`, `claude-<x>`, `codex`, `codex-<x>`), or the path of one. The engine checks it exists and is logged in, then sets it for that seat only (`CLAUDE_CONFIG_DIR` or `CODEX_HOME`). See [Agent profiles](#agent-profiles). |
 | `sandbox` | `codex` only. The sandbox mode, default `read-only`. These restrictions apply: <ul><li>Review seats must run `read-only`. The review seats are `accuracy_reviewer`, `cold_reviewer`, both `_2` reviewers, `judge`, `qa_qc` and `auditor`.</li><li>`workspace-write` is refused on Windows.</li><li>The sandbox check runs when the seat is called, not in the Preflight step. A violation raises a preflight error and the run ends `preflight_failed`, so this can happen mid-run after artifacts exist.</li><li>A sandbox violation on the auditor seat does not change the status; the engine logs the failure and writes the fallback audit.</li></ul> |
 | `cutoff_seconds` | The only way to put a time limit on a seat. See the [cut-off prevention rule](#cut-off-prevention-rule). |
 | `replacement` | A fallback seat for reviewer roles (`accuracy_reviewer`, `cold_reviewer` and their `_2` pair), written as an object with `seat`, `cli`, `model`, `effort` and any other role keys. It is used only when all 3 primary attempts fail (invalid or cut-off output). The replacement seat then gets its own 3 attempts. The swap is recorded in the audit. |
@@ -246,7 +270,7 @@ The state used in each round is written to `double_check.json`.
 | `double_check.json` | The double-check state for the latest round. It is overwritten each round. |
 | `tokens.json` | Tokens per call: role, seat, milestone, round, tokens and usage. |
 | `cutoffs.json` | Every cut-off, with its role, seat, trigger and reason. Written only if a cut-off happened. |
-| `calls/` | Raw seat I/O. Each call's base name is `<tag>_<seat>`, and each file's extension is applied with `Path.with_suffix`, which replaces whatever follows the last dot in that base name. So for a seat alias that contains a dot, the part after its last dot is dropped: calls for seat `dec.judge` produce files ending `_dec.md`, `_dec.prompt.md` and so on, not `_dec.judge.md`. For each completed call: <ul><li>`.prompt.md`: the prompt sent;</li><li>`.md`: the output text;</li><li>`.stdout.txt`: raw standard output;</li><li>`.err`: standard error;</li><li>`.events.jsonl`: the event stream, codex only.</li></ul> If `cutoff_seconds` fires, only the `.prompt.md` file is guaranteed; the `.md`, `.stdout.txt`, `.err` and `.events.jsonl` files are not written (a codex seat may still have written its own `.md` output). |
+| `calls/` | Raw seat I/O. Each call's base name is `<tag>_<seat>`, and each file's extension is applied with `Path.with_suffix`, which replaces whatever follows the last dot in that base name. So for a seat alias that contains a dot, the part after its last dot is dropped: calls for seat `rev2.judge` produce files ending `_rev2.md`, `_rev2.prompt.md` and so on, not `_rev2.judge.md`. For each completed call: <ul><li>`.prompt.md`: the prompt sent;</li><li>`.md`: the output text;</li><li>`.stdout.txt`: raw standard output;</li><li>`.err`: standard error;</li><li>`.events.jsonl`: the event stream, codex only.</li></ul> If `cutoff_seconds` fires, only the `.prompt.md` file is guaranteed; the `.md`, `.stdout.txt`, `.err` and `.events.jsonl` files are not written (a codex seat may still have written its own `.md` output). |
 | `artifacts/v<N>_<artifact_name>` | Each artifact version. |
 | `artifacts/v<N>.changes.md` | The builder's change note for each version. |
 | `reviews/<milestone>_r<round>_<role>_<seat>.json` | Gate-validated reviews. QA bounded-fix reviews are also saved as `reviews/qafix_<role>_<seat>.json`. |
@@ -302,11 +326,11 @@ The worker's environment is scrubbed. These variables are removed:
 
 - any variable whose name contains `TOKEN`, `SECRET`, `KEY`, `PASSWORD`, `OAUTH` or `CREDENTIAL`, ignoring case;
 - any variable whose name starts with `CLAUDE_CODE_`, `CLAUDECODE`, `ANTHROPIC_`, `GOOGLE_`, `GCLOUD`, `CLOUDSDK_`, `OPENAI_`, `GH_`, `GITHUB_`, `AZURE_`, `AWS_` or `GWS`;
-- `CLAUDE_CONFIG_DIR`.
+- `CLAUDE_CONFIG_DIR` and `CODEX_HOME`.
 
 A variable whose name matches none of these patterns passes through unfiltered.
 
-A scrubbed variable reaches a worker only when an active user override names that worker's role and lists the variable in `access`. Two exceptions are set by the claude adapter after the scrub: `CLAUDE_CONFIG_DIR` when the role sets `profile`, and `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0` always. A replacement seat gets the same access as the role it replaces.
+A scrubbed variable reaches a worker only when an active user override names that worker's role and lists the variable in `access`. Two exceptions are set by the seat adapter after the scrub: the seat's checked profile folder (`CLAUDE_CONFIG_DIR` for claude, `CODEX_HOME` for codex), and `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0` for claude always. A replacement seat gets the same access as the role it replaces.
 
 Overrides come only from user-owned sources:
 

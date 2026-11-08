@@ -177,7 +177,7 @@ The orchestrator may consult the judge on any step, not only major decisions. Ev
 ## 7. Schemas and loop rules (code-enforced)
 
 **Issue ids**, unique across all reviews and the verdict of a round (checked at the gate; unique seat aliases, §2, keep ids distinct across the second reviewer pair):
-- reviewer items: `<role letter>-<seat>-<n>` — `A` accuracy, `C` cold (e.g., `A-aera-1`, `C-dec-2`);
+- reviewer items: `<role letter>-<seat>-<n>` — `A` accuracy, `C` cold (e.g., `A-rev1-1`, `C-rev2-2`);
 - judge-originated items: `J-<n>` (e.g., `J-1`).
 
 **Review schema** (all reviewers):
@@ -185,7 +185,7 @@ The orchestrator may consult the judge on any step, not only major decisions. Ev
 { "role": "accuracy_reviewer|cold_reviewer|accuracy_reviewer_2|cold_reviewer_2", "seat": "...", "model": "...",
   "milestone": "m1", "round": 1, "artifact_version": "v1",
   "verdict": "approve|revise",
-  "issues": [ { "id": "A-aera-1", "location": "§x / line", "problem": "...", "evidence": "...",
+  "issues": [ { "id": "A-rev1-1", "location": "§x / line", "problem": "...", "evidence": "...",
                 "fix": "...", "severity": "blocking|major|minor", "fixable_in_loop": true } ] }
 ```
 
@@ -193,11 +193,11 @@ The orchestrator may consult the judge on any step, not only major decisions. Ev
 ```json
 { "milestone": "m1", "round": 1, "artifact_version": "v1",
   "plan_assessment": "...", "process_assessment": "...", "output_assessment": "...",
-  "items": [ { "id": "A-aera-1", "decision": "improve|keep|reject", "reason": "...",
+  "items": [ { "id": "A-rev1-1", "decision": "improve|keep|reject", "reason": "...",
                "fixable_override": null } ],
   "judge_items": [ { "id": "J-1", "location": "...", "problem": "...", "fix": "...",
                      "severity": "blocking|major|minor", "fixable_in_loop": true } ],
-  "improvements": [ "[A-aera-1, C-dec-4] concrete edit ..." ],
+  "improvements": [ "[A-rev1-1, C-rev2-4] concrete edit ..." ],
   "improvement_necessary": "yes|no" }
 ```
 

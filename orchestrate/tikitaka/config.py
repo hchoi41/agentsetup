@@ -88,7 +88,7 @@ def validate_job(raw: dict, *, path: Path | None = None, config_source: str = "a
                            {k: v for k, v in r.items() if k not in known})
     # Seat aliases are unique across all role entries (charter §2). A seat alias labels one role
     # instance; one *agent* (cli + model + profile) may still fill several roles under different aliases,
-    # e.g. "dec" as cold reviewer and "dec.judge" as judge.
+    # e.g. "rev2" as cold reviewer and "rev2.judge" as judge.
     for name, role in roles.items():
         if role.seat in seats:
             raise ConfigError(f"duplicate seat alias {role.seat!r} on roles {seats[role.seat]} and {name}")
@@ -106,6 +106,9 @@ def validate_job(raw: dict, *, path: Path | None = None, config_source: str = "a
             if int(dur.get("n", 0)) < 1:
                 raise ConfigError("double_check.duration.n must be >= 1")
             dc_source = "user job config"
+    undefined = [n for n in raw.get("require_logins", []) if n not in (raw.get("login_commands") or {})]
+    if undefined:
+        raise ConfigError(f"require_logins names without a command in login_commands: {undefined}")
     mi = int(raw.get("max_iterations", 3))
     if mi < 1:
         raise ConfigError("max_iterations must be >= 1")

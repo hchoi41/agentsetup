@@ -2,7 +2,7 @@
 
 - Codex sandbox: the runner passes an explicit sandbox; --ignore-user-config never leaves it implicit.
 - Elevated run -> next step in a new process: every seat call is its own subprocess (seats.py); nothing is reused.
-- gcloud / gws-company login expiry: checked before a job starts.
+- login expiry (any login the job lists, with its own check command): checked before a job starts.
 - 32K command-line limit: prompts go on stdin; argv is length-checked.
 - claude.exe shadowed by a shell function/alias: the resolved command must be an application file.
 - Two runners writing one file: an exclusive run lock per output path.
@@ -73,14 +73,12 @@ def check_login(name: str, argv: list, timeout: int = 60) -> dict:
             "detail": "ok" if r.returncode == 0 else (r.stderr or r.stdout).strip()[:300]}
 
 
-DEFAULT_LOGINS = {
-    "gcloud": ["gcloud", "auth", "print-access-token", "--quiet"],
-    "gws-company": ["gcloud", "auth", "print-access-token", "--quiet", "--configuration=gws-company"],
-}
-
-
 def run_logins(required: list, commands: dict | None = None) -> list:
-    cmds = {**DEFAULT_LOGINS, **(commands or {})}
+    """No built-in logins: each name in ``require_logins`` needs its own command in ``login_commands``."""
+    cmds = commands or {}
+    undefined = [n for n in required if n not in cmds]
+    if undefined:
+        raise PreflightError(f"require_logins names without a command in login_commands: {undefined}")
     results = [check_login(n, cmds[n]) for n in required]
     bad = [r for r in results if not r["ok"]]
     if bad:
