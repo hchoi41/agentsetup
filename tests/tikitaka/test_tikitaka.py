@@ -257,7 +257,7 @@ def test_claude_seat_gets_bg_wait_env_after_scrub(tmp_path, monkeypatch, scenari
     from tikitaka.config import Role
     monkeypatch.setattr(seats, "build_argv", lambda r, out: [sys.executable, "-I", str(FAKE)])
     env = access.worker_env("cold_reviewer", [], {**os.environ, "ANTHROPIC_API_KEY": "k"})
-    run_seat(Role("cold_reviewer", "dec", "claude", "m", "high"), "You are the X", out_prefix=tmp_path / "c", env=env)
+    run_seat(Role("cold_reviewer", "rev2", "claude", "m", "high"), "You are the X", out_prefix=tmp_path / "c", env=env)
     names = json.loads(dump.read_text().splitlines()[0])
     assert "CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS" in names and "ANTHROPIC_API_KEY" not in names
 
@@ -380,7 +380,7 @@ def test_claude_seat_isolated_from_mcp_and_settings():
     import shutil as _sh
     if not _sh.which("claude"):
         pytest.skip("claude not installed")
-    argv = seats.build_argv(Role("cold_reviewer", "dec", "claude", "m", "high"), Path("o.md"))
+    argv = seats.build_argv(Role("cold_reviewer", "rev2", "claude", "m", "high"), Path("o.md"))
     assert "--strict-mcp-config" in argv and argv[argv.index("--setting-sources") + 1] == ""
 
 

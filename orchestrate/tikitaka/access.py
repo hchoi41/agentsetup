@@ -17,7 +17,7 @@ import re
 from pathlib import Path
 
 SECRET_RE = re.compile(r"TOKEN|SECRET|KEY|PASSWORD|OAUTH|CREDENTIAL|^CLAUDE_CODE_|^CLAUDECODE|^ANTHROPIC_|"
-                       r"^CLAUDE_CONFIG_DIR$|^GOOGLE_|^GCLOUD|^CLOUDSDK_|^OPENAI_|^GH_|^GITHUB_|^AZURE_|^AWS_|^GWS", re.I)
+                       r"^CLAUDE_CONFIG_DIR$|^CODEX_HOME$|^GOOGLE_|^GCLOUD|^CLOUDSDK_|^OPENAI_|^GH_|^GITHUB_|^AZURE_|^AWS_|^GWS", re.I)
 
 
 def settings_root() -> Path:

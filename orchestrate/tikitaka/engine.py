@@ -6,7 +6,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import access, gates, preflight, prompts
+from . import access, gates, preflight, profiles, prompts
 from .config import Job, double_check_pair_present, extension_roles
 from .runlog import RunLog
 from .seats import SeatResult, run_seat
@@ -208,6 +208,8 @@ class Engine:
         if self.check_tools:
             for cli in sorted({r.cli for r in self.job.roles.values() if r.cli in ("codex", "claude")}):
                 preflight.resolve_application(cli)
+            used = profiles.resolve_job_profiles(self.job)
+            self.log.event("profiles: " + ", ".join(f"{r}={p.name}" for r, p in sorted(used.items())))
             preflight.run_logins(self.job.raw.get("require_logins", []), self.job.raw.get("login_commands"))
         self.log.event("preflight ok")
 

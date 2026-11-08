@@ -76,9 +76,10 @@ def run_seat(role, prompt: str, *, out_prefix: Path, env: dict) -> SeatResult:
     argv = build_argv(role, out_md)
     preflight.check_argv(argv)
     env = dict(env)
+    profile_env = {"claude": "CLAUDE_CONFIG_DIR", "codex": "CODEX_HOME"}.get(role.cli)
+    if profile_env and role.extra.get("_profile_path"):
+        env[profile_env] = role.extra["_profile_path"]     # the seat's checked profile (profiles.resolve_job_profiles)
     if role.cli == "claude":
-        if role.extra.get("profile"):
-            env["CLAUDE_CONFIG_DIR"] = os.path.expanduser(role.extra["profile"])
         env["CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS"] = "0"   # set after the scrub: never kill background review work
     cutoff = role.extra.get("cutoff_seconds")
     out_prefix.with_suffix(".prompt.md").write_text(prompt, encoding="utf-8")

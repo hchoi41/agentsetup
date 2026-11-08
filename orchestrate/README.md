@@ -4,7 +4,7 @@
 **config-driven** loop: the roles stay locked, the **gate is pluggable**, and each **job**
 is a JSON file. The same proven loop drives **code** or a **document**.
 
-## Tikitaka engine — assignable roles (v5.3.0)
+## Tikitaka engine — assignable roles (v5.3.0; agent profiles v5.3.1)
 
 `orchestrate/tikitaka/` is a Python engine (standard library only) that implements the tikitaka role charter
 (`docs/tikitaka_role_charter.md`): roles are **assigned per job** — builder · accuracy reviewer · cold reviewer · judge ·
@@ -14,8 +14,14 @@ direct live-environment access unless the user overrides it; reviewers are never
 
 ```powershell
 cd orchestrate
+python -m tikitaka profiles        # the agent profiles already on this machine, with login status
 python -m tikitaka run --config <job.json> --config-from-user [--project <slug>] [--session <id>]
 ```
+
+Seats run under the agent profiles already set up on the machine (`~/.claude`, `~/.claude-<x>`, `~/.codex`,
+`~/.codex-<x>`); each `claude`/`codex` seat names its profile in the job config, and nothing user-specific ships in the
+package. If a named profile is missing or logged out, the run stops before any model is called and asks whether to create
+it or log in (the CLI's own login; the engine never stores credentials). Without a terminal it prints the command and exits 3.
 
 Usage, config keys and run-directory layout: `orchestrate/tikitaka/README.md`. Tests: `python -m pytest tests/tikitaka`.
 The PowerShell engines below are unchanged and keep the legacy fixed roles.
