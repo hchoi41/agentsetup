@@ -4,7 +4,23 @@
 **config-driven** loop: the roles stay locked, the **gate is pluggable**, and each **job**
 is a JSON file. The same proven loop drives **code** or a **document**.
 
-## Locked roles (the "set in advance")
+## Tikitaka engine — assignable roles (v5.3.0)
+
+`orchestrate/tikitaka/` is a Python engine (standard library only) that implements the tikitaka role charter
+(`docs/tikitaka_role_charter.md`): roles are **assigned per job** — builder · accuracy reviewer · cold reviewer · judge ·
+orchestrator/PM · QA/QC · auditor (researcher and double-checker optional) — and no model is bound to a role. The judge rules
+every round and must agree to plan approval, milestones and finishing; every model output crosses a schema gate; workers get no
+direct live-environment access unless the user overrides it; reviewers are never cut off by default.
+
+```powershell
+cd orchestrate
+python -m tikitaka run --config <job.json> --config-from-user [--project <slug>] [--session <id>]
+```
+
+Usage, config keys and run-directory layout: `orchestrate/tikitaka/README.md`. Tests: `python -m pytest tests/tikitaka`.
+The PowerShell engines below are unchanged and keep the legacy fixed roles.
+
+## Legacy locked roles (Orchestrate.ps1 / Orchestrate2.ps1)
 
 | LLM | Model selection | Standing role |
 |---|---|---|
