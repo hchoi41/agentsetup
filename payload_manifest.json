@@ -499,6 +499,24 @@
       "dest": "plugins/query-trail/skills",
       "mode": "tree",
       "note": "query-trail plugin (see the .claude-plugin entry)"
+    },
+    {
+      "src": "HUB/orchestrate/tikitaka",
+      "dest": "orchestrate/tikitaka",
+      "mode": "tree",
+      "note": "Tikitaka engine implementing the role charter; stdlib Python."
+    },
+    {
+      "src": "HUB/tests/tikitaka",
+      "dest": "tests/tikitaka",
+      "mode": "tree",
+      "note": "Engine tests with a deterministic fake seat; no credentials or live calls."
+    },
+    {
+      "src": "STAGED/tikitaka_role_charter.md",
+      "dest": "docs/tikitaka_role_charter.md",
+      "mode": "file",
+      "note": "Tikitaka role charter (authority for the engine)."
     }
   ],
   "exclude_always": [
