@@ -1,0 +1,294 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "manifest.schema.json",
+  "title": "query-trail run manifest.json (design spec v1 sections 1.4, 2.2 P6, 3, 4.4, 5, 6.1, 7.1, 7.2)",
+  "description": "Adapted from the T02 prototype manifest.schema.json (research_r2/T02_prototype), updated to the spec: confidence ladder, separate pin and replay words, retention per file, read-only pin routes only.",
+  "type": "object",
+  "required": ["schema_version", "run_id", "attempt", "created_utc", "confidence_level", "author_mode", "independence", "engine", "csv_contract", "pin", "steps", "deliverables", "files"],
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "level": {"enum": [60, 70, 80, 90, 100]},
+    "multiset_hash": {
+      "type": "object",
+      "description": "Sum mod 2^128 of each canonical row's SHA-256, plus the row count (spec 3.2)",
+      "required": ["digest", "rows", "route", "schema_fingerprint"],
+      "additionalProperties": false,
+      "properties": {
+        "digest": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+        "rows": {"type": "integer", "minimum": 0},
+        "route": {"enum": ["local_sha256_sum128", "warehouse_farm_fingerprint_sum"]},
+        "float_tolerance": {"type": ["number", "null"]},
+        "schema_fingerprint": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "column": {
+      "type": "object",
+      "required": ["name", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string"},
+        "type": {"type": "string", "description": "Engine type as written in the sidecar"},
+        "nullable": {"type": "boolean"},
+        "computed": {"type": "boolean"}
+      }
+    },
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "job_id": {"type": ["string", "null"]},
+        "label": {"type": "string", "pattern": "^step:[0-9]{2}$|^whole:[ab]$", "description": "Job label step:nn (spec 2.2 P6; BQ02)"},
+        "dry_run_bytes": {"type": ["integer", "null"]},
+        "bytes_billed": {"type": ["integer", "null"]},
+        "maximum_bytes_billed": {"type": "integer"},
+        "use_query_cache": {"const": false, "description": "Cache off on every job (spec 5.1)"},
+        "cache_hit": {"type": ["boolean", "null"]},
+        "as_of_utc": {"type": ["string", "null"], "format": "date-time"},
+        "started_utc": {"type": "string", "format": "date-time"},
+        "elapsed_ms": {"type": "integer", "minimum": 0}
+      }
+    },
+    "ledger_entry": {
+      "type": "object",
+      "required": ["job_label", "phase", "dry_run_bytes", "reserved_bytes", "bytes_billed", "time_utc"],
+      "additionalProperties": false,
+      "properties": {
+        "entry_id": {"type": "string", "description": "Ledger entry id (fix r3 B3-2): the entry is written before the job is submitted and reconciled by id"},
+        "job_label": {"type": "string"},
+        "phase": {"type": "string", "pattern": "^P([0-9]|1[01])$"},
+        "dry_run_bytes": {"type": ["integer", "null"]},
+        "reserved_bytes": {"type": "integer", "minimum": 0, "description": "Admission estimate: dry run + 10 MiB x tables referenced"},
+        "authorized_bytes": {"type": "integer", "minimum": 0, "description": "authorized = min(job cap, remaining budget) = the maximum_bytes_billed the job was sent with; held until the bill is reconciled (spec v4 5.3)"},
+        "bytes_billed": {"type": ["integer", "null"], "minimum": 0, "description": "The actual bill once reconciled; null while pending or unknown (then authorized_bytes counts)"},
+        "reconciled_utc": {"type": ["string", "null"], "format": "date-time", "description": "When bytes_billed was recorded; null while the authorised amount is held"},
+        "time_utc": {"type": "string", "format": "date-time"},
+        "maximum_bytes_billed": {"type": ["integer", "null"], "description": "The cap the job was sent with (= authorized_bytes since fix r3)"},
+        "outcome": {"enum": ["submitted", "ok", "refused_over_cap", "bill_unknown_authorized_held", "error_counted_at_reservation", "write_refused", "write_succeeded", "write_smoke_inconclusive", "dry_run_refused", "write_possible"]}
+      }
+    },
+    "csv_file": {
+      "type": "object",
+      "required": ["path", "sha256", "bytes", "mode", "schema_path"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {"type": "string"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 0},
+        "mode": {"enum": ["full", "partitioned"]},
+        "parts": {"type": "array", "items": {"type": "string"}, "description": "Partitioned CSV parts, up to 1 M rows each (spec 3.1 level 100)"},
+        "schema_path": {"type": "string", "description": "Typed sidecar (D-04)"}
+      }
+    }
+  },
+  "properties": {
+    "schema_version": {"const": "1"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$"},
+    "attempt": {"type": "integer", "minimum": 1, "description": "Escalation re-runs and re-pins add an attempt; older attempts are kept as history (spec 3.3, 5.4)"},
+    "created_utc": {"type": "string", "format": "date-time"},
+    "confidence_level": {"$ref": "#/$defs/level"},
+    "author_mode": {"enum": ["single", "second:codex", "second:max"]},
+    "owner_mode": {"enum": [null, "research"]},
+    "independence": {
+      "type": "object",
+      "required": ["level"],
+      "additionalProperties": false,
+      "properties": {
+        "level": {"enum": ["IND-0", "IND-1", "IND-2", "IND-3", "IND-4", "IND-5"]},
+        "isolation_attested_not_enforced": {"type": "boolean", "description": "IND-3 on native Windows (spec 4.2)"},
+        "dependent_revision": {"type": "boolean", "description": "Informed re-author after G4 reject drops to IND-0 (spec 2.2 P7)"}
+      }
+    },
+    "engine": {
+      "type": "object",
+      "required": ["name", "transport", "chaining"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"const": "bigquery"},
+        "transport": {"const": "python_client_adc"},
+        "chaining": {"enum": ["cumulative_cte", "cumulative_cte_then_duckdb"]},
+        "client_version": {"type": "string"},
+        "duckdb_version": {"type": "string"},
+        "sqlglot_version": {"type": "string"},
+        "pandas_version": {"type": "string"},
+        "python_version": {"type": "string"},
+        "project_ref_stored": {"const": false, "description": "Project and dataset IDs are never stored (D-12)"}
+      }
+    },
+    "csv_contract": {
+      "type": "object",
+      "required": ["encoding", "bom", "line_ending", "quoting", "null_token", "empty_string_token", "writer", "reader"],
+      "additionalProperties": false,
+      "properties": {
+        "encoding": {"const": "utf-8"},
+        "bom": {"const": false},
+        "line_ending": {"const": "LF"},
+        "quoting": {"const": "RFC 4180"},
+        "null_token": {"const": "<empty unquoted field>"},
+        "empty_string_token": {"const": "\"\" (quoted)"},
+        "writer": {"enum": ["duckdb COPY", "arrow via duckdb COPY"]},
+        "reader": {"const": "duckdb read_csv allow_quoted_nulls=false columns=<sidecar>"}
+      }
+    },
+    "pin": {
+      "type": "object",
+      "required": ["route", "pin_status"],
+      "additionalProperties": false,
+      "properties": {
+        "route": {"enum": ["system_time", "csv_only"], "description": "Two pin routes under read-only rights (spec 5.1)"},
+        "pin_status": {"enum": ["FINAL", "PROVISIONAL"]},
+        "as_of_utc": {"type": ["string", "null"], "format": "date-time", "description": "Fixed at P6 start (spec 5.4)"},
+        "pin_deadline_utc": {"type": ["string", "null"], "format": "date-time", "description": "as_of_utc + smallest window - 24 h margin (spec 5.4)"},
+        "smallest_window_hours": {"type": ["integer", "null"]},
+        "business_pin": {"type": ["string", "null"], "description": "ETL batch id or close marker (spec 5.2)"},
+        "as_of_group_id": {"type": ["string", "null"]},
+        "unpinnable": {"type": "array", "items": {"type": "string"}},
+        "provisional_reasons": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "compat_binding": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string"},
+        "path": {"type": "string"},
+        "matches_environment": {"type": "boolean", "description": "Any mismatch forces TOLERANT (spec 5.5)"}
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Per-run budget (spec v2 5.3; fix r1 B-H3): one ledger of actual bytes billed by every job of every phase, kept by lib/bq.py (MeteredEngine); spent + reservation over budget_bytes opens G15",
+      "properties": {
+        "dry_run_bytes_total": {"type": ["integer", "null"]},
+        "reserved_bytes_total": {"type": ["integer", "null"], "description": "P6 up-front sum of reservations (dry run + 10 MiB x tables per job; fix r2 B2-H2)"},
+        "warehouse_bytes_per_run": {"type": "integer"},
+        "warehouse_bytes_per_job": {"type": "integer"},
+        "bytes_billed_total": {"type": ["integer", "null"], "description": "P6 step and whole jobs of the latest run_steps invocation"},
+        "ledger": {"type": "array", "items": {"$ref": "#/$defs/ledger_entry"}},
+        "spent_bytes": {"type": "integer", "minimum": 0, "description": "Sum of reconciled bytes_billed over the ledger, every phase and attempt"},
+        "held_bytes": {"type": "integer", "minimum": 0, "description": "Sum of authorized_bytes of entries whose bill is not reconciled (fix r3 B3-2)"},
+        "budget_bytes": {"type": "integer", "description": "run_config caps.warehouse_bytes_per_run at the last ledger write"},
+        "remaining_bytes": {"type": "integer", "description": "budget_bytes - spent_bytes - held_bytes (negative only if the budget was lowered)"}
+      }
+    },
+    "reference": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "description": "Reference extract brought in by reference_import.py (fix r1 B-M3; spec v2 6.3): file, typed sidecar, sha256, provenance",
+      "required": ["path", "sha256", "schema_path", "rows", "source", "independence", "as_of", "imported_utc"],
+      "properties": {
+        "path": {"type": "string"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "schema_path": {"type": "string"},
+        "rows": {"type": "integer", "minimum": 0},
+        "columns": {"type": "array", "items": {"$ref": "#/$defs/column"}},
+        "source": {"type": "string", "minLength": 1},
+        "independence": {"enum": ["IND-0", "IND-1", "IND-2", "IND-3", "IND-4", "IND-5"]},
+        "independence_class": {"enum": ["independent", "same_source", "synthetic", "none"]},
+        "reference_type": {"type": "string"},
+        "as_of": {"type": "string", "minLength": 1},
+        "original_name": {"type": "string"},
+        "imported_utc": {"type": "string", "format": "date-time"}
+      }
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["step", "name", "sql_path", "inputs", "is_read_step", "requested_level", "effective_level", "artifacts", "rows_out", "columns", "multiset_hash", "replayable", "replayable_reason", "replay_status", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "step": {"type": "integer", "minimum": 1},
+          "name": {"type": "string", "pattern": "^[0-9]{2}_[a-z0-9_]+$", "description": "NN_<verb>_<object> (spec 1.4 split.py)"},
+          "one_sentence": {"type": "string", "description": "G11 readability sentence"},
+          "sql_path": {"type": "string"},
+          "sql_sha256": {"$ref": "#/$defs/sha256"},
+          "executed_sql_path": {"type": "string", "description": "executed/NN.run.sql with the injected pin (spec 5.2)"},
+          "executed_sql_sha256": {"$ref": "#/$defs/sha256"},
+          "engine": {"enum": ["bigquery", "duckdb"], "description": "duckdb after a G15 cut (spec 5.3)"},
+          "inputs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["kind", "ref"],
+              "additionalProperties": false,
+              "properties": {
+                "kind": {"enum": ["source_table", "prior_step"]},
+                "ref": {"type": "string"},
+                "rows_in": {"type": ["integer", "null"]}
+              }
+            }
+          },
+          "is_read_step": {"type": "boolean", "description": "Reads a warehouse base table (spec 0.3, 2.2 P5)"},
+          "grain": {"type": "array", "items": {"type": "string"}},
+          "requested_level": {"$ref": "#/$defs/level"},
+          "effective_level": {"$ref": "#/$defs/level"},
+          "degraded": {"type": "boolean"},
+          "degraded_reason": {"type": ["string", "null"]},
+          "forced_retention": {"type": "boolean", "description": "Full CSV kept whatever the level for a G15 cut (spec 5.3)"},
+          "artifacts": {"type": "array", "items": {"enum": ["row_count", "schema_sidecar", "multiset_hash", "aggregates", "sample_rows", "strata_rows", "full_csv"]}},
+          "rows_out": {"type": "integer", "minimum": 0, "description": "COUNT(*) from the engine"},
+          "rows_in_csv": {"type": ["integer", "null"], "description": "Rows read back from the CSV; must equal rows_out whenever rows are written (spec 2.2 P6)"},
+          "rows_in": {"type": ["integer", "null"], "description": "Read step: source COUNT(*) at the pin; other steps: from the input steps' rows_out per the op (fix r1 B-H4)"},
+          "rows_in_basis": {"type": ["string", "null"], "description": "How rows_in was obtained (unfiltered read job, COUNT job, input rows_out, sum or max of inputs)"},
+          "row_delta_reason": {"enum": [null, "read", "filter", "aggregate", "join_fan_out", "join_reduce", "join_mixed", "project", "dedupe", "union", "unexplained"], "description": "Never null after run_steps (fix r1 B-H4)"},
+          "row_delta_source": {"enum": [null, "split_op", "g11_sentence", "max"]},
+          "columns": {"type": "array", "items": {"$ref": "#/$defs/column"}},
+          "schema_path": {"type": "string"},
+          "multiset_hash": {"$ref": "#/$defs/multiset_hash"},
+          "csv": {"oneOf": [{"$ref": "#/$defs/csv_file"}, {"type": "null"}]},
+          "aggregates_path": {"type": ["string", "null"]},
+          "sample_path": {"type": ["string", "null"]},
+          "strata_path": {"type": ["string", "null"]},
+          "job": {"$ref": "#/$defs/job"},
+          "replayable": {"type": "boolean"},
+          "replayable_reason": {"type": "string"},
+          "replay_status": {"enum": ["EXACT", "TOLERANT", "NONE"], "description": "Separate from pin status (spec 0.3, 5.5)"},
+          "status": {"enum": ["ok", "failed", "skipped", "degraded"]},
+          "error": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "deliverables": {
+      "type": "array",
+      "description": "Whole B (and A in second-author mode): always a full CSV (spec 3.1, decisions 4)",
+      "items": {
+        "type": "object",
+        "required": ["side", "sql_path", "rows_out", "multiset_hash", "csv"],
+        "additionalProperties": false,
+        "properties": {
+          "side": {"enum": ["B", "A"]},
+          "sql_path": {"type": "string"},
+          "sql_sha256": {"$ref": "#/$defs/sha256"},
+          "executed_sql_path": {"type": "string"},
+          "rows_out": {"type": "integer", "minimum": 0},
+          "rows_in_csv": {"type": ["integer", "null"]},
+          "columns": {"type": "array", "items": {"$ref": "#/$defs/column"}},
+          "multiset_hash": {"$ref": "#/$defs/multiset_hash"},
+          "csv": {"$ref": "#/$defs/csv_file"},
+          "job": {"$ref": "#/$defs/job"}
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "description": "Every file close.py may delete; unlisted files are never touched (spec 7.2)",
+      "items": {
+        "type": "object",
+        "required": ["path", "sha256", "bytes", "created_utc", "retention_until"],
+        "additionalProperties": false,
+        "properties": {
+          "path": {"type": "string"},
+          "sha256": {"$ref": "#/$defs/sha256"},
+          "bytes": {"type": "integer", "minimum": 0},
+          "kind": {"type": "string"},
+          "created_utc": {"type": "string", "format": "date-time", "description": "created_basis generated: the time the writing script took at write time; inferred: the earliest of the file's birth time (where the OS gives one), its modification time and its registration time, an inference that is not creation provenance; immutable once written (fix r3 B3-3; spec v4 7.1)"},
+          "created_basis": {"enum": ["generated", "inferred"], "description": "Where created_utc comes from (fix r3 B3-3; aera r3 M1)"},
+          "registered_utc": {"type": "string", "format": "date-time", "description": "When the file was first entered in files[]; kept separately from created_utc"},
+          "retention_until": {"type": "string", "format": "date-time", "description": "created_utc + 6 calendar months unless overridden (spec 7.1)"}
+        }
+      }
+    }
+  }
+}

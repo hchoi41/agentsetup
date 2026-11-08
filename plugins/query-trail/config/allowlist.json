@@ -1,0 +1,177 @@
+{
+  "schema_version": "1",
+  "source": "design spec v1 sections 0.2 (read-only rights), 1.5 (hooks), 2.2 P4 and P5 (forbidden functions, refused constructs), 5.1 and 5.2 (pin injection); D-08 statement and function allow-list",
+  "allowed_statements": [
+    "SELECT",
+    "WITH"
+  ],
+  "allowed_statement_note": "Exactly one query statement per job: a SELECT, or a WITH ... SELECT. FOR SYSTEM_TIME AS OF is allowed because compile.py injects it (spec 5.2).",
+  "forbidden_statements": [
+    "INSERT",
+    "UPDATE",
+    "DELETE",
+    "MERGE",
+    "TRUNCATE",
+    "CREATE",
+    "CREATE TEMP TABLE",
+    "CREATE TEMP FUNCTION",
+    "CREATE TABLE AS SELECT",
+    "CREATE SNAPSHOT TABLE",
+    "CREATE TABLE CLONE",
+    "CREATE VIEW",
+    "CREATE MATERIALIZED VIEW",
+    "CREATE FUNCTION",
+    "CREATE PROCEDURE",
+    "ALTER",
+    "DROP",
+    "UNDROP",
+    "GRANT",
+    "REVOKE",
+    "EXPORT DATA",
+    "LOAD DATA",
+    "CALL",
+    "EXECUTE IMMEDIATE",
+    "DECLARE",
+    "SET",
+    "BEGIN",
+    "BEGIN TRANSACTION",
+    "COMMIT",
+    "ROLLBACK",
+    "IF",
+    "LOOP",
+    "WHILE",
+    "REPEAT",
+    "FOR",
+    "BREAK",
+    "LEAVE",
+    "CONTINUE",
+    "ITERATE",
+    "RETURN",
+    "RAISE",
+    "ASSERT"
+  ],
+  "forbidden_statement_patterns": [
+    {
+      "id": "dml",
+      "regex": "(?is)^\\s*(INSERT|UPDATE|DELETE|MERGE|TRUNCATE)\\b",
+      "reason": "warehouse write (spec 0.2)"
+    },
+    {
+      "id": "ddl",
+      "regex": "(?is)^\\s*(CREATE|ALTER|DROP|UNDROP)\\b",
+      "reason": "warehouse write: no CTAS, snapshot, clone, temp table or view (spec 0.2, 5.1)"
+    },
+    {
+      "id": "dcl",
+      "regex": "(?is)^\\s*(GRANT|REVOKE)\\b",
+      "reason": "access change (D-08)"
+    },
+    {
+      "id": "export_load",
+      "regex": "(?is)^\\s*(EXPORT\\s+DATA|LOAD\\s+DATA)\\b",
+      "reason": "warehouse write or export outside the runner"
+    },
+    {
+      "id": "procedural",
+      "regex": "(?is)^\\s*(CALL|EXECUTE\\s+IMMEDIATE|DECLARE|SET|BEGIN|COMMIT|ROLLBACK|IF|LOOP|WHILE|REPEAT|FOR|BREAK|LEAVE|CONTINUE|ITERATE|RETURN|RAISE|ASSERT)\\b",
+      "reason": "scripting is refused (spec 2.2 P5, G10)"
+    },
+    {
+      "id": "multi_statement",
+      "regex": ";\\s*\\S",
+      "reason": "one statement per job (spec 2.2 P6)"
+    }
+  ],
+  "forbidden_function_patterns": [
+    {
+      "id": "external_query",
+      "regex": "(?i)\\bEXTERNAL_QUERY\\s*\\(",
+      "reason": "federated query (spec 2.2 P4)"
+    },
+    {
+      "id": "temp_or_inline_udf",
+      "regex": "(?is)\\bCREATE\\s+(TEMP|TEMPORARY)?\\s*FUNCTION\\b",
+      "reason": "UDF (spec 2.2 P4)"
+    },
+    {
+      "id": "persistent_udf_call",
+      "regex": "(?i)`?\\b[a-z][a-z0-9-]*\\.[a-z_][a-z0-9_]*\\.[a-z_][a-z0-9_]*`?\\s*\\(",
+      "reason": "project.dataset.function(...) call: persistent or remote UDF (spec 2.2 P4)"
+    },
+    {
+      "id": "dataset_udf_call",
+      "regex": "(?i)`[a-z_][a-z0-9_]*\\.[a-z_][a-z0-9_]*`\\s*\\(",
+      "reason": "`dataset.function`(...) call: persistent or remote UDF (spec 2.2 P4)"
+    },
+    {
+      "id": "remote_function",
+      "regex": "(?i)\\bREMOTE\\s+WITH\\s+CONNECTION\\b",
+      "reason": "remote function (spec 2.2 P4)"
+    }
+  ],
+  "proposed_function_patterns": {
+    "status": "PROPOSED, not in spec v1, inactive until Max confirms",
+    "patterns": [
+      {
+        "id": "ml_functions",
+        "regex": "(?i)\\bML\\.[A-Z_]+\\s*\\(",
+        "reason": "model call outside v1 scope"
+      },
+      {
+        "id": "ai_functions",
+        "regex": "(?i)\\bAI\\.[A-Z_]+\\s*\\(",
+        "reason": "model call outside v1 scope"
+      },
+      {
+        "id": "session_functions",
+        "regex": "(?i)\\b(SESSION_USER|CURRENT_USER)\\s*\\(",
+        "reason": "identity leaks into results"
+      },
+      {
+        "id": "nondeterministic",
+        "regex": "(?i)\\b(RAND|GENERATE_UUID|CURRENT_TIMESTAMP|CURRENT_DATETIME|CURRENT_DATE|CURRENT_TIME)\\s*\\(",
+        "reason": "non-deterministic result breaks replay and whole-vs-chain comparison; the pin supplies as_of_utc"
+      }
+    ]
+  },
+  "refused_constructs_g10": [
+    "NOT IN (subquery)",
+    "non-equality correlation",
+    "select-list correlated scalar subquery",
+    "scripting",
+    "DML"
+  ],
+  "hook_bash_patterns": [
+    {
+      "id": "bq_query",
+      "regex": "(?i)\\bbq(\\.cmd)?\\s+(--[^\\s]+\\s+)*query\\b",
+      "reason": "warehouse call bypassing the scripts (spec 1.5)"
+    },
+    {
+      "id": "bq_write",
+      "regex": "(?i)\\bbq(\\.cmd)?\\s+(--[^\\s]+\\s+)*(mk|rm|cp|load|extract|insert|update|truncate|cancel)\\b",
+      "reason": "warehouse write or job control (spec 0.2, 1.5)"
+    },
+    {
+      "id": "python_inline_bigquery",
+      "regex": "(?is)\\bpython[0-9.]*(\\.exe)?\\b.*\\s-c\\s.*google\\.cloud\\b.*bigquery",
+      "reason": "python -c importing the BigQuery client (spec 1.5)"
+    },
+    {
+      "id": "vendor_cli_unwrapped",
+      "regex": "(?i)(^|[\\s;&|])(codex|copilot|gh\\s+copilot|claude|gemini|aider)(\\.cmd|\\.exe)?\\s",
+      "reason": "vendor CLI spawn not wrapped by spawn_scrubbed.py (spec 1.5, 7.3); documentation of hooks/gate.py, which checks the first word of each command segment (fix r1 B-LOW)"
+    }
+  ],
+  "hook_mcp_denied_tools": [
+    {
+      "regex": "(?i)^mcp__.*bigquery.*__(execute_sql|cancel_job)$",
+      "reason": "non-read-only BigQuery MCP tools (spec 1.5; BQ01)"
+    },
+    {
+      "regex": "(?i)^mcp__.*bigquery.*__.*$",
+      "reason": "any warehouse MCP call during a run (spec 1.5)",
+      "only_during_run": true
+    }
+  ]
+}

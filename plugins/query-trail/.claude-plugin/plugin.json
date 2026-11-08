@@ -1,0 +1,5 @@
+{
+  "name": "query-trail",
+  "version": "0.1.0",
+  "description": "Auditable BigQuery query checker: one business question answered with SQL so that every step leaves a file, code decides every pass and fail, and Max decides at named gates. Run with /query-trail:run; warehouse identity whose rights are observed at preflight (no write permission seen, CREATE refused), confidence ladder 60 to 100, policy hooks."
+}

@@ -1,0 +1,441 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "run_config.schema.json",
+  "title": "query-trail run_config.json (design spec v1 sections 1.6, 3.3, 4.2, 6.2, 6.4, 7.1, 2.2 P0 and P9)",
+  "description": "Fixed inside the G1a hash. Identifiers (project and dataset IDs) never appear here; they live in the env file outside the project (spec 1.6, D-12).",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "run_id",
+    "env",
+    "confidence_level",
+    "author_mode",
+    "sample_n",
+    "caps",
+    "retention",
+    "reference",
+    "owner_mode",
+    "required_checks",
+    "digest_route"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1"
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,64}$"
+    },
+    "created_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "env": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]{1,32}$",
+      "description": "Name of the env file %USERPROFILE%\\.query-trail\\env\\<env>.json; the IDs themselves are never stored here (spec 1.6)"
+    },
+    "confidence_level": {
+      "description": "Confidence ladder level (spec 3.1); names are normalised to numbers before the file is written (spec 3.3)",
+      "enum": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "default": 60
+    },
+    "author_mode": {
+      "description": "single = one author writes B (default, IND-0); second:codex or second:max adds a blind whole A (spec 4.2)",
+      "enum": [
+        "single",
+        "second:codex",
+        "second:max"
+      ],
+      "default": "single"
+    },
+    "sample_n": {
+      "description": "Sampling N per unit; Standard 60, Light 22 and Deep 299 are card overrides (spec 6.2)",
+      "type": "integer",
+      "minimum": 1,
+      "default": 60
+    },
+    "sample_salt": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Salt for the hash-rank draw (spec 6.2)"
+    },
+    "float_tolerance": {
+      "description": "Absolute FLOAT tolerance fixed at G1a; used for hashing only and for FLOAT matching (spec 3.2, 6.1)",
+      "type": [
+        "number",
+        "null"
+      ],
+      "exclusiveMinimum": 0
+    },
+    "digest_route": {
+      "description": "Both sides of a comparison use the same route (spec 3.2)",
+      "enum": [
+        "local_sha256_sum128",
+        "warehouse_farm_fingerprint_sum"
+      ],
+      "default": "local_sha256_sum128"
+    },
+    "caps": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "warehouse_bytes_per_job",
+        "warehouse_bytes_per_run",
+        "local_csv_rows_level_90",
+        "local_csv_bytes_level_90",
+        "stream_rows",
+        "stream_bytes"
+      ],
+      "properties": {
+        "warehouse_bytes_per_job": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 5368709120,
+          "description": "maximum_bytes_billed per job, 5 GiB (decisions 4)"
+        },
+        "warehouse_bytes_per_run": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 53687091200,
+          "description": "Per-run budget, 50 GiB (decisions 4)"
+        },
+        "local_csv_rows_level_90": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1000000
+        },
+        "local_csv_bytes_level_90": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 100000000
+        },
+        "stream_rows": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 10000000
+        },
+        "stream_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1000000000
+        }
+      }
+    },
+    "retention": {
+      "description": "Default 6 calendar months from each file's creation; a run may override at G0a with months or a date (spec 7.1)",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "months": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 6
+        },
+        "until_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "override_decision_row": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Pointer to the decisions.csv row that recorded the override"
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "months"
+          ],
+          "not": {
+            "required": [
+              "until_date"
+            ]
+          }
+        },
+        {
+          "required": [
+            "until_date"
+          ],
+          "not": {
+            "required": [
+              "months"
+            ]
+          }
+        }
+      ]
+    },
+    "reference": {
+      "description": "Reference for the tie-out (spec 4.3, 6.3); provenance is mandatory when a reference exists",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "none",
+            "gl_trial_balance",
+            "control_total",
+            "bi_dashboard",
+            "synthetic"
+          ]
+        },
+        "independence": {
+          "enum": [
+            "independent",
+            "same_source",
+            "synthetic",
+            "none"
+          ],
+          "description": "A BI dashboard counts as same-source (spec 4.3)"
+        },
+        "source": {
+          "type": "string"
+        },
+        "extraction_method": {
+          "type": "string"
+        },
+        "as_of": {
+          "type": "string"
+        },
+        "grain": {
+          "type": "string"
+        },
+        "basis": {
+          "type": "string"
+        },
+        "tolerance": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "not": {
+                  "const": "none"
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "source",
+              "extraction_method",
+              "as_of",
+              "grain",
+              "basis",
+              "tolerance"
+            ]
+          }
+        }
+      ]
+    },
+    "plugin_version": {
+      "type": "string",
+      "description": "fix r4 C4-LOW: .claude-plugin/plugin.json version the run started under (run_init.py); every script refuses a different current version (start a new run)"
+    },
+    "owner_mode": {
+      "description": "null = compliant mode: the env file's impersonated service account; research = owner mode, research project only, printed on every report (spec 2.2 P0)",
+      "enum": [
+        null,
+        "research"
+      ],
+      "default": null
+    },
+    "ids_waived": {
+      "type": "boolean",
+      "default": false,
+      "description": "Research waiver of the identifier scan (spec 7.3, D-12): research artifacts keep the research project ID; anything promoted to 30.OUTPUT is scrubbed. secret_scan.py still scans for private keys, tokens and service-account JSON fields."
+    },
+    "required_checks": {
+      "description": "null = the spec 6.4 default: every D0 check of P6 to P9 that can run at the level. A list names the required checks explicitly; an empty list requires none (then no FAIL can make the verdict 'not reconciled', so use null unless that is intended).",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9_]+$"
+      },
+      "uniqueItems": true
+    },
+    "g0a_approval": {
+      "description": "Stage 2a: Max's G0a use approval as recorded by the preflight skill; missing = preflight exits 3 (G0a) and every later script exits 2 (spec 2.1, 2.2 P0)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approved_by",
+        "approved_utc"
+      ],
+      "properties": {
+        "approved_by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "approved_utc": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "plan_route": {
+          "type": "string"
+        },
+        "zdr": {
+          "type": [
+            "boolean",
+            "string",
+            "null"
+          ]
+        },
+        "employer_approval": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "decision_row": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Pointer to the decisions.csv G0a row"
+        }
+      }
+    },
+    "pin": {
+      "description": "Stage 2a: pin options (spec 5.2, 5.4). as_of_utc itself is fixed at P6 start unless the card fixes a business date",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "business_as_of_utc": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "batch_marker": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "ETL batch id or close marker (business pin)"
+        },
+        "as_of_offset_minutes": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 5
+        }
+      }
+    },
+    "late_arrival_bands": {
+      "description": "Stage 2a: late-arrival bands per table (spec 2.2 P3, 5.6); open = G13, accepted_provisional = pin PROVISIONAL",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "table",
+          "band_hours",
+          "status"
+        ],
+        "properties": {
+          "table": {
+            "type": "string",
+            "minLength": 1
+          },
+          "column": {
+            "type": "string"
+          },
+          "band_hours": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "enum": [
+              "open",
+              "closed",
+              "accepted_provisional"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "lint_waivers": {
+      "description": "Stage 2a: G9 waivers; a waiver needs a reason (spec 2.1 G9, 2.2 P5)",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rule",
+          "reason"
+        ],
+        "properties": {
+          "rule": {
+            "type": "string",
+            "pattern": "^(N[1-9]|A[1-3])$"
+          },
+          "target": {
+            "type": "string",
+            "description": "B, A, a step name (NN_verb_object) or * (default *)"
+          },
+          "match": {
+            "type": "string",
+            "description": "Substring the finding's snippet must contain; omitted = any"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "decision_row": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "lint": {
+      "description": "Stage 2a: lint inputs; unique_keys declares total orders for N1 (table or step name -> key columns)",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "unique_keys": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "job_labels": {
+      "description": "Stage 2a: extra BigQuery job labels added to query_trail_run and step (lowercase; spec 2.2 P6)",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-z0-9_-]{0,63}$"
+      }
+    }
+  }
+}

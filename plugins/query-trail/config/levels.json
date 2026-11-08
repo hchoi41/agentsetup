@@ -1,0 +1,126 @@
+{
+  "schema_version": "1",
+  "source": "design spec v1 section 3.1 (D-21 confidence ladder); caps from design decisions v1 section 4",
+  "default_level": 60,
+  "aliases": {
+    "quick": 60,
+    "medium": 70,
+    "high": 80,
+    "extra high": 90,
+    "max": 100
+  },
+  "levels": [
+    {
+      "level": 60,
+      "name": "quick",
+      "step_artifacts": ["row_count", "schema_sidecar", "multiset_hash"],
+      "checks": [
+        "rows_in_vs_out",
+        "header_and_name_audit",
+        "whole_vs_chain_count_schema_hash",
+        "p8_p9_on_deliverable_and_warehouse_aggregates"
+      ],
+      "replayable": "none",
+      "over_cap": "warehouse_digest",
+      "over_cap_note": "Above the stream cap the hash is computed warehouse-side (spec 3.2)"
+    },
+    {
+      "level": 70,
+      "name": "medium",
+      "step_artifacts": ["row_count", "schema_sidecar", "multiset_hash", "aggregates"],
+      "checks": [
+        "rows_in_vs_out",
+        "header_and_name_audit",
+        "whole_vs_chain_count_schema_hash",
+        "p8_p9_on_deliverable_and_warehouse_aggregates",
+        "preserved_measure",
+        "localise_first_diverging_step"
+      ],
+      "replayable": "none",
+      "over_cap": "warehouse_digest",
+      "over_cap_note": "Above the stream cap, a warehouse aggregate job"
+    },
+    {
+      "level": 80,
+      "name": "high",
+      "step_artifacts": ["row_count", "schema_sidecar", "multiset_hash", "aggregates", "sample_rows", "strata_rows"],
+      "checks": [
+        "rows_in_vs_out",
+        "header_and_name_audit",
+        "whole_vs_chain_count_schema_hash",
+        "p8_p9_on_deliverable_and_warehouse_aggregates",
+        "preserved_measure",
+        "localise_first_diverging_step",
+        "per_step_sampling_and_trace",
+        "multiplicity_within_sample"
+      ],
+      "replayable": "none",
+      "over_cap": "fixed_size",
+      "over_cap_note": "Fixed size"
+    },
+    {
+      "level": 90,
+      "name": "extra high",
+      "step_artifacts": ["row_count", "schema_sidecar", "multiset_hash", "full_csv"],
+      "checks": [
+        "rows_in_vs_out",
+        "header_and_name_audit",
+        "whole_vs_chain_count_schema_hash",
+        "p8_p9_on_deliverable_and_warehouse_aggregates",
+        "preserved_measure",
+        "localise_first_diverging_step",
+        "per_step_sampling_and_trace",
+        "multiplicity_within_sample",
+        "cell_diff",
+        "full_multiplicity_diff",
+        "null_vs_empty_string",
+        "local_replay"
+      ],
+      "replayable": "steps_whose_every_input_is_a_retained_full_csv",
+      "over_cap": "degrade_to_80",
+      "over_cap_note": "That step drops to 80, listed as degraded"
+    },
+    {
+      "level": 100,
+      "name": "max",
+      "step_artifacts": ["row_count", "schema_sidecar", "multiset_hash", "full_csv"],
+      "checks": [
+        "rows_in_vs_out",
+        "header_and_name_audit",
+        "whole_vs_chain_count_schema_hash",
+        "p8_p9_on_deliverable_and_warehouse_aggregates",
+        "preserved_measure",
+        "localise_first_diverging_step",
+        "per_step_sampling_and_trace",
+        "multiplicity_within_sample",
+        "cell_diff",
+        "full_multiplicity_diff",
+        "null_vs_empty_string",
+        "local_replay",
+        "all_v4_p6_to_p9"
+      ],
+      "replayable": "every_non_read_step",
+      "over_cap": "gate_G15",
+      "over_cap_note": "G15: filter, partitioned CSV (parts up to 1 M rows), or accept 90 for that step"
+    }
+  ],
+  "deliverable_artifacts": ["row_count", "schema_sidecar", "multiset_hash", "full_csv"],
+  "deliverable_note": "The deliverable output is a full CSV at every level, under the G15 cap (decisions section 4, spec 3.1)",
+  "caps": {
+    "warehouse_bytes_per_job": 5368709120,
+    "warehouse_bytes_per_run": 53687091200,
+    "local_csv_rows_level_90": 1000000,
+    "local_csv_bytes_level_90": 100000000,
+    "stream_rows": 10000000,
+    "stream_bytes": 1000000000,
+    "aggregate_max_groups": 10000,
+    "sample_rows_level_80": 1000,
+    "strata_rows_per_stratum_level_80": 100,
+    "partition_part_rows": 1000000
+  },
+  "sample_n": 60,
+  "digest_routes": {
+    "local": "local_sha256_sum128",
+    "warehouse": "warehouse_farm_fingerprint_sum"
+  }
+}

@@ -182,6 +182,7 @@ entrypoints with fake tools, proving disabled choices stop before provider calls
 | `orchestrate/` | The multi-LLM conductor: engine, README, generic gate, diagrams |
 | `tests/` | Memory-layer pytest and disposable Windows installer verification |
 | `global_instructions/` | Standalone global fallback for when no project folder is mounted |
+| `plugins/` | Claude Code plugins: `plugins/query-trail` (auditable BigQuery query checker: one question answered with SQL, every step a file, code decides pass/fail, the human decides at named gates; load with `claude --plugin-dir plugins/query-trail`; its README is the manual; the test suite stays with the source project) |
 
 ---
 

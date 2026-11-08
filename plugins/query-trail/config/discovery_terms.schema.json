@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "query-trail/discovery_terms.schema.json",
+  "title": "discovery_terms.json (P2 discovery input)",
+  "description": "What discover.py searches for and profiles (design spec v4 2.2 P2; fix r3 B3-5, walk W23). The session writes this file at P2 from the cards and runs discover.py; Max is asked at G2. Table references are <dataset alias>.<table>, the alias being an env-file placeholder name (D-12). A list field never takes a bare string: write [\"order_id\"], not \"order_id\".",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "terms": {
+      "type": "array", "items": {"type": "string", "minLength": 1},
+      "x-shape": "a list of search words from the question, e.g. [\"orders\", \"sale price\"]"
+    },
+    "synonyms": {
+      "type": "object", "additionalProperties": {"type": "array", "items": {"type": "string", "minLength": 1}},
+      "x-shape": "{\"<term>\": [\"synonym\", ...]}, e.g. {\"revenue\": [\"sales\", \"sale price\"]}"
+    },
+    "required_columns": {
+      "type": "array", "items": {"type": "string", "minLength": 1},
+      "x-shape": "a list of column names every candidate table should carry, e.g. [\"order_id\", \"sale_price\"]"
+    },
+    "datasets": {
+      "type": "array", "items": {"type": "string", "minLength": 1},
+      "x-shape": "a list of env-file dataset aliases (placeholder names), e.g. [\"ds\"]"
+    },
+    "key_hypotheses": {
+      "type": "object", "additionalProperties": {"type": "array", "items": {"type": "string", "minLength": 1}},
+      "x-shape": "{\"<dataset>.<table>\": [\"key column\", ...]}, e.g. {\"ds.qt_orders\": [\"order_id\"]}; the value is always a list"
+    },
+    "date_columns": {
+      "type": "object", "additionalProperties": {"type": "string", "minLength": 1},
+      "x-shape": "{\"<dataset>.<table>\": \"date column\"}, e.g. {\"ds.qt_orders\": \"created_at\"}; the value is one column name"
+    },
+    "period": {
+      "type": "object", "additionalProperties": false, "required": ["start", "end"],
+      "properties": {"start": {"type": "string", "format": "date"}, "end": {"type": "string", "format": "date"}},
+      "x-shape": "{\"start\": \"YYYY-MM-DD\", \"end\": \"YYYY-MM-DD\"}, both ends inclusive"
+    },
+    "reference_date": {
+      "type": "string", "format": "date",
+      "x-shape": "\"YYYY-MM-DD\": the date freshness is judged against (default: period.end)"
+    },
+    "control_table": {
+      "type": "object", "additionalProperties": false, "required": ["ref", "table_column", "watermark_column"],
+      "properties": {
+        "ref": {"type": "string", "minLength": 1}, "table_column": {"type": "string", "minLength": 1},
+        "watermark_column": {"type": "string", "minLength": 1}, "status_column": {"type": "string", "minLength": 1},
+        "success_value": {"type": "string"}
+      },
+      "x-shape": "{\"ref\": \"<dataset>.<control table>\", \"table_column\": \"...\", \"watermark_column\": \"...\"[, \"status_column\": \"...\", \"success_value\": \"SUCCESS\"]}"
+    },
+    "top_k": {
+      "type": "integer", "minimum": 1,
+      "x-shape": "a whole number of shortlisted tables, at least 1 (default 5)"
+    },
+    "stale_days": {
+      "type": "integer", "minimum": 0,
+      "x-shape": "a whole number of days after which a table's last write counts as stale (default 30)"
+    },
+    "notes": {
+      "type": "string",
+      "x-shape": "free text for the reader; not used by discover.py"
+    }
+  }
+}

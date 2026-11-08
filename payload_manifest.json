@@ -1,7 +1,7 @@
 {
   "_about": "Machine-readable payload manifest for the hchoi41/agentsetup repo. Consumed by Publish-AgentSetup.ps1. The roots block below is DOCUMENTATION ONLY - the script's parameters are authoritative and resolve on the publishing machine ($env:OneDrive for AGENTS_SETUP). dest paths are relative to the repo root.",
   "schema_version": 1,
-  "generated": "2026-10-16",
+  "generated": "2026-11-08",
   "repo": {
     "url": "https://github.com/hchoi41/agentsetup.git",
     "visibility": "public",
@@ -457,6 +457,48 @@
       "dest": "tests/install/Test-OperationSync.ps1",
       "mode": "file",
       "note": "Disposable operation naming and RAM/sync compatibility regression."
+    },
+    {
+      "src": "AGENTS_SETUP/query-trail/.claude-plugin",
+      "dest": "plugins/query-trail/.claude-plugin",
+      "mode": "tree",
+      "note": "query-trail Claude Code plugin (auditable BigQuery query checker; built 2026-11-07/08, 15 review rounds, 1056 offline tests pass in the hub). tests/ and pytest.ini are not distributed: fixtures hold made-up service-account addresses and key-shaped strings the gate would flag; no credentials or identifiers anywhere in the payload (identifiers live only in the user's env file)."
+    },
+    {
+      "src": "AGENTS_SETUP/query-trail/README.md",
+      "dest": "plugins/query-trail/README.md",
+      "mode": "file",
+      "note": "query-trail plugin (see the .claude-plugin entry)"
+    },
+    {
+      "src": "AGENTS_SETUP/query-trail/compat",
+      "dest": "plugins/query-trail/compat",
+      "mode": "tree",
+      "note": "query-trail plugin (see the .claude-plugin entry)"
+    },
+    {
+      "src": "AGENTS_SETUP/query-trail/config",
+      "dest": "plugins/query-trail/config",
+      "mode": "tree",
+      "note": "query-trail plugin (see the .claude-plugin entry)"
+    },
+    {
+      "src": "AGENTS_SETUP/query-trail/hooks",
+      "dest": "plugins/query-trail/hooks",
+      "mode": "tree",
+      "note": "query-trail plugin (see the .claude-plugin entry)"
+    },
+    {
+      "src": "AGENTS_SETUP/query-trail/scripts",
+      "dest": "plugins/query-trail/scripts",
+      "mode": "tree",
+      "note": "query-trail plugin (see the .claude-plugin entry)"
+    },
+    {
+      "src": "AGENTS_SETUP/query-trail/skills",
+      "dest": "plugins/query-trail/skills",
+      "mode": "tree",
+      "note": "query-trail plugin (see the .claude-plugin entry)"
     }
   ],
   "exclude_always": [

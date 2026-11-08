@@ -1,0 +1,26 @@
+{
+  "schema_version": "1",
+  "id": "unbound-20261108",
+  "status": "unbound",
+  "exact_allowed": false,
+  "note": "Minimal binding written by the stage-2a build (spec 5.5, DB-05). compat_suite.py has not run, so no engine-pair behaviour is bound: every replay is TOLERANT until the suite records its results here.",
+  "versions": {
+    "client_version": "3.47.0",
+    "duckdb_version": "2.0.0",
+    "sqlglot_version": "30.30.0",
+    "pandas_version": "3.1.0",
+    "python_version": "3.14.7"
+  },
+  "dialect_flags": {
+    "read": "bigquery, normalization_strategy = case_sensitive",
+    "write": "duckdb, normalization_strategy = case_sensitive",
+    "duckdb_timezone": "UTC"
+  },
+  "location": "US",
+  "run_date": null,
+  "scope": {
+    "types": [],
+    "functions": [],
+    "value_domains": []
+  }
+}

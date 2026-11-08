@@ -1,0 +1,40 @@
+{
+  "description": "query-trail policy hooks (design spec v1 section 1.5): statement allow-list and warehouse bypass, run-folder and frozen-file edit guard, env scrub before vendor CLIs, MCP write-tool denial, CSV contract report, unanswered-gate Stop check. Stdlib Python; PYTHONUTF8=1 and -X utf8 because hook stdout is cp1252 on Windows (T14). Fail closed (spec v2 1.5): when python does not exit 0, run_hook.sh passes a block through, tries QT_PY, python3 and py -3, and otherwise exits 2.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {"type": "command", "command": "PYTHONUTF8=1 python -I -X utf8 -B \"${CLAUDE_PLUGIN_ROOT}/hooks/gate.py\" || \"${BASH:-bash}\" \"${CLAUDE_PLUGIN_ROOT}/hooks/run_hook.sh\" $? gate.py", "timeout": 20}
+        ]
+      },
+      {
+        "matcher": "mcp__.*",
+        "hooks": [
+          {"type": "command", "command": "PYTHONUTF8=1 python -I -X utf8 -B \"${CLAUDE_PLUGIN_ROOT}/hooks/gate.py\" || \"${BASH:-bash}\" \"${CLAUDE_PLUGIN_ROOT}/hooks/run_hook.sh\" $? gate.py", "timeout": 20}
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {"type": "command", "command": "PYTHONUTF8=1 python -I -X utf8 -B \"${CLAUDE_PLUGIN_ROOT}/hooks/edit_guard.py\" || \"${BASH:-bash}\" \"${CLAUDE_PLUGIN_ROOT}/hooks/run_hook.sh\" $? edit_guard.py", "timeout": 20}
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {"type": "command", "command": "PYTHONUTF8=1 python -I -X utf8 -B \"${CLAUDE_PLUGIN_ROOT}/hooks/csv_check.py\" || \"${BASH:-bash}\" \"${CLAUDE_PLUGIN_ROOT}/hooks/run_hook.sh\" $? csv_check.py", "timeout": 30}
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {"type": "command", "command": "PYTHONUTF8=1 python -I -X utf8 -B \"${CLAUDE_PLUGIN_ROOT}/hooks/stop_check.py\" || \"${BASH:-bash}\" \"${CLAUDE_PLUGIN_ROOT}/hooks/run_hook.sh\" $? stop_check.py", "timeout": 20}
+        ]
+      }
+    ]
+  }
+}
