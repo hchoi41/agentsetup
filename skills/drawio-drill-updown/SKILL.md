@@ -1,6 +1,6 @@
 ---
 name: drawio-drill-updown
-description: Use when asked for a draw.io (.drawio) diagram of how something works, at one or more abstraction levels, or to add a more abstract ("drill up", "too detailed", "one box", "overview") or more detailed ("drill down", "break this down", "show the steps") sheet to an existing .drawio file. Covers systems, procedures, plugins, pipelines, sets and subsets of data, and documents that describe them. Always structures: parts are drawn inside their whole, and the text inside every box is a headline with bullets and sub-bullets.
+description: Use when asked for a draw.io (.drawio) diagram of how something works, at one or more abstraction levels, or to add a more abstract ("drill up", "too detailed", "one box", "overview") or more detailed ("drill down", "break this down", "show the steps") sheet to an existing .drawio file. Covers systems, procedures, plugins, pipelines, sets and subsets of data, and documents that describe them. Always structures: parts are drawn inside their whole, and the text inside every box is a headline with bullets and sub-bullets. Themes: minimal (default; flowchart shapes, at most 4 colours), bw (black and white), colorful (roles as colours).
 ---
 
 # drawio-drill-updown
@@ -9,8 +9,8 @@ description: Use when asked for a draw.io (.drawio) diagram of how something wor
 
 A diagram of a system is a stack of sheets, one per abstraction level, in one `.drawio` file,
 most abstract first. Each sheet is written as a JSON spec and compiled by
-`python scripts/drawio_spec.py`; the script owns XML, ids, colours and fit warnings so every
-sheet of a file reads the same way. The sheets are related by containment: every box on level k
+`python scripts/drawio_spec.py`; the script owns XML, ids, shapes, colours and fit warnings so
+every sheet of a file reads the same way. The sheets are related by containment: every box on level k
 is the name of a group of boxes on level k+1.
 
 One principle governs every choice below: make the structure visible wherever it is possible.
@@ -26,6 +26,18 @@ exception and has to earn its place. See "Structure first".
 - `top` (default L1): the top level. L0 only when the user asks for "max abstraction", "one box",
   "a single box" or "the highest level only".
 - `direction` (only for an existing `.drawio`): `up` (add a more abstract sheet) or `down`.
+- `theme` (default `minimal`): `minimal` draws roles as flowchart shapes; its palette is black,
+  white, the grey tint, and `accent_color` when a cell or edge sets `accent`, nothing else.
+  `colorful` is the previous look (roles as colours); `bw` is black and white only. When the user
+  names none, use `minimal`. Set it as the spec's `theme` or pass `--theme`. `max_colours` 3 (or
+  `--max-colours 3`; `max_colors` and `--max-colors` also work) keeps `minimal` to three colours by
+  drawing the accent in black, as `bw` does; 4 is the default. `accent_color` (or `accent_colour`)
+  may not be black, white or the grey tint. In `minimal` and `bw` a `fill`, `stroke` or edge `color`
+  outside the palette is ignored with a warning, and so is the accent colour on a cell or edge that
+  does not set `accent`; a source with its own colour code uses `colorful`. A key the spec format does
+  not know is ignored with a warning that names the nearest valid key.
+- A spec written before themes existed now builds in `minimal`; add `"theme": "colorful"` to keep
+  its look.
 
 A new multi-sheet file is one spec with several entries in `sheets`, built once. `add` is only for
 an existing file.
@@ -40,16 +52,19 @@ an existing file.
 | L3 | `L3 Detail` | every phase, gate, script, artifact and external system by its real name or ID; cross-lane edges only for the few flows that carry the argument | 60 to 130 | can find any named element of the source |
 | L4 | `L4 Implementation` | files, functions, parameters, commands; split across sheets when needed | no cap | can open the code from the box |
 
-Budgets count vertices (boxes, lanes, text), not edges. `validate --ladder` enforces them from the
+Budgets count vertices (boxes, lanes, text), not edges, and not the cells of a generated legend;
+`build`, `list` and `validate` print the two counts separately. `validate --ladder` enforces them from the
 sheet name prefix. A sheet that misses its budget is at the wrong level: merge or split boxes
 rather than renaming the sheet.
 
-Worked example of the three default levels built from one source: `references/example_plugin_3_levels.json`
-(L1, L2 and L3 of one plugin; builds and validates as is). `references/example_L1_overview.json`
-is its L1 sheet alone, for a one-sheet request. The worked examples predate "Structure first": copy
-their levels and geometry, not their run-on box text. Once their text becomes bullets, the height rule
-in `references/spec_format.md` ("Structured text") sets each box's height; move what sits below it
-and enlarge the page as needed.
+Worked example of the three default levels built from one source:
+`references/example_plugin_3_levels_minimal.json` (L1, L2 and L3 of one plugin in the default theme:
+bulleted text, lanes and stage columns named after the boxes above, cross-lane edges routed down the
+channels between columns, a generated `legend` on every sheet; builds with no warnings and passes
+`validate --ladder`). Copy it. `references/example_L1_minimal.json` is its L1 sheet alone, for a
+one-sheet request. `references/example_plugin_3_levels.json` and `references/example_L1_overview.json`
+are pre-theme `colorful` fixtures kept for regression: their text is run-on, their legends are
+hand-written, and the L3 legend has one known fit warning. Do not copy them.
 
 ## Structure first (always on)
 
@@ -86,10 +101,11 @@ Two limits apply to the table:
    Sub-bullets that are the parts of a count add up to it; a count that is not a part (a sample, or
    overlapping counts such as found by A, found by B, found by both) says so in words ("200 of them
    sampled", "1 of them found by both").
-4. Legends, notes, footnotes and "how to read" boxes follow the same rule. Their headline says what
-   the box is ("Legend", "How to read"); a footnote's headline names the claim it supports. Draw them
-   as a `box` with role `note`, not as a `text` cell: a `text` cell centres its lines vertically and
-   takes no `valign`.
+4. Legends come from the `legend` cell; its fixed layout (title, then one sample per row with its
+   meaning beside it) is exempt from the bullet rule. Notes, footnotes and "how to read" boxes follow
+   the rule: their headline says what the box is ("How to read"); a footnote's headline names the
+   claim it supports. Draw them as a `box` with role `note`, not as a `text` cell: a `text` cell
+   centres its lines vertically and takes no `valign`.
 5. Write bullets with the characters given in `references/spec_format.md` ("Structured text").
    Ordinary leading spaces are dropped by draw.io, so the indentation needs no-break spaces.
 
@@ -128,8 +144,19 @@ still be readable. Then read only the first line of every box; the headlines alo
 2. **Read the source for the top level first**, and write the one sentence the top sheet must let a
    reader say. That sentence is the sheet's subtitle. Write it before any box.
 3. **Pick the roles.** Decide which role each actor or component gets (`human`, `propose`, `decide`,
-   `guard`, `outside`, `record`). Roles are the only colours; the same role means the same thing on
-   every sheet. Put a legend box on every sheet.
+   `guard`, `outside`, `record`). Roles are the fixed vocabulary: the same role means the same thing
+   on every sheet. The theme draws them: by shape in `minimal` and `bw`, by colour in `colorful`.
+   When a thing has a conventional symbol (a database, a person, a document, a yes/no check), give
+   its box the catalogue `shape` (`database`, `actor`, `document`, `decision`; see "Shapes" in
+   `references/spec_format.md`). In `minimal` and `bw` an explicit shape replaces the role's shape,
+   so each shape carries only the roles it cannot hide: `actor` on `human`; `decision` on `human` or
+   `decide`; every other shape on `plain`, `outside` or `record`. There the legend reads
+   "yes/no check: code decides"; on any other role `build` warns that the shape hides it. A role's
+   own shape stated explicitly is the same as no shape. Put a
+   `legend` cell on every sheet from L1 down (optional on L0; `validate --ladder` warns when one is
+   missing in `minimal` or `bw`); it lists the roles and shapes the sheet uses, so do not write a
+   legend box by hand. Mark the one path or box the sheet is about with `accent`, if any, and name
+   it in the legend's `labels` (`"accent": "whole A: the independent comparison"`).
 4. **Write the spec, top sheet first**, per `references/spec_format.md`. For each lower sheet, every
    box must belong to exactly one box of the sheet above. A parent box becomes, on the sheet below,
    one of four things: a lane (an actor or layer), a column (a stage), a single box inside the lane
@@ -138,21 +165,29 @@ still be readable. Then read only the first line of every box; the headlines alo
    after the parent boxes so the containment is visible without a key. Write the text of every box
    as a headline plus bullets ("Structure first"), except where that section allows a sentence, and
    settle the nesting before the coordinates:
-   bulleted text needs taller boxes, and a set drawn as a frame needs room for its title above the
-   boxes inside it.
+   bulleted text needs taller boxes (`"h": "auto"` computes the height and `build` prints it), and a
+   set drawn as a frame needs room for its title above the boxes inside it.
 5. **Compile and validate.**
    ```
    python scripts/drawio_spec.py build SPEC.json -o OUT.drawio
    python scripts/drawio_spec.py validate OUT.drawio --ladder
    ```
    For an existing file use `add --into FILE.drawio --position first` for a drill-up and
-   `--position last` for a drill-down. Existing sheets are never rewritten.
-6. **Fix every warning**: text over capacity is shortened or its box enlarged (font never below 8);
-   a budget miss means the sheet is at the wrong level.
+   `--position last` for a drill-down. Existing sheets are never rewritten, and two sheets never
+   share a name. `add` inherits the file's theme, accent and `max_colours`; a different `--theme`
+   or `accent_color` stops the run, so does a record that names an unknown theme, and a file with no
+   theme record (built before themes) is colorful. The record is kept on `<mxfile>` and, in `minimal`
+   and `bw`, also in a cell style, so it survives a save in draw.io. `validate` checks the file
+   against the palette it records, page backgrounds and coloured label markup included.
+6. **Fix every warning**: text that clips is shortened or its box enlarged (font never below 8);
+   two boxes that partly overlap, or a legend over any box, are moved apart; a box inside a frame
+   that starts above the frame's headline or sits within 10 px of its other sides is moved; a budget
+   miss means the sheet is at the wrong level.
 7. **Render and look.** `python scripts/drawio_spec.py export OUT.drawio --out DIR` writes one PNG
    per sheet (it finds draw.io on PATH, in Program Files, or the Microsoft Store build; set
    `DRAWIO_EXE` for any other install). Open each PNG with the image reader and check, in this
-   order: text cut off or run together; an edge crossing a box; two labels on top of each other;
+   order: text cut off or run together, or touching a shape's slant, bars or wave; an edge crossing
+   a box, or ending short of a shape's outline; two labels on top of each other;
    an arrow entering the wrong side; a box whose text is a run-on line where bullets were possible;
    arrows that cross because of the order of the boxes; a title sitting on a rounded corner (give
    the frame square corners), or a headline sitting on one (see "Structured text" in
@@ -177,6 +212,15 @@ still be readable. Then read only the first line of every box; the headlines alo
 | a box holds more than one fact | headline, one bullet per fact, sub-bullets for its parts (`T()` helper in `references/spec_format.md`) |
 | a set and its subsets | a square-cornered frame with the subsets inside; counts on the headlines |
 | the same set split two ways | a grid of cells: rows = one split, columns = the other, one number per cell |
+| look of the file | `theme`: `minimal` (default; roles as shapes), `colorful` (roles as colours), `bw` (black and white) |
+| exactly three colours | `"max_colours": 3` (or `--max-colours 3`) with `minimal`: the accent is drawn as a black line of width 4 |
+| a legend | a `legend` cell; `labels` renames a role's meaning |
+| a database, a person, a document, a yes/no check | the catalogue `shape`: `database`, `actor` (role `human`), `document`, `decision` (role `human` or `decide`) |
+| point at the parent box on the sheet above | the catalogue `shape` `offpage`, labelled with the parent's name |
+| a box height for bulleted text | `"h": "auto"` |
+| the one path that matters | `"accent": true` on its boxes and edges |
+| "outside the palette" from `build` | the override is ignored; drop it, or use `colorful` for the source's own colour code |
+| "not allowed in theme" from `build` | the `style` string uses a key outside the allow-list (spec_format, "Themes"); drop it |
 
 ## Common mistakes
 
@@ -198,8 +242,10 @@ still be readable. Then read only the first line of every box; the headlines alo
   budget catches the count; the rule catches the kind: above L3, nothing carries an ID.
 - **Levels that do not nest.** A box on L2 that has no parent on L1, or an L1 component that
   vanishes on L2. Name L2 lanes and columns after L1 boxes.
-- **A new colour per sheet.** Colours are roles, not decoration. If the source has its own colour
-  code, say so in the legend and keep it on every sheet.
+- **A new colour or shape per sheet.** Roles are the vocabulary, not decoration: one theme per file
+  (`add` keeps the file's theme and accent), and a role keeps its shape (`minimal`, `bw`) or colour
+  (`colorful`) on every sheet. If the source has its own colour code, use `colorful`, say so in the
+  legend's `labels`, and keep it on every sheet.
 - **Rewriting the existing sheet** to make room. `add` refuses name collisions for this reason.
 - **Claiming a rendered check that did not happen.** Without a draw.io CLI the validation is XML,
   ids, bounds, fit and budgets, and the report says exactly that.

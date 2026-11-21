@@ -1,0 +1,1762 @@
+{
+ "sheets": [
+  {
+   "id": "l1",
+   "name": "L1 Overview",
+   "width": 1080,
+   "height": 700,
+   "cells": [
+    {
+     "type": "text",
+     "id": "title",
+     "text": "Query Checker plugin: one picture",
+     "x": 20,
+     "y": 10,
+     "w": 700,
+     "h": 30,
+     "font": 16
+    },
+    {
+     "type": "text",
+     "id": "sub",
+     "text": "Two answers written independently, compared by code, judged by Max at named gates. Every step leaves a file Max can audit.",
+     "x": 20,
+     "y": 40,
+     "w": 960,
+     "h": 24,
+     "font": 11,
+     "bold": false
+    },
+    {
+     "id": "ask",
+     "role": "human",
+     "text": "Max asks a question\n\u2022 metric\n\u2022 population\n\u2022 period",
+     "x": 20,
+     "y": 110,
+     "w": 170,
+     "h": "auto",
+     "font": 11
+    },
+    {
+     "id": "plugin",
+     "role": "plain",
+     "text": "The plugin",
+     "x": 240,
+     "y": 80,
+     "w": 500,
+     "h": 500,
+     "font": 12,
+     "align": "left",
+     "valign": "top",
+     "square": true,
+     "bold": true
+    },
+    {
+     "id": "gates",
+     "role": "human",
+     "text": "Max decides at gates\n\u2022 approve the card\n\u2022 freeze the card\n\u2022 confirm tables\n\u2022 accept differences\n\u2022 rename",
+     "x": 260,
+     "y": 110,
+     "w": 460,
+     "h": 103,
+     "font": 10
+    },
+    {
+     "id": "propose",
+     "role": "propose",
+     "text": "Skills propose\n\u2022 draft the card\n\u2022 shortlist tables\n\u2022 write query B\n\u2022 explain results",
+     "x": 260,
+     "y": 229,
+     "w": 190,
+     "h": 120,
+     "font": 10
+    },
+    {
+     "id": "decide",
+     "role": "decide",
+     "text": "Scripts decide\n\u2022 split the query into steps\n\u2022 run one step at a time\n\u2022 check the result\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 compare\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 sample\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 test\n\u2022 exit code is the verdict",
+     "x": 500,
+     "y": 229,
+     "w": 220,
+     "h": 120,
+     "font": 10
+    },
+    {
+     "id": "audit",
+     "role": "record",
+     "text": "Audit folder\n\u2022 one CSV per step\n\u2022 manifest\n\u2022 checks\n\u2022 report\n\u2022 kept until the retention date",
+     "x": 260,
+     "y": 365,
+     "w": 460,
+     "h": 106,
+     "font": 10
+    },
+    {
+     "id": "guard",
+     "role": "guard",
+     "text": "Hooks guard\n\u2022 read-only warehouse identity\n\u2022 byte cap\n\u2022 no writes outside scratch\n\u2022 scrubbed spawns",
+     "x": 260,
+     "y": 487,
+     "w": 460,
+     "h": 80,
+     "font": 10
+    },
+    {
+     "id": "whole",
+     "role": "outside",
+     "text": "Whole A\n\u2022 written blind\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 by the Codex seat\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 or by Max",
+     "x": 870,
+     "y": 100,
+     "w": 190,
+     "h": "auto",
+     "font": 10
+    },
+    {
+     "id": "wh",
+     "role": "outside",
+     "text": "Warehouse\n\u2022 BigQuery first\n\u2022 read-only principal\n\u2022 pinned to one point in time",
+     "x": 870,
+     "y": 190,
+     "w": 190,
+     "h": "auto",
+     "font": 10
+    },
+    {
+     "id": "ref",
+     "role": "outside",
+     "text": "Independent reference\n\u2022 GL or control total",
+     "x": 870,
+     "y": 280,
+     "w": 190,
+     "h": "auto",
+     "font": 10
+    },
+    {
+     "id": "verdict",
+     "role": "human",
+     "text": "Verdict to Max\n\u2022 verified\n\u2022 reconciled\n\u2022 consistent\n\u2022 not reconciled\n\u2022 wording fixed by\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 independence\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 pin status\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 reference",
+     "x": 20,
+     "y": 308,
+     "w": 170,
+     "h": "auto",
+     "font": 10
+    },
+    {
+     "type": "edge",
+     "from": "ask",
+     "to": "plugin",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0,
+      0.142
+     ],
+     "width": 2
+    },
+    {
+     "type": "edge",
+     "from": "gates",
+     "to": "propose",
+     "exit": [
+      0.25,
+      1
+     ],
+     "entry": [
+      0.605,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "gates",
+     "to": "decide",
+     "exit": [
+      0.75,
+      1
+     ],
+     "entry": [
+      0.477,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "propose",
+     "to": "decide",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0,
+      0.5
+     ],
+     "label": "query B",
+     "width": 2,
+     "label_offset": [
+      0,
+      -10
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "decide",
+     "to": "audit",
+     "exit": [
+      0.5,
+      1
+     ],
+     "entry": [
+      0.761,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "whole",
+     "to": "decide",
+     "exit": [
+      0,
+      0.6
+     ],
+     "entry": [
+      1,
+      0.2
+     ],
+     "label": "compared by code",
+     "width": 2,
+     "accent": true,
+     "points": [
+      [
+       755,
+       141
+      ],
+      [
+       755,
+       253
+      ]
+     ],
+     "label_at": -0.56,
+     "label_offset": [
+      0,
+      -8
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "wh",
+     "to": "decide",
+     "exit": [
+      0,
+      0.5
+     ],
+     "entry": [
+      1,
+      0.5
+     ],
+     "label": "one job per step",
+     "points": [
+      [
+       785,
+       224
+      ],
+      [
+       785,
+       289
+      ]
+     ],
+     "label_at": -0.6,
+     "label_offset": [
+      0,
+      -8
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "ref",
+     "to": "decide",
+     "exit": [
+      0,
+      0.5
+     ],
+     "entry": [
+      1,
+      0.85
+     ],
+     "label": "tie-out",
+     "points": [
+      [
+       815,
+       301
+      ],
+      [
+       815,
+       331
+      ]
+     ],
+     "label_at": -0.7,
+     "label_offset": [
+      0,
+      -8
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "plugin",
+     "to": "verdict",
+     "exit": [
+      0,
+      0.6
+     ],
+     "entry": [
+      1,
+      0.5
+     ],
+     "width": 2
+    },
+    {
+     "id": "why",
+     "role": "note",
+     "text": "Why two answers\n\u2022 a query checked against its own split caught 0 of 9 planted faults\n\u2022 checked against an independently written whole: 9 of 9\n\u2022 without an independent reference the strongest verdict is reconciled, never verified",
+     "x": 20,
+     "y": 600,
+     "w": 720,
+     "h": "auto",
+     "font": 10
+    },
+    {
+     "type": "legend",
+     "id": "legend",
+     "x": 870,
+     "y": 350,
+     "w": 200,
+     "labels": {
+      "human": "Max decides",
+      "propose": "a skill proposes",
+      "decide": "code decides",
+      "guard": "hooks",
+      "outside": "outside the plugin",
+      "record": "audit record",
+      "note": "footnote",
+      "accent": "the independent comparison"
+     }
+    }
+   ]
+  },
+  {
+   "id": "l2",
+   "name": "L2 Stages and layers",
+   "width": 1540,
+   "height": 1079,
+   "grid": {
+    "x0": 180,
+    "pitch": 330,
+    "col_width": 300
+   },
+   "cells": [
+    {
+     "type": "text",
+     "id": "title",
+     "text": "Query Checker plugin: four stages, six lanes",
+     "x": 20,
+     "y": 10,
+     "w": 900,
+     "h": 30,
+     "font": 16
+    },
+    {
+     "type": "text",
+     "id": "sub",
+     "bold": false,
+     "font": 11,
+     "x": 20,
+     "y": 40,
+     "w": 1450,
+     "h": 22,
+     "text": "Read a column top to bottom: what Max decides, what the skills propose, what the scripts decide, what is recorded, what the plugin reaches outside for."
+    },
+    {
+     "id": "st0",
+     "role": "stage",
+     "text": "Set up",
+     "x": 180,
+     "y": 72,
+     "w": 300,
+     "h": 32,
+     "font": 10,
+     "bold": true
+    },
+    {
+     "id": "st1",
+     "role": "stage",
+     "text": "Author two ways",
+     "x": 510,
+     "y": 72,
+     "w": 300,
+     "h": 32,
+     "font": 10,
+     "bold": true
+    },
+    {
+     "id": "st2",
+     "role": "stage",
+     "text": "Run and compare",
+     "x": 840,
+     "y": 72,
+     "w": 300,
+     "h": 32,
+     "font": 10,
+     "bold": true
+    },
+    {
+     "id": "st3",
+     "role": "stage",
+     "text": "Test and report",
+     "x": 1170,
+     "y": 72,
+     "w": 300,
+     "h": 32,
+     "font": 10,
+     "bold": true
+    },
+    {
+     "type": "lane",
+     "id": "max",
+     "role": "human",
+     "text": "Max decides",
+     "x": 20,
+     "y": 116,
+     "w": 1500,
+     "h": 103
+    },
+    {
+     "id": "max0",
+     "role": "human",
+     "text": "Approve the setup\n\u2022 data classes and route\n\u2022 freeze question and metric card\n\u2022 confirm tables, filters, join keys",
+     "x": 180,
+     "y": 126,
+     "w": 300,
+     "h": 83
+    },
+    {
+     "id": "max1",
+     "role": "human",
+     "text": "Shape the authoring\n\u2022 may write whole A himself\n\u2022 waives a lint finding with a reason\n\u2022 one-sentence test per step",
+     "x": 510,
+     "y": 126,
+     "w": 300,
+     "h": 83
+    },
+    {
+     "id": "max2",
+     "role": "human",
+     "text": "Hold the run\n\u2022 stops a step over its cap\n\u2022 accepts or rejects each difference\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 by reconciling-item category",
+     "x": 840,
+     "y": 126,
+     "w": 300,
+     "h": 83
+    },
+    {
+     "id": "max3",
+     "role": "human",
+     "text": "Sign off\n\u2022 reads the trace report\n\u2022 confirms reference provenance\n\u2022 renames columns one by one\n\u2022 accepts the verdict wording",
+     "x": 1170,
+     "y": 126,
+     "w": 300,
+     "h": 83
+    },
+    {
+     "type": "lane",
+     "id": "skills",
+     "role": "propose",
+     "text": "Skills propose",
+     "x": 20,
+     "y": 231,
+     "w": 1500,
+     "h": 93
+    },
+    {
+     "id": "skills0",
+     "role": "propose",
+     "text": "Draft the setup\n\u2022 ask the preflight questions\n\u2022 draft the cards\n\u2022 propose tables and synonyms\n\u2022 propose the pin",
+     "x": 180,
+     "y": 241,
+     "w": 300,
+     "h": 73
+    },
+    {
+     "id": "skills1",
+     "role": "propose",
+     "text": "Write query B\n\u2022 blind, from the frozen packet\n\u2022 explain what the splitter refuses",
+     "x": 510,
+     "y": 241,
+     "w": 300,
+     "h": 73
+    },
+    {
+     "id": "skills2",
+     "role": "propose",
+     "text": "Narrate the run\n\u2022 the step log\n\u2022 the classified differences\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 never adjudicate them",
+     "x": 840,
+     "y": 241,
+     "w": 300,
+     "h": 73
+    },
+    {
+     "id": "skills3",
+     "role": "propose",
+     "text": "Explain the result\n\u2022 one sentence per sampled row\n\u2022 propose chain, MECE, tie-out tests\n\u2022 fill the verdict from the table",
+     "x": 1170,
+     "y": 241,
+     "w": 300,
+     "h": 73
+    },
+    {
+     "type": "lane",
+     "id": "scripts",
+     "role": "decide",
+     "text": "Scripts decide",
+     "x": 20,
+     "y": 336,
+     "w": 1500,
+     "h": 105
+    },
+    {
+     "id": "scripts0",
+     "role": "decide",
+     "text": "Check and freeze\n\u2022 probe rights and caps, fail closed\n\u2022 hash-freeze the card\n\u2022 find tables by privilege ladder\n\u2022 grain and freshness tests\n\u2022 pin plan with batch marker",
+     "x": 180,
+     "y": 346,
+     "w": 300,
+     "h": 85
+    },
+    {
+     "id": "scripts1",
+     "role": "decide",
+     "text": "Freeze and split\n\u2022 freeze packet and A before B\n\u2022 split B into steps\n\u2022 inject the pin, lint, allow-list",
+     "x": 510,
+     "y": 346,
+     "w": 300,
+     "h": 85
+    },
+    {
+     "id": "scripts2",
+     "role": "decide",
+     "text": "Run and compare\n\u2022 one capped job per step\n\u2022 CSV plus typed sidecar\n\u2022 compare B with its steps\n\u2022 then A with B's steps\n\u2022 classify the differences",
+     "x": 840,
+     "y": 346,
+     "w": 300,
+     "h": 85
+    },
+    {
+     "id": "scripts3",
+     "role": "decide",
+     "text": "Test and close\n\u2022 sample the local CSVs\n\u2022 trace by key\n\u2022 chain, MECE, reference tie-out\n\u2022 exit non-zero on mismatch\n\u2022 close by manifest",
+     "x": 1170,
+     "y": 346,
+     "w": 300,
+     "h": 85
+    },
+    {
+     "type": "lane",
+     "id": "rec",
+     "role": "record",
+     "text": "Audit record",
+     "x": 20,
+     "y": 453,
+     "w": 1500,
+     "h": 103
+    },
+    {
+     "id": "rec0",
+     "role": "record",
+     "text": "Setup record\n\u2022 preflight and probe results\n\u2022 cards with their hashes\n\u2022 table decision, value map\n\u2022 pin plan",
+     "x": 180,
+     "y": 463,
+     "w": 300,
+     "h": 83
+    },
+    {
+     "id": "rec1",
+     "role": "record",
+     "text": "Authoring record\n\u2022 frozen packet\n\u2022 queries A and B\n\u2022 plan and lint report",
+     "x": 510,
+     "y": 463,
+     "w": 300,
+     "h": 83
+    },
+    {
+     "id": "rec2",
+     "role": "record",
+     "text": "Run record\n\u2022 step results with types\n\u2022 checks\n\u2022 reconciliation decisions\n\u2022 mismatch rows",
+     "x": 840,
+     "y": 463,
+     "w": 300,
+     "h": 83
+    },
+    {
+     "id": "rec3",
+     "role": "record",
+     "text": "Report record\n\u2022 trace report, logic tests\n\u2022 renames\n\u2022 report\n\u2022 manifest with retention date",
+     "x": 1170,
+     "y": 463,
+     "w": 300,
+     "h": 83
+    },
+    {
+     "type": "lane",
+     "id": "out",
+     "role": "outside",
+     "text": "Outside the plugin",
+     "x": 20,
+     "y": 568,
+     "w": 1500,
+     "h": 84
+    },
+    {
+     "id": "out0",
+     "role": "outside",
+     "text": "Warehouse catalog\n\u2022 profiles\n\u2022 read-only principal",
+     "x": 180,
+     "y": 578,
+     "w": 300,
+     "h": 64
+    },
+    {
+     "id": "out1",
+     "role": "outside",
+     "text": "Whole A\n\u2022 written blind\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 by the Codex seat or by Max\n\u2022 in a scrubbed process",
+     "x": 510,
+     "y": 578,
+     "w": 300,
+     "h": 64
+    },
+    {
+     "id": "out2",
+     "role": "outside",
+     "text": "Warehouse and local engine\n\u2022 runs the pinned jobs\n\u2022 replays typed CSVs locally",
+     "x": 840,
+     "y": 578,
+     "w": 300,
+     "h": 64
+    },
+    {
+     "id": "out3",
+     "role": "outside",
+     "text": "Independent reference\n\u2022 GL or control total\n\u2022 with provenance",
+     "x": 1170,
+     "y": 578,
+     "w": 300,
+     "h": 64
+    },
+    {
+     "type": "lane",
+     "id": "hooks",
+     "role": "guard",
+     "text": "Hooks guard",
+     "x": 20,
+     "y": 664,
+     "w": 1500,
+     "h": 105
+    },
+    {
+     "id": "hooks_all",
+     "role": "guard",
+     "text": "Hooks under every stage\n\u2022 scrubbed environment before any spawned tool\n\u2022 read-only statements only\n\u2022 dry run and byte cap on every job\n\u2022 writes only to scratch and the project folder\n\u2022 the boundary is the warehouse identity, not the hooks",
+     "x": 180,
+     "y": 674,
+     "w": 1290,
+     "h": 85
+    },
+    {
+     "type": "edge",
+     "from": "out1",
+     "to": "scripts2",
+     "accent": true,
+     "width": 2,
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0,
+      0.5
+     ],
+     "points": [
+      [
+       825,
+       610
+      ],
+      [
+       825,
+       388
+      ]
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "scripts2",
+     "to": "out2",
+     "exit": [
+      1,
+      0.7
+     ],
+     "entry": [
+      1,
+      0.5
+     ],
+     "points": [
+      [
+       1155,
+       405
+      ],
+      [
+       1155,
+       610
+      ]
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "out3",
+     "to": "scripts3",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      1,
+      0.5
+     ],
+     "points": [
+      [
+       1495,
+       610
+      ],
+      [
+       1495,
+       388
+      ]
+     ]
+    },
+    {
+     "id": "ind",
+     "role": "note",
+     "text": "Independence levels\n\u2022 existing query split against itself: consistent at best\n\u2022 whole A by another model family: reconciled\n\u2022 whole A by Max\n\u2022 independent reference available: verified",
+     "x": 20,
+     "y": 789,
+     "w": 700,
+     "h": "auto"
+    },
+    {
+     "type": "legend",
+     "id": "legend",
+     "x": 1180,
+     "y": 789,
+     "w": 300,
+     "labels": {
+      "human": "Max decides",
+      "propose": "a skill proposes",
+      "decide": "code decides",
+      "guard": "hooks",
+      "outside": "outside the plugin",
+      "record": "audit record",
+      "note": "footnote",
+      "stage": "stage",
+      "accent": "whole A: the independent comparison"
+     }
+    }
+   ]
+  },
+  {
+   "id": "l3",
+   "name": "L3 Detail P0 to P11",
+   "width": 2140,
+   "height": 1201,
+   "grid": {
+    "x0": 180,
+    "pitch": 160,
+    "col_width": 140
+   },
+   "cells": [
+    {
+     "type": "text",
+     "id": "title",
+     "text": "Query Checker plugin: how one plugin runs P0 to P11",
+     "x": 20,
+     "y": 10,
+     "w": 1200,
+     "h": 30,
+     "font": 16
+    },
+    {
+     "type": "text",
+     "id": "sub",
+     "bold": false,
+     "font": 11,
+     "x": 20,
+     "y": 40,
+     "w": 1800,
+     "h": 22,
+     "text": "Columns are the twelve phases under the four stages of L2; lanes are the parties of L2. Every gate, skill, script and record by its real name."
+    },
+    {
+     "id": "st0",
+     "role": "stage",
+     "text": "Set up",
+     "x": 180,
+     "y": 70,
+     "w": 620,
+     "h": 30,
+     "font": 10,
+     "bold": true
+    },
+    {
+     "id": "st1",
+     "role": "stage",
+     "text": "Author two ways",
+     "x": 820,
+     "y": 70,
+     "w": 300,
+     "h": 30,
+     "font": 10,
+     "bold": true
+    },
+    {
+     "id": "st2",
+     "role": "stage",
+     "text": "Run and compare",
+     "x": 1140,
+     "y": 70,
+     "w": 300,
+     "h": 30,
+     "font": 10,
+     "bold": true
+    },
+    {
+     "id": "st3",
+     "role": "stage",
+     "text": "Test and report",
+     "x": 1460,
+     "y": 70,
+     "w": 620,
+     "h": 30,
+     "font": 10,
+     "bold": true
+    },
+    {
+     "id": "ph0",
+     "role": "stage",
+     "text": "P0 Preflight",
+     "x": 180,
+     "y": 106,
+     "w": 140,
+     "h": 28,
+     "font": 8
+    },
+    {
+     "id": "ph1",
+     "role": "stage",
+     "text": "P1 Card",
+     "x": 340,
+     "y": 106,
+     "w": 140,
+     "h": 28,
+     "font": 8
+    },
+    {
+     "id": "ph2",
+     "role": "stage",
+     "text": "P2 Discovery",
+     "x": 500,
+     "y": 106,
+     "w": 140,
+     "h": 28,
+     "font": 8
+    },
+    {
+     "id": "ph3",
+     "role": "stage",
+     "text": "P3 Pin plan",
+     "x": 660,
+     "y": 106,
+     "w": 140,
+     "h": 28,
+     "font": 8
+    },
+    {
+     "id": "ph4",
+     "role": "stage",
+     "text": "P4 Author",
+     "x": 820,
+     "y": 106,
+     "w": 140,
+     "h": 28,
+     "font": 8
+    },
+    {
+     "id": "ph5",
+     "role": "stage",
+     "text": "P5 Decompose",
+     "x": 980,
+     "y": 106,
+     "w": 140,
+     "h": 28,
+     "font": 8
+    },
+    {
+     "id": "ph6",
+     "role": "stage",
+     "text": "P6 Run",
+     "x": 1140,
+     "y": 106,
+     "w": 140,
+     "h": 28,
+     "font": 8
+    },
+    {
+     "id": "ph7",
+     "role": "stage",
+     "text": "P7 Reconcile",
+     "x": 1300,
+     "y": 106,
+     "w": 140,
+     "h": 28,
+     "font": 8
+    },
+    {
+     "id": "ph8",
+     "role": "stage",
+     "text": "P8 Sample",
+     "x": 1460,
+     "y": 106,
+     "w": 140,
+     "h": 28,
+     "font": 8
+    },
+    {
+     "id": "ph9",
+     "role": "stage",
+     "text": "P9 Logic tests",
+     "x": 1620,
+     "y": 106,
+     "w": 140,
+     "h": 28,
+     "font": 8
+    },
+    {
+     "id": "ph10",
+     "role": "stage",
+     "text": "P10 Rename",
+     "x": 1780,
+     "y": 106,
+     "w": 140,
+     "h": 28,
+     "font": 8
+    },
+    {
+     "id": "ph11",
+     "role": "stage",
+     "text": "P11 Report",
+     "x": 1940,
+     "y": 106,
+     "w": 140,
+     "h": 28,
+     "font": 8
+    },
+    {
+     "type": "lane",
+     "id": "max",
+     "role": "human",
+     "text": "Max decides",
+     "x": 20,
+     "y": 146,
+     "w": 2090,
+     "h": 96
+    },
+    {
+     "id": "g0",
+     "role": "human",
+     "text": "Approve setup\n\u2022 G0a classes, route\n\u2022 G0b tech preflight\n\u2022 G14 scratch principal\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 default off",
+     "x": 180,
+     "y": 156,
+     "w": 140,
+     "h": 76,
+     "font": 8
+    },
+    {
+     "id": "g1",
+     "role": "human",
+     "text": "Card gates\n\u2022 G1a intent frozen\n\u2022 G6 registry read",
+     "x": 340,
+     "y": 156,
+     "w": 140,
+     "h": 76,
+     "font": 8
+    },
+    {
+     "id": "g2",
+     "role": "human",
+     "text": "Table gates\n\u2022 G2 shortlist, keys\n\u2022 G3 value map\n\u2022 G1b bindings frozen\n\u2022 G8 stop on disagree",
+     "x": 500,
+     "y": 156,
+     "w": 140,
+     "h": 76,
+     "font": 8
+    },
+    {
+     "id": "g3",
+     "role": "human",
+     "text": "Late data\n\u2022 G13 ask the owner\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 late-arrival windows",
+     "x": 660,
+     "y": 156,
+     "w": 140,
+     "h": 76,
+     "font": 8
+    },
+    {
+     "id": "g4",
+     "role": "human",
+     "text": "Option\n\u2022 Max writes whole A\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 IND-4",
+     "x": 820,
+     "y": 156,
+     "w": 140,
+     "h": 76,
+     "font": 8
+    },
+    {
+     "id": "g5",
+     "role": "human",
+     "text": "Decompose gates\n\u2022 G9 lint waiver\n\u2022 G10 manual constructs\n\u2022 G11 one sentence\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 per step",
+     "x": 980,
+     "y": 156,
+     "w": 140,
+     "h": 76,
+     "font": 8
+    },
+    {
+     "id": "g6",
+     "role": "human",
+     "text": "Run gates\n\u2022 G15 step over cap\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 filter, local, scratch\n\u2022 G7 row-level read\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 default denied",
+     "x": 1140,
+     "y": 156,
+     "w": 140,
+     "h": 76,
+     "font": 8
+    },
+    {
+     "id": "g7",
+     "role": "human",
+     "text": "Differences\n\u2022 G4 accept residuals\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 by reconciling item",
+     "x": 1300,
+     "y": 156,
+     "w": 140,
+     "h": 76,
+     "font": 8
+    },
+    {
+     "id": "g8",
+     "role": "human",
+     "text": "Read traces\n\u2022 G12 trace report\n\u2022 G7 masked rows only",
+     "x": 1460,
+     "y": 156,
+     "w": 140,
+     "h": 76,
+     "font": 8
+    },
+    {
+     "id": "g9",
+     "role": "human",
+     "text": "Close checks\n\u2022 G13 close status\n\u2022 restatements\n\u2022 reference provenance",
+     "x": 1620,
+     "y": 156,
+     "w": 140,
+     "h": 76,
+     "font": 8
+    },
+    {
+     "id": "g10",
+     "role": "human",
+     "text": "Rename\n\u2022 G5 column by column\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 skippable",
+     "x": 1780,
+     "y": 156,
+     "w": 140,
+     "h": 76,
+     "font": 8
+    },
+    {
+     "id": "g11",
+     "role": "human",
+     "text": "Sign off\n\u2022 G6 registry entries\n\u2022 hash lock\n\u2022 verdict wording\n\u2022 retention_until",
+     "x": 1940,
+     "y": 156,
+     "w": 140,
+     "h": 76,
+     "font": 8
+    },
+    {
+     "type": "lane",
+     "id": "skills",
+     "role": "propose",
+     "text": "Skills propose",
+     "x": 20,
+     "y": 254,
+     "w": 2090,
+     "h": 163
+    },
+    {
+     "id": "orch",
+     "role": "propose",
+     "text": "Orchestrator skill\n\u2022 explicit-only: invoked by name, never by phrases such as reconcile or how many\n\u2022 walks P0 to P11 in order, stops at every gate, then invokes the phase skill\n\u2022 resumes from manifest.json",
+     "x": 180,
+     "y": 264,
+     "w": 1900,
+     "h": 56,
+     "font": 8
+    },
+    {
+     "id": "s0",
+     "role": "propose",
+     "text": "Preflight skill\n\u2022 asks the G0a set\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 28 questions\n\u2022 shows probe results\n\u2022 never runs unapproved",
+     "x": 180,
+     "y": 330,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "s1",
+     "role": "propose",
+     "text": "Card skill\n\u2022 drafts question card\n\u2022 drafts metric card\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 ratio type, weight\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 chain\n\u2022 Max freezes both",
+     "x": 340,
+     "y": 330,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "s2",
+     "role": "propose",
+     "text": "Discovery skill\n\u2022 proposes shortlist\n\u2022 proposes synonyms\n\u2022 explains profiles\n\u2022 never infers absence\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 from one search",
+     "x": 500,
+     "y": 330,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "s3",
+     "role": "propose",
+     "text": "Pin skill\n\u2022 proposes as_of_utc\n\u2022 proposes batch marker\n\u2022 lists the unpinnable",
+     "x": 660,
+     "y": 330,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "s4",
+     "role": "propose",
+     "text": "Author skill\n\u2022 Claude writes query B\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 blind\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 frozen packet only\n\u2022 declares its contract",
+     "x": 820,
+     "y": 330,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "s5",
+     "role": "propose",
+     "text": "Decompose skill\n\u2022 explains refusals\n\u2022 collects waivers\n\u2022 collects G11 wordings",
+     "x": 980,
+     "y": 330,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "s6",
+     "role": "propose",
+     "text": "Run skill\n\u2022 narrates the step log\n\u2022 decides nothing",
+     "x": 1140,
+     "y": 330,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "s7",
+     "role": "propose",
+     "text": "Reconcile skill\n\u2022 explains differences\n\u2022 never adjudicates",
+     "x": 1300,
+     "y": 330,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "s8",
+     "role": "propose",
+     "text": "Sample skill\n\u2022 one sentence per row\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 sampled\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 for Max",
+     "x": 1460,
+     "y": 330,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "s9",
+     "role": "propose",
+     "text": "Logic skill\n\u2022 proposes ratio chain\n\u2022 proposes MECE universe\n\u2022 proposes tie-out",
+     "x": 1620,
+     "y": 330,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "s10",
+     "role": "propose",
+     "text": "Rename skill\n\u2022 one column at a time\n\u2022 with Max\n\u2022 originals kept",
+     "x": 1780,
+     "y": 330,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "s11",
+     "role": "propose",
+     "text": "Report skill\n\u2022 fills the verdict\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 IND level\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 pin status\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 reference",
+     "x": 1940,
+     "y": 330,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "type": "lane",
+     "id": "scripts",
+     "role": "decide",
+     "text": "Scripts decide",
+     "x": 20,
+     "y": 429,
+     "w": 2090,
+     "h": 97
+    },
+    {
+     "id": "x0",
+     "role": "decide",
+     "text": "probe.py\n\u2022 rights\n\u2022 caps\n\u2022 time-travel window\n\u2022 environment\n\u2022 fails closed",
+     "x": 180,
+     "y": 439,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "x1",
+     "role": "decide",
+     "text": "card_freeze.py\n\u2022 intent hash, G1a\n\u2022 bindings hash, G1b",
+     "x": 340,
+     "y": 439,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "x2",
+     "role": "decide",
+     "text": "discover.py\n\u2022 privilege ladder\n\u2022 grain test\n\u2022 freshness, 3 signals\n\u2022 value map",
+     "x": 500,
+     "y": 439,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "x3",
+     "role": "decide",
+     "text": "pin_plan.py\n\u2022 as_of_utc\n\u2022 pin method per table\n\u2022 unpinnable list\n\u2022 late-arrival bands",
+     "x": 660,
+     "y": 439,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "x4",
+     "role": "decide",
+     "text": "packet_freeze.py\n\u2022 hash the packet\n\u2022 A frozen before B\n\u2022 two output contracts",
+     "x": 820,
+     "y": 439,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "x5",
+     "role": "decide",
+     "text": "split.py, compile.py\n\u2022 sqlglot split\n\u2022 pin injected\n\u2022 lint.py N1-N9\n\u2022 allow-list\n\u2022 refuses NOT IN, DML",
+     "x": 980,
+     "y": 439,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "x6",
+     "role": "decide",
+     "text": "run_steps.py\n\u2022 one job per step\n\u2022 dry run and cap\n\u2022 CSV, typed sidecar\n\u2022 B also runs whole",
+     "x": 1140,
+     "y": 439,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "x7",
+     "role": "decide",
+     "text": "reconcile.py\n\u2022 B vs chain(B) first\n\u2022 then A vs chain(B)\n\u2022 multiplicity diff\n\u2022 classifies differences",
+     "x": 1300,
+     "y": 439,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "x8",
+     "role": "decide",
+     "text": "sample.py, trace.py\n\u2022 local CSV, hash-rank\n\u2022 0 warehouse bytes\n\u2022 key-bounded lookups",
+     "x": 1460,
+     "y": 439,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "x9",
+     "role": "decide",
+     "text": "logic_tests.py\n\u2022 ratio chain\n\u2022 MECE, explicit universe\n\u2022 reference tie-out",
+     "x": 1620,
+     "y": 439,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "x10",
+     "role": "decide",
+     "text": "rename_apply.py\n\u2022 map on view copies\n\u2022 steps keep names",
+     "x": 1780,
+     "y": 439,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "id": "x11",
+     "role": "decide",
+     "text": "report.py, close.py\n\u2022 verdict table\n\u2022 non-zero on mismatch\n\u2022 delete at retention",
+     "x": 1940,
+     "y": 439,
+     "w": 140,
+     "h": 77,
+     "font": 8
+    },
+    {
+     "type": "lane",
+     "id": "rec",
+     "role": "record",
+     "text": "Audit record",
+     "x": 20,
+     "y": 538,
+     "w": 2090,
+     "h": 108
+    },
+    {
+     "id": "a0",
+     "role": "record",
+     "text": "Preflight\n\u2022 00_preflight.json\n\u2022 00_capability_probe.csv",
+     "x": 180,
+     "y": 548,
+     "w": 140,
+     "h": 88,
+     "font": 8
+    },
+    {
+     "id": "a1",
+     "role": "record",
+     "text": "Cards\n\u2022 01_question_card.md\n\u2022 02_metric_card.md\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 two hashes",
+     "x": 340,
+     "y": 548,
+     "w": 140,
+     "h": 88,
+     "font": 8
+    },
+    {
+     "id": "a2",
+     "role": "record",
+     "text": "Table decision\n\u2022 13_table_decision.md\n\u2022 11_value_map.csv",
+     "x": 500,
+     "y": 548,
+     "w": 140,
+     "h": 88,
+     "font": 8
+    },
+    {
+     "id": "a3",
+     "role": "record",
+     "text": "Pin plan\n\u2022 in manifest.json\n\u2022 with batch marker",
+     "x": 660,
+     "y": 548,
+     "w": 140,
+     "h": 88,
+     "font": 8
+    },
+    {
+     "id": "a4",
+     "role": "record",
+     "text": "Packet\n\u2022 packet/, hash-frozen\n\u2022 A.sql, frozen\n\u2022 B.sql",
+     "x": 820,
+     "y": 548,
+     "w": 140,
+     "h": 88,
+     "font": 8
+    },
+    {
+     "id": "a5",
+     "role": "record",
+     "text": "Plan\n\u2022 plan.json\n\u2022 lint_report.csv",
+     "x": 980,
+     "y": 548,
+     "w": 140,
+     "h": 88,
+     "font": 8
+    },
+    {
+     "id": "a6",
+     "role": "record",
+     "text": "Step results\n\u2022 step_NN.csv\n\u2022 step_NN.types.json",
+     "x": 1140,
+     "y": 548,
+     "w": 140,
+     "h": 88,
+     "font": 8
+    },
+    {
+     "id": "a7",
+     "role": "record",
+     "text": "Checks\n\u2022 checks/*.csv\n\u2022 mismatch_rows.csv\n\u2022 reconciliation_decisions.csv",
+     "x": 1300,
+     "y": 548,
+     "w": 140,
+     "h": 88,
+     "font": 8
+    },
+    {
+     "id": "a8",
+     "role": "record",
+     "text": "Traces\n\u2022 trace_report.md\n\u2022 samples/",
+     "x": 1460,
+     "y": 548,
+     "w": 140,
+     "h": 88,
+     "font": 8
+    },
+    {
+     "id": "a9",
+     "role": "record",
+     "text": "Logic tests\n\u2022 logic_tests.csv",
+     "x": 1620,
+     "y": 548,
+     "w": 140,
+     "h": 88,
+     "font": 8
+    },
+    {
+     "id": "a10",
+     "role": "record",
+     "text": "Renames\n\u2022 renames.csv",
+     "x": 1780,
+     "y": 548,
+     "w": 140,
+     "h": 88,
+     "font": 8
+    },
+    {
+     "id": "a11",
+     "role": "record",
+     "text": "Report\n\u2022 report.md\n\u2022 manifest.json\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 replayable\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 retention_until\n\u2022 exposure_log.jsonl",
+     "x": 1940,
+     "y": 548,
+     "w": 140,
+     "h": 88,
+     "font": 8
+    },
+    {
+     "type": "lane",
+     "id": "out",
+     "role": "outside",
+     "text": "Outside the plugin",
+     "x": 20,
+     "y": 676,
+     "w": 2090,
+     "h": 127
+    },
+    {
+     "id": "catalog",
+     "role": "outside",
+     "text": "Warehouse catalog\n\u2022 read-only analysis principal\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 jobUser and dataViewer\n\u2022 profiles and IAM reads\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 for probe.py and discover.py",
+     "x": 180,
+     "y": 686,
+     "w": 460,
+     "h": 69,
+     "font": 8
+    },
+    {
+     "id": "codex",
+     "role": "outside",
+     "text": "Codex seat, or Max\n\u2022 writes whole A blind\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 from the frozen packet\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 in a fresh scrubbed process\n\u2022 A hash-frozen before B starts\n\u2022 IND-2; IND-4 when Max writes it\n\u2022 the plugin verifies A, never writes it",
+     "x": 820,
+     "y": 686,
+     "w": 300,
+     "h": 91,
+     "font": 8
+    },
+    {
+     "id": "bq",
+     "role": "outside",
+     "text": "BigQuery\n\u2022 pinned jobs\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 SYSTEM_TIME AS OF\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 or CTAS freeze\n\u2022 scratch principal G14",
+     "x": 1140,
+     "y": 686,
+     "w": 140,
+     "h": 69,
+     "font": 8
+    },
+    {
+     "id": "duck",
+     "role": "outside",
+     "text": "DuckDB, local\n\u2022 typed CSV replay\n\u2022 0 warehouse bytes\n\u2022 EXACT: tested pair\n\u2022 else PROVISIONAL",
+     "x": 1300,
+     "y": 686,
+     "w": 140,
+     "h": 69,
+     "font": 8
+    },
+    {
+     "id": "ref",
+     "role": "outside",
+     "text": "Independent reference\n\u2022 GL or control total\n\u2022 provenance\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 source, as_of, grain\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 basis, tolerance\n\u2022 without it: reconciled at best",
+     "x": 1620,
+     "y": 686,
+     "w": 300,
+     "h": 80,
+     "font": 8
+    },
+    {
+     "type": "lane",
+     "id": "hooks",
+     "role": "guard",
+     "text": "Hooks guard",
+     "x": 20,
+     "y": 815,
+     "w": 2090,
+     "h": 76
+    },
+    {
+     "id": "allow",
+     "role": "guard",
+     "text": "Statement allow-list\n\u2022 SELECT and WITH only\n\u2022 no UDF, remote function, EXTERNAL_QUERY, DML",
+     "x": 180,
+     "y": 825,
+     "w": 460,
+     "h": 45,
+     "font": 8
+    },
+    {
+     "id": "scrub",
+     "role": "guard",
+     "text": "Environment scrub\n\u2022 before any spawned CLI\n\u2022 no session token reaches the Codex seat",
+     "x": 660,
+     "y": 825,
+     "w": 460,
+     "h": 45,
+     "font": 8
+    },
+    {
+     "id": "cap",
+     "role": "guard",
+     "text": "Every warehouse call\n\u2022 dry run\n\u2022 maximum_bytes_billed cap\n\u2022 job label, result cache off",
+     "x": 1140,
+     "y": 825,
+     "w": 460,
+     "h": 56,
+     "font": 8
+    },
+    {
+     "id": "writes",
+     "role": "guard",
+     "text": "Writes\n\u2022 only to scratch (G14) and the project folder\n\u2022 everything else refused",
+     "x": 1620,
+     "y": 825,
+     "w": 460,
+     "h": 45,
+     "font": 8
+    },
+    {
+     "type": "edge",
+     "from": "x4",
+     "to": "codex",
+     "label": "frozen packet",
+     "exit": [
+      1,
+      0.5
+     ],
+     "entry": [
+      0.5,
+      0
+     ],
+     "points": [
+      [
+       970,
+       477
+      ]
+     ],
+     "label_at": 0.772,
+     "label_offset": [
+      -36,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "codex",
+     "to": "x7",
+     "label": "whole A",
+     "accent": true,
+     "width": 2,
+     "exit": [
+      1,
+      0.879
+     ],
+     "entry": [
+      0,
+      0.4
+     ],
+     "points": [
+      [
+       1290,
+       766
+      ],
+      [
+       1290,
+       469
+      ]
+     ],
+     "label_at": 0.153,
+     "label_offset": [
+      24,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "x6",
+     "to": "bq",
+     "label": "one job per step",
+     "exit": [
+      0,
+      0.75
+     ],
+     "entry": [
+      0,
+      0.5
+     ],
+     "points": [
+      [
+       1130,
+       496
+      ],
+      [
+       1130,
+       720
+      ]
+     ],
+     "label_at": 0.434,
+     "label_offset": [
+      -44,
+      0
+     ]
+    },
+    {
+     "type": "edge",
+     "from": "ref",
+     "to": "x9",
+     "label": "tie-out",
+     "exit": [
+      0,
+      0.3
+     ],
+     "entry": [
+      0,
+      0.5
+     ],
+     "points": [
+      [
+       1610,
+       710
+      ],
+      [
+       1610,
+       477
+      ]
+     ],
+     "label_at": -0.534,
+     "label_offset": [
+      -22,
+      0
+     ]
+    },
+    {
+     "id": "ind",
+     "role": "note",
+     "text": "Independence levels\n\u2022 IND-0 existing query split against itself: consistent at best\n\u2022 IND-2 whole A by another model family: reconciled\n\u2022 IND-4 whole A by Max\n\u2022 IND-5 independent reference: verified\n\u2022 the level is recorded in the manifest and fixes the verdict wording",
+     "x": 20,
+     "y": 911,
+     "w": 560,
+     "h": "auto"
+    },
+    {
+     "id": "bound",
+     "role": "note",
+     "text": "Hooks are not the boundary\n\u2022 the authorization boundary is the warehouse identity (D-08)\n\u2022 hub hooks and plugin hooks stack; their interaction is open (section 7)",
+     "x": 600,
+     "y": 911,
+     "w": 520,
+     "h": "auto"
+    },
+    {
+     "type": "legend",
+     "id": "legend",
+     "x": 1750,
+     "y": 911,
+     "w": 330,
+     "labels": {
+      "human": "Max decides at a named gate",
+      "propose": "a skill proposes; never passes or fails",
+      "decide": "a script decides; exit code is the verdict",
+      "guard": "hooks: policy layer",
+      "outside": "outside the plugin",
+      "record": "audit record",
+      "note": "footnote",
+      "stage": "stage or phase",
+      "accent": "whole A: the independent comparison"
+     }
+    }
+   ]
+  }
+ ]
+}
