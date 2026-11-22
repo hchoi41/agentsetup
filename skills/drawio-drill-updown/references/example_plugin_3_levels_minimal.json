@@ -4,7 +4,7 @@
    "id": "l1",
    "name": "L1 Overview",
    "width": 1080,
-   "height": 700,
+   "height": 680,
    "cells": [
     {
      "type": "text",
@@ -19,7 +19,7 @@
     {
      "type": "text",
      "id": "sub",
-     "text": "Two answers written independently, compared by code, judged by Max at named gates. Every step leaves a file Max can audit.",
+     "text": "Max asks and decides at gates, the plugin's skills propose and its scripts compare two independent answers, and every step leaves an audit file.",
      "x": 20,
      "y": 40,
      "w": 960,
@@ -28,118 +28,171 @@
      "bold": false
     },
     {
-     "id": "ask",
+     "type": "lane",
+     "id": "lane_max",
      "role": "human",
-     "text": "Max asks a question\n\u2022 metric\n\u2022 population\n\u2022 period",
-     "x": 20,
-     "y": 110,
-     "w": 170,
-     "h": "auto",
-     "font": 11
+     "orientation": "column",
+     "text": "Max",
+     "x": 10,
+     "y": 80,
+     "w": 190,
+     "h": 420,
+     "link": "L2 Stages and layers"
     },
     {
+     "type": "lane",
      "id": "plugin",
      "role": "plain",
+     "orientation": "column",
      "text": "The plugin",
      "x": 240,
      "y": 80,
      "w": 500,
-     "h": 500,
-     "font": 12,
+     "h": 420,
+     "link": "L2 Stages and layers"
+    },
+    {
+     "type": "lane",
+     "id": "lane_out",
+     "role": "outside",
+     "orientation": "column",
+     "text": "Outside the plugin",
+     "x": 860,
+     "y": 80,
+     "w": 210,
+     "h": 280,
+     "link": "L2 Stages and layers"
+    },
+    {
+     "id": "ask",
+     "role": "human",
+     "text": "Max asks a question\n\u2022 metric\n\u2022 population\n\u2022 period",
+     "x": 20,
+     "y": 116,
+     "w": 170,
+     "h": "auto",
+     "font": 11,
      "align": "left",
      "valign": "top",
-     "square": true,
-     "bold": true
+     "link": "L2 Stages and layers"
     },
     {
      "id": "gates",
      "role": "human",
      "text": "Max decides at gates\n\u2022 approve the card\n\u2022 freeze the card\n\u2022 confirm tables\n\u2022 accept differences\n\u2022 rename",
-     "x": 260,
-     "y": 110,
-     "w": 460,
-     "h": 103,
-     "font": 10
-    },
-    {
-     "id": "propose",
-     "role": "propose",
-     "text": "Skills propose\n\u2022 draft the card\n\u2022 shortlist tables\n\u2022 write query B\n\u2022 explain results",
-     "x": 260,
-     "y": 229,
-     "w": 190,
-     "h": 120,
-     "font": 10
-    },
-    {
-     "id": "decide",
-     "role": "decide",
-     "text": "Scripts decide\n\u2022 split the query into steps\n\u2022 run one step at a time\n\u2022 check the result\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 compare\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 sample\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 test\n\u2022 exit code is the verdict",
-     "x": 500,
-     "y": 229,
-     "w": 220,
-     "h": 120,
-     "font": 10
-    },
-    {
-     "id": "audit",
-     "role": "record",
-     "text": "Audit folder\n\u2022 one CSV per step\n\u2022 manifest\n\u2022 checks\n\u2022 report\n\u2022 kept until the retention date",
-     "x": 260,
-     "y": 365,
-     "w": 460,
-     "h": 106,
-     "font": 10
-    },
-    {
-     "id": "guard",
-     "role": "guard",
-     "text": "Hooks guard\n\u2022 read-only warehouse identity\n\u2022 byte cap\n\u2022 no writes outside scratch\n\u2022 scrubbed spawns",
-     "x": 260,
-     "y": 487,
-     "w": 460,
-     "h": 80,
-     "font": 10
-    },
-    {
-     "id": "whole",
-     "role": "outside",
-     "text": "Whole A\n\u2022 written blind\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 by the Codex seat\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 or by Max",
-     "x": 870,
-     "y": 100,
-     "w": 190,
+     "x": 20,
+     "y": 218,
+     "w": 170,
      "h": "auto",
-     "font": 10
-    },
-    {
-     "id": "wh",
-     "role": "outside",
-     "text": "Warehouse\n\u2022 BigQuery first\n\u2022 read-only principal\n\u2022 pinned to one point in time",
-     "x": 870,
-     "y": 190,
-     "w": 190,
-     "h": "auto",
-     "font": 10
-    },
-    {
-     "id": "ref",
-     "role": "outside",
-     "text": "Independent reference\n\u2022 GL or control total",
-     "x": 870,
-     "y": 280,
-     "w": 190,
-     "h": "auto",
-     "font": 10
+     "font": 10,
+     "link": "L2 Stages and layers",
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "verdict",
      "role": "human",
      "text": "Verdict to Max\n\u2022 verified\n\u2022 reconciled\n\u2022 consistent\n\u2022 not reconciled\n\u2022 wording fixed by\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 independence\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 pin status\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 reference",
      "x": 20,
-     "y": 308,
+     "y": 342,
      "w": 170,
      "h": "auto",
-     "font": 10
+     "font": 10,
+     "align": "left",
+     "valign": "top",
+     "link": "L2 Stages and layers"
+    },
+    {
+     "id": "propose",
+     "role": "propose",
+     "text": "Skills propose\n\u2022 draft the card\n\u2022 shortlist tables\n\u2022 write query B\n\u2022 explain results",
+     "x": 260,
+     "y": 116,
+     "w": 190,
+     "h": "auto",
+     "font": 10,
+     "link": "L2 Stages and layers",
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "id": "decide",
+     "role": "decide",
+     "text": "Scripts decide\n\u2022 split the query into steps\n\u2022 run one step at a time\n\u2022 check the result\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 compare\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 sample\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 test\n\u2022 exit code is the verdict",
+     "x": 500,
+     "y": 116,
+     "w": 220,
+     "h": "auto",
+     "font": 10,
+     "link": "L2 Stages and layers",
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "id": "audit",
+     "role": "record",
+     "text": "Audit folder\n\u2022 one CSV per step\n\u2022 manifest\n\u2022 checks\n\u2022 report\n\u2022 kept until the retention date",
+     "x": 260,
+     "y": 268,
+     "w": 460,
+     "h": "auto",
+     "font": 10,
+     "link": "L2 Stages and layers",
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "id": "guard",
+     "role": "guard",
+     "text": "Hooks guard\n\u2022 read-only warehouse identity\n\u2022 byte cap\n\u2022 no writes outside scratch\n\u2022 scrubbed spawns",
+     "x": 260,
+     "y": 400,
+     "w": 460,
+     "h": "auto",
+     "font": 10,
+     "link": "L2 Stages and layers",
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "id": "whole",
+     "role": "outside",
+     "text": "Whole A\n\u2022 written blind\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 by the Codex seat\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 or by Max",
+     "x": 870,
+     "y": 116,
+     "w": 190,
+     "h": "auto",
+     "font": 10,
+     "link": "L2 Stages and layers",
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "id": "wh",
+     "role": "outside",
+     "text": "Warehouse\n\u2022 BigQuery first\n\u2022 read-only principal\n\u2022 pinned to one point in time",
+     "x": 870,
+     "y": 195,
+     "w": 190,
+     "h": "auto",
+     "font": 10,
+     "shape": "database",
+     "link": "L2 Stages and layers",
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "id": "ref",
+     "role": "outside",
+     "text": "Independent reference\n\u2022 GL or control total",
+     "x": 870,
+     "y": 305,
+     "w": 190,
+     "h": "auto",
+     "font": 10,
+     "link": "L2 Stages and layers",
+     "align": "left",
+     "valign": "top"
     },
     {
      "type": "edge",
@@ -151,34 +204,21 @@
      ],
      "entry": [
       0,
-      0.142
+      0.1833
      ],
      "width": 2
     },
     {
      "type": "edge",
      "from": "gates",
-     "to": "propose",
+     "to": "plugin",
      "exit": [
-      0.25,
-      1
+      1,
+      0.5
      ],
      "entry": [
-      0.605,
-      0
-     ]
-    },
-    {
-     "type": "edge",
-     "from": "gates",
-     "to": "decide",
-     "exit": [
-      0.75,
-      1
-     ],
-     "entry": [
-      0.477,
-      0
+      0,
+      0.4524
      ]
     },
     {
@@ -191,7 +231,7 @@
      ],
      "entry": [
       0,
-      0.5
+      0.3333
      ],
      "label": "query B",
      "width": 2,
@@ -209,7 +249,7 @@
       1
      ],
      "entry": [
-      0.761,
+      0.7609,
       0
      ]
     },
@@ -219,26 +259,15 @@
      "to": "decide",
      "exit": [
       0,
-      0.6
+      0.5
      ],
      "entry": [
       1,
-      0.2
+      0.2875
      ],
      "label": "compared by code",
      "width": 2,
      "accent": true,
-     "points": [
-      [
-       755,
-       141
-      ],
-      [
-       755,
-       253
-      ]
-     ],
-     "label_at": -0.56,
      "label_offset": [
       0,
       -8
@@ -254,20 +283,20 @@
      ],
      "entry": [
       1,
-      0.5
+      0.6167
      ],
-     "label": "one job per step",
      "points": [
       [
-       785,
-       224
+       780,
+       240
       ],
       [
-       785,
-       289
+       780,
+       190
       ]
      ],
-     "label_at": -0.6,
+     "label": "one job per step",
+     "label_at": -0.55,
      "label_offset": [
       0,
       -8
@@ -283,20 +312,20 @@
      ],
      "entry": [
       1,
-      0.85
+      0.8667
      ],
-     "label": "tie-out",
      "points": [
       [
-       815,
-       301
+       760,
+       326
       ],
       [
-       815,
-       331
+       760,
+       220
       ]
      ],
-     "label_at": -0.7,
+     "label": "tie-out",
+     "label_at": -0.57,
      "label_offset": [
       0,
       -8
@@ -308,7 +337,7 @@
      "to": "verdict",
      "exit": [
       0,
-      0.6
+      0.7952
      ],
      "entry": [
       1,
@@ -321,16 +350,18 @@
      "role": "note",
      "text": "Why two answers\n\u2022 a query checked against its own split caught 0 of 9 planted faults\n\u2022 checked against an independently written whole: 9 of 9\n\u2022 without an independent reference the strongest verdict is reconciled, never verified",
      "x": 20,
-     "y": 600,
+     "y": 520,
      "w": 720,
      "h": "auto",
-     "font": 10
+     "font": 10,
+     "align": "left",
+     "valign": "top"
     },
     {
      "type": "legend",
      "id": "legend",
      "x": 870,
-     "y": 350,
+     "y": 376,
      "w": 200,
      "labels": {
       "human": "Max decides",
@@ -349,7 +380,7 @@
    "id": "l2",
    "name": "L2 Stages and layers",
    "width": 1540,
-   "height": 1079,
+   "height": 1100,
    "grid": {
     "x0": 180,
     "pitch": 330,
@@ -375,7 +406,7 @@
      "y": 40,
      "w": 1450,
      "h": 22,
-     "text": "Read a column top to bottom: what Max decides, what the skills propose, what the scripts decide, what is recorded, what the plugin reaches outside for."
+     "text": "Max decides at four stages while the skills only propose and the scripts give the verdict."
     },
     {
      "id": "st0",
@@ -386,7 +417,8 @@
      "w": 300,
      "h": 32,
      "font": 10,
-     "bold": true
+     "bold": true,
+     "link": "L3 Detail P0 to P11"
     },
     {
      "id": "st1",
@@ -397,7 +429,8 @@
      "w": 300,
      "h": 32,
      "font": 10,
-     "bold": true
+     "bold": true,
+     "link": "L3 Detail P0 to P11"
     },
     {
      "id": "st2",
@@ -408,7 +441,8 @@
      "w": 300,
      "h": 32,
      "font": 10,
-     "bold": true
+     "bold": true,
+     "link": "L3 Detail P0 to P11"
     },
     {
      "id": "st3",
@@ -419,53 +453,74 @@
      "w": 300,
      "h": 32,
      "font": 10,
-     "bold": true
+     "bold": true,
+     "link": "L3 Detail P0 to P11"
     },
     {
      "type": "lane",
      "id": "max",
      "role": "human",
-     "text": "Max decides",
+     "text": "Max",
      "x": 20,
      "y": 116,
      "w": 1500,
-     "h": 103
+     "h": 103,
+     "link": "L3 Detail P0 to P11"
+    },
+    {
+     "id": "max_ask",
+     "role": "human",
+     "text": "Asks the question\n\u2022 metric\n\u2022 population\n\u2022 period",
+     "x": 180,
+     "y": 126,
+     "w": 140,
+     "h": 83,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "max0",
      "role": "human",
-     "text": "Approve the setup\n\u2022 data classes and route\n\u2022 freeze question and metric card\n\u2022 confirm tables, filters, join keys",
-     "x": 180,
+     "text": "Gate: approve the setup\n\u2022 data classes, route\n\u2022 freeze the cards\n\u2022 confirm tables, keys",
+     "x": 330,
      "y": 126,
-     "w": 300,
-     "h": 83
+     "w": 150,
+     "h": 83,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "max1",
      "role": "human",
-     "text": "Shape the authoring\n\u2022 may write whole A himself\n\u2022 waives a lint finding with a reason\n\u2022 one-sentence test per step",
+     "text": "Gate: shape the authoring\n\u2022 may write whole A himself\n\u2022 waives a lint finding with a reason\n\u2022 one-sentence test per step",
      "x": 510,
      "y": 126,
      "w": 300,
-     "h": 83
+     "h": 83,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "max2",
      "role": "human",
-     "text": "Hold the run\n\u2022 stops a step over its cap\n\u2022 accepts or rejects each difference\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 by reconciling-item category",
+     "text": "Gate: hold the run\n\u2022 stops a step over its cap\n\u2022 accepts or rejects each difference\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 by reconciling-item category",
      "x": 840,
      "y": 126,
      "w": 300,
-     "h": 83
+     "h": 83,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "max3",
      "role": "human",
-     "text": "Sign off\n\u2022 reads the trace report\n\u2022 confirms reference provenance\n\u2022 renames columns one by one\n\u2022 accepts the verdict wording",
+     "text": "Receives the verdict\n\u2022 reads the trace report\n\u2022 confirms reference provenance\n\u2022 renames columns one by one\n\u2022 accepts the verdict wording",
      "x": 1170,
      "y": 126,
      "w": 300,
-     "h": 83
+     "h": 83,
+     "align": "left",
+     "valign": "top"
     },
     {
      "type": "lane",
@@ -475,7 +530,8 @@
      "x": 20,
      "y": 231,
      "w": 1500,
-     "h": 93
+     "h": 93,
+     "link": "L3 Detail P0 to P11"
     },
     {
      "id": "skills0",
@@ -484,7 +540,9 @@
      "x": 180,
      "y": 241,
      "w": 300,
-     "h": 73
+     "h": 73,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "skills1",
@@ -493,7 +551,9 @@
      "x": 510,
      "y": 241,
      "w": 300,
-     "h": 73
+     "h": 73,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "skills2",
@@ -502,7 +562,9 @@
      "x": 840,
      "y": 241,
      "w": 300,
-     "h": 73
+     "h": 73,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "skills3",
@@ -511,7 +573,9 @@
      "x": 1170,
      "y": 241,
      "w": 300,
-     "h": 73
+     "h": 73,
+     "align": "left",
+     "valign": "top"
     },
     {
      "type": "lane",
@@ -521,7 +585,8 @@
      "x": 20,
      "y": 336,
      "w": 1500,
-     "h": 105
+     "h": 105,
+     "link": "L3 Detail P0 to P11"
     },
     {
      "id": "scripts0",
@@ -530,7 +595,9 @@
      "x": 180,
      "y": 346,
      "w": 300,
-     "h": 85
+     "h": 85,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "scripts1",
@@ -539,7 +606,9 @@
      "x": 510,
      "y": 346,
      "w": 300,
-     "h": 85
+     "h": 85,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "scripts2",
@@ -548,7 +617,9 @@
      "x": 840,
      "y": 346,
      "w": 300,
-     "h": 85
+     "h": 85,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "scripts3",
@@ -557,17 +628,20 @@
      "x": 1170,
      "y": 346,
      "w": 300,
-     "h": 85
+     "h": 85,
+     "align": "left",
+     "valign": "top"
     },
     {
      "type": "lane",
      "id": "rec",
      "role": "record",
-     "text": "Audit record",
+     "text": "Audit folder",
      "x": 20,
      "y": 453,
      "w": 1500,
-     "h": 103
+     "h": 103,
+     "link": "L3 Detail P0 to P11"
     },
     {
      "id": "rec0",
@@ -576,7 +650,9 @@
      "x": 180,
      "y": 463,
      "w": 300,
-     "h": 83
+     "h": 83,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "rec1",
@@ -585,7 +661,9 @@
      "x": 510,
      "y": 463,
      "w": 300,
-     "h": 83
+     "h": 83,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "rec2",
@@ -594,7 +672,9 @@
      "x": 840,
      "y": 463,
      "w": 300,
-     "h": 83
+     "h": 83,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "rec3",
@@ -603,7 +683,9 @@
      "x": 1170,
      "y": 463,
      "w": 300,
-     "h": 83
+     "h": 83,
+     "align": "left",
+     "valign": "top"
     },
     {
      "type": "lane",
@@ -613,7 +695,8 @@
      "x": 20,
      "y": 568,
      "w": 1500,
-     "h": 84
+     "h": 90,
+     "link": "L3 Detail P0 to P11"
     },
     {
      "id": "out0",
@@ -622,7 +705,10 @@
      "x": 180,
      "y": 578,
      "w": 300,
-     "h": 64
+     "h": 70,
+     "shape": "database",
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "out1",
@@ -631,7 +717,9 @@
      "x": 510,
      "y": 578,
      "w": 300,
-     "h": 64
+     "h": 64,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "out2",
@@ -640,7 +728,10 @@
      "x": 840,
      "y": 578,
      "w": 300,
-     "h": 64
+     "h": 70,
+     "shape": "database",
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "out3",
@@ -649,7 +740,9 @@
      "x": 1170,
      "y": 578,
      "w": 300,
-     "h": 64
+     "h": 64,
+     "align": "left",
+     "valign": "top"
     },
     {
      "type": "lane",
@@ -657,18 +750,21 @@
      "role": "guard",
      "text": "Hooks guard",
      "x": 20,
-     "y": 664,
+     "y": 670,
      "w": 1500,
-     "h": 105
+     "h": 105,
+     "link": "L3 Detail P0 to P11"
     },
     {
      "id": "hooks_all",
      "role": "guard",
      "text": "Hooks under every stage\n\u2022 scrubbed environment before any spawned tool\n\u2022 read-only statements only\n\u2022 dry run and byte cap on every job\n\u2022 writes only to scratch and the project folder\n\u2022 the boundary is the warehouse identity, not the hooks",
      "x": 180,
-     "y": 674,
+     "y": 680,
      "w": 1290,
-     "h": 85
+     "h": 85,
+     "align": "left",
+     "valign": "top"
     },
     {
      "type": "edge",
@@ -714,7 +810,7 @@
       ],
       [
        1155,
-       610
+       613
       ]
      ]
     },
@@ -746,15 +842,28 @@
      "role": "note",
      "text": "Independence levels\n\u2022 existing query split against itself: consistent at best\n\u2022 whole A by another model family: reconciled\n\u2022 whole A by Max\n\u2022 independent reference available: verified",
      "x": 20,
-     "y": 789,
+     "y": 795,
      "w": 700,
-     "h": "auto"
+     "h": "auto",
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "id": "read",
+     "role": "note",
+     "text": "How to read\n\u2022 a column is one stage, read top to bottom\n\u2022 a lane is an L1 lane or one part of the plugin, named after it",
+     "x": 740,
+     "y": 795,
+     "w": 420,
+     "h": "auto",
+     "align": "left",
+     "valign": "top"
     },
     {
      "type": "legend",
      "id": "legend",
      "x": 1180,
-     "y": 789,
+     "y": 795,
      "w": 300,
      "labels": {
       "human": "Max decides",
@@ -774,7 +883,7 @@
    "id": "l3",
    "name": "L3 Detail P0 to P11",
    "width": 2140,
-   "height": 1201,
+   "height": 1250,
    "grid": {
     "x0": 180,
     "pitch": 160,
@@ -800,7 +909,7 @@
      "y": 40,
      "w": 1800,
      "h": 22,
-     "text": "Columns are the twelve phases under the four stages of L2; lanes are the parties of L2. Every gate, skill, script and record by its real name."
+     "text": "Each of the twelve phases names its gate, its skill, its script and the file it leaves, and only the scripts give a verdict."
     },
     {
      "id": "st0",
@@ -970,7 +1079,7 @@
      "type": "lane",
      "id": "max",
      "role": "human",
-     "text": "Max decides",
+     "text": "Max",
      "x": 20,
      "y": 146,
      "w": 2090,
@@ -984,17 +1093,21 @@
      "y": 156,
      "w": 140,
      "h": 76,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "g1",
      "role": "human",
-     "text": "Card gates\n\u2022 G1a intent frozen\n\u2022 G6 registry read",
+     "text": "Question and card\n\u2022 G1a intent frozen\n\u2022 G6 registry read",
      "x": 340,
      "y": 156,
      "w": 140,
      "h": 76,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "g2",
@@ -1004,7 +1117,9 @@
      "y": 156,
      "w": 140,
      "h": 76,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "g3",
@@ -1014,7 +1129,9 @@
      "y": 156,
      "w": 140,
      "h": 76,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "g4",
@@ -1024,7 +1141,9 @@
      "y": 156,
      "w": 140,
      "h": 76,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "g5",
@@ -1034,7 +1153,9 @@
      "y": 156,
      "w": 140,
      "h": 76,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "g6",
@@ -1044,7 +1165,9 @@
      "y": 156,
      "w": 140,
      "h": 76,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "g7",
@@ -1054,7 +1177,9 @@
      "y": 156,
      "w": 140,
      "h": 76,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "g8",
@@ -1064,7 +1189,9 @@
      "y": 156,
      "w": 140,
      "h": 76,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "g9",
@@ -1074,7 +1201,9 @@
      "y": 156,
      "w": 140,
      "h": 76,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "g10",
@@ -1084,7 +1213,9 @@
      "y": 156,
      "w": 140,
      "h": 76,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "g11",
@@ -1094,7 +1225,9 @@
      "y": 156,
      "w": 140,
      "h": 76,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "type": "lane",
@@ -1114,7 +1247,9 @@
      "y": 264,
      "w": 1900,
      "h": 56,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "s0",
@@ -1124,7 +1259,9 @@
      "y": 330,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "s1",
@@ -1134,7 +1271,9 @@
      "y": 330,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "s2",
@@ -1144,7 +1283,9 @@
      "y": 330,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "s3",
@@ -1154,7 +1295,9 @@
      "y": 330,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "s4",
@@ -1164,7 +1307,9 @@
      "y": 330,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "s5",
@@ -1174,7 +1319,9 @@
      "y": 330,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "s6",
@@ -1184,7 +1331,9 @@
      "y": 330,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "s7",
@@ -1194,7 +1343,9 @@
      "y": 330,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "s8",
@@ -1204,7 +1355,9 @@
      "y": 330,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "s9",
@@ -1214,7 +1367,9 @@
      "y": 330,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "s10",
@@ -1224,7 +1379,9 @@
      "y": 330,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "s11",
@@ -1234,7 +1391,9 @@
      "y": 330,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "type": "lane",
@@ -1254,7 +1413,9 @@
      "y": 439,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "x1",
@@ -1264,7 +1425,9 @@
      "y": 439,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "x2",
@@ -1274,7 +1437,9 @@
      "y": 439,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "x3",
@@ -1284,7 +1449,9 @@
      "y": 439,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "x4",
@@ -1294,7 +1461,9 @@
      "y": 439,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "x5",
@@ -1304,7 +1473,9 @@
      "y": 439,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "x6",
@@ -1314,7 +1485,9 @@
      "y": 439,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "x7",
@@ -1324,7 +1497,9 @@
      "y": 439,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "x8",
@@ -1334,7 +1509,9 @@
      "y": 439,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "x9",
@@ -1344,7 +1521,9 @@
      "y": 439,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "x10",
@@ -1354,7 +1533,9 @@
      "y": 439,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "x11",
@@ -1364,13 +1545,15 @@
      "y": 439,
      "w": 140,
      "h": 77,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "type": "lane",
      "id": "rec",
      "role": "record",
-     "text": "Audit record",
+     "text": "Audit folder",
      "x": 20,
      "y": 538,
      "w": 2090,
@@ -1384,7 +1567,9 @@
      "y": 548,
      "w": 140,
      "h": 88,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "a1",
@@ -1394,7 +1579,9 @@
      "y": 548,
      "w": 140,
      "h": 88,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "a2",
@@ -1404,7 +1591,9 @@
      "y": 548,
      "w": 140,
      "h": 88,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "a3",
@@ -1414,7 +1603,9 @@
      "y": 548,
      "w": 140,
      "h": 88,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "a4",
@@ -1424,7 +1615,9 @@
      "y": 548,
      "w": 140,
      "h": 88,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "a5",
@@ -1434,7 +1627,9 @@
      "y": 548,
      "w": 140,
      "h": 88,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "a6",
@@ -1444,7 +1639,10 @@
      "y": 548,
      "w": 140,
      "h": 88,
-     "font": 8
+     "font": 8,
+     "shape": "documents",
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "a7",
@@ -1454,7 +1652,10 @@
      "y": 548,
      "w": 140,
      "h": 88,
-     "font": 8
+     "font": 8,
+     "shape": "documents",
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "a8",
@@ -1464,7 +1665,10 @@
      "y": 548,
      "w": 140,
      "h": 88,
-     "font": 8
+     "font": 8,
+     "shape": "documents",
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "a9",
@@ -1474,7 +1678,9 @@
      "y": 548,
      "w": 140,
      "h": 88,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "a10",
@@ -1484,7 +1690,9 @@
      "y": 548,
      "w": 140,
      "h": 88,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "a11",
@@ -1494,7 +1702,9 @@
      "y": 548,
      "w": 140,
      "h": 88,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "type": "lane",
@@ -1513,8 +1723,11 @@
      "x": 180,
      "y": 686,
      "w": 460,
-     "h": 69,
-     "font": 8
+     "h": 90,
+     "font": 8,
+     "shape": "database",
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "codex",
@@ -1524,7 +1737,9 @@
      "y": 686,
      "w": 300,
      "h": 91,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "bq",
@@ -1533,8 +1748,11 @@
      "x": 1140,
      "y": 686,
      "w": 140,
-     "h": 69,
-     "font": 8
+     "h": 90,
+     "font": 8,
+     "shape": "database",
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "duck",
@@ -1543,8 +1761,11 @@
      "x": 1300,
      "y": 686,
      "w": 140,
-     "h": 69,
-     "font": 8
+     "h": 90,
+     "font": 8,
+     "shape": "database",
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "ref",
@@ -1554,7 +1775,9 @@
      "y": 686,
      "w": 300,
      "h": 80,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "type": "lane",
@@ -1574,7 +1797,9 @@
      "y": 825,
      "w": 460,
      "h": 45,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "scrub",
@@ -1584,7 +1809,9 @@
      "y": 825,
      "w": 460,
      "h": 45,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "cap",
@@ -1594,7 +1821,9 @@
      "y": 825,
      "w": 460,
      "h": 56,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "writes",
@@ -1604,7 +1833,9 @@
      "y": 825,
      "w": 460,
      "h": 45,
-     "font": 8
+     "font": 8,
+     "align": "left",
+     "valign": "top"
     },
     {
      "type": "edge",
@@ -1648,8 +1879,16 @@
      ],
      "points": [
       [
-       1290,
+       1130,
        766
+      ],
+      [
+       1130,
+       790
+      ],
+      [
+       1290,
+       790
       ],
       [
        1290,
@@ -1682,7 +1921,7 @@
       ],
       [
        1130,
-       720
+       731
       ]
      ],
      "label_at": 0.434,
@@ -1727,7 +1966,9 @@
      "x": 20,
      "y": 911,
      "w": 560,
-     "h": "auto"
+     "h": "auto",
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "bound",
@@ -1736,7 +1977,20 @@
      "x": 600,
      "y": 911,
      "w": 520,
-     "h": "auto"
+     "h": "auto",
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "id": "read",
+     "role": "note",
+     "text": "How to read\n\u2022 columns are the twelve phases under the four stages of L2\n\u2022 lanes are the parties of L2\n\u2022 every gate, skill, script and file by its real name",
+     "x": 1140,
+     "y": 911,
+     "w": 590,
+     "h": "auto",
+     "align": "left",
+     "valign": "top"
     },
     {
      "type": "legend",

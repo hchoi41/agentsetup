@@ -4,7 +4,7 @@
    "id": "l1",
    "name": "L1 Overview",
    "width": 1080,
-   "height": 700,
+   "height": 680,
    "cells": [
     {
      "type": "text",
@@ -19,7 +19,7 @@
     {
      "type": "text",
      "id": "sub",
-     "text": "Two answers written independently, compared by code, judged by Max at named gates. Every step leaves a file Max can audit.",
+     "text": "Max asks and decides at gates, the plugin's skills propose and its scripts compare two independent answers, and every step leaves an audit file.",
      "x": 20,
      "y": 40,
      "w": 960,
@@ -28,119 +28,158 @@
      "bold": false
     },
     {
-     "id": "ask",
+     "type": "lane",
+     "id": "lane_max",
      "role": "human",
-     "text": "Max asks a question\n\u2022 metric\n\u2022 population\n\u2022 period",
-     "x": 20,
-     "y": 110,
-     "w": 170,
-     "h": "auto",
-     "font": 11
+     "orientation": "column",
+     "text": "Max",
+     "x": 10,
+     "y": 80,
+     "w": 190,
+     "h": 420
     },
     {
+     "type": "lane",
      "id": "plugin",
      "role": "plain",
+     "orientation": "column",
      "text": "The plugin",
      "x": 240,
      "y": 80,
      "w": 500,
-     "h": 500,
-     "font": 12,
+     "h": 420
+    },
+    {
+     "type": "lane",
+     "id": "lane_out",
+     "role": "outside",
+     "orientation": "column",
+     "text": "Outside the plugin",
+     "x": 860,
+     "y": 80,
+     "w": 210,
+     "h": 280
+    },
+    {
+     "id": "ask",
+     "role": "human",
+     "text": "Max asks a question\n\u2022 metric\n\u2022 population\n\u2022 period",
+     "x": 20,
+     "y": 116,
+     "w": 170,
+     "h": "auto",
+     "font": 11,
      "align": "left",
-     "valign": "top",
-     "square": true,
-     "bold": true
+     "valign": "top"
     },
     {
      "id": "gates",
      "role": "human",
      "text": "Max decides at gates\n\u2022 approve the card\n\u2022 freeze the card\n\u2022 confirm tables\n\u2022 accept differences\n\u2022 rename",
-     "x": 260,
-     "y": 110,
-     "w": 460,
-     "h": 103,
-     "font": 10
-    },
-    {
-     "id": "propose",
-     "role": "propose",
-     "text": "Skills propose\n\u2022 draft the card\n\u2022 shortlist tables\n\u2022 write query B\n\u2022 explain results",
-     "x": 260,
-     "y": 229,
-     "w": 190,
-     "h": 120,
-     "font": 10
-    },
-    {
-     "id": "decide",
-     "role": "decide",
-     "text": "Scripts decide\n\u2022 split the query into steps\n\u2022 run one step at a time\n\u2022 check the result\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 compare\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 sample\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 test\n\u2022 exit code is the verdict",
-     "x": 500,
-     "y": 229,
-     "w": 220,
-     "h": 120,
-     "font": 10
-    },
-    {
-     "id": "audit",
-     "role": "record",
-     "text": "Audit folder\n\u2022 one CSV per step\n\u2022 manifest\n\u2022 checks\n\u2022 report\n\u2022 kept until the retention date",
-     "x": 260,
-     "y": 365,
-     "w": 460,
-     "h": 106,
-     "font": 10
-    },
-    {
-     "id": "guard",
-     "role": "guard",
-     "text": "Hooks guard\n\u2022 read-only warehouse identity\n\u2022 byte cap\n\u2022 no writes outside scratch\n\u2022 scrubbed spawns",
-     "x": 260,
-     "y": 487,
-     "w": 460,
-     "h": 80,
-     "font": 10
-    },
-    {
-     "id": "whole",
-     "role": "outside",
-     "text": "Whole A\n\u2022 written blind\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 by the Codex seat\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 or by Max",
-     "x": 870,
-     "y": 100,
-     "w": 190,
-     "h": "auto",
-     "font": 10
-    },
-    {
-     "id": "wh",
-     "role": "outside",
-     "text": "Warehouse\n\u2022 BigQuery first\n\u2022 read-only principal\n\u2022 pinned to one point in time",
-     "x": 870,
-     "y": 180,
-     "w": 190,
+     "x": 20,
+     "y": 218,
+     "w": 170,
      "h": "auto",
      "font": 10,
-     "shape": "database"
-    },
-    {
-     "id": "ref",
-     "role": "outside",
-     "text": "Independent reference\n\u2022 GL or control total",
-     "x": 870,
-     "y": 280,
-     "w": 190,
-     "h": "auto",
-     "font": 10
+     "align": "left",
+     "valign": "top"
     },
     {
      "id": "verdict",
      "role": "human",
      "text": "Verdict to Max\n\u2022 verified\n\u2022 reconciled\n\u2022 consistent\n\u2022 not reconciled\n\u2022 wording fixed by\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 independence\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 pin status\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 reference",
      "x": 20,
-     "y": 308,
+     "y": 342,
      "w": 170,
      "h": "auto",
-     "font": 10
+     "font": 10,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "id": "propose",
+     "role": "propose",
+     "text": "Skills propose\n\u2022 draft the card\n\u2022 shortlist tables\n\u2022 write query B\n\u2022 explain results",
+     "x": 260,
+     "y": 116,
+     "w": 190,
+     "h": "auto",
+     "font": 10,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "id": "decide",
+     "role": "decide",
+     "text": "Scripts decide\n\u2022 split the query into steps\n\u2022 run one step at a time\n\u2022 check the result\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 compare\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 sample\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 test\n\u2022 exit code is the verdict",
+     "x": 500,
+     "y": 116,
+     "w": 220,
+     "h": "auto",
+     "font": 10,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "id": "audit",
+     "role": "record",
+     "text": "Audit folder\n\u2022 one CSV per step\n\u2022 manifest\n\u2022 checks\n\u2022 report\n\u2022 kept until the retention date",
+     "x": 260,
+     "y": 268,
+     "w": 460,
+     "h": "auto",
+     "font": 10,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "id": "guard",
+     "role": "guard",
+     "text": "Hooks guard\n\u2022 read-only warehouse identity\n\u2022 byte cap\n\u2022 no writes outside scratch\n\u2022 scrubbed spawns",
+     "x": 260,
+     "y": 400,
+     "w": 460,
+     "h": "auto",
+     "font": 10,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "id": "whole",
+     "role": "outside",
+     "text": "Whole A\n\u2022 written blind\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 by the Codex seat\n\u00a0\u00a0\u00a0\u00a0\u00a0\u25e6 or by Max",
+     "x": 870,
+     "y": 116,
+     "w": 190,
+     "h": "auto",
+     "font": 10,
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "id": "wh",
+     "role": "outside",
+     "text": "Warehouse\n\u2022 BigQuery first\n\u2022 read-only principal\n\u2022 pinned to one point in time",
+     "x": 870,
+     "y": 195,
+     "w": 190,
+     "h": "auto",
+     "font": 10,
+     "shape": "database",
+     "align": "left",
+     "valign": "top"
+    },
+    {
+     "id": "ref",
+     "role": "outside",
+     "text": "Independent reference\n\u2022 GL or control total",
+     "x": 870,
+     "y": 305,
+     "w": 190,
+     "h": "auto",
+     "font": 10,
+     "align": "left",
+     "valign": "top"
     },
     {
      "type": "edge",
@@ -152,34 +191,21 @@
      ],
      "entry": [
       0,
-      0.142
+      0.1833
      ],
      "width": 2
     },
     {
      "type": "edge",
      "from": "gates",
-     "to": "propose",
+     "to": "plugin",
      "exit": [
-      0.25,
-      1
+      1,
+      0.5
      ],
      "entry": [
-      0.605,
-      0
-     ]
-    },
-    {
-     "type": "edge",
-     "from": "gates",
-     "to": "decide",
-     "exit": [
-      0.75,
-      1
-     ],
-     "entry": [
-      0.477,
-      0
+      0,
+      0.4524
      ]
     },
     {
@@ -192,7 +218,7 @@
      ],
      "entry": [
       0,
-      0.5
+      0.3333
      ],
      "label": "query B",
      "width": 2,
@@ -210,7 +236,7 @@
       1
      ],
      "entry": [
-      0.761,
+      0.7609,
       0
      ]
     },
@@ -220,26 +246,15 @@
      "to": "decide",
      "exit": [
       0,
-      0.6
+      0.5
      ],
      "entry": [
       1,
-      0.2
+      0.2875
      ],
      "label": "compared by code",
      "width": 2,
      "accent": true,
-     "points": [
-      [
-       755,
-       141
-      ],
-      [
-       755,
-       253
-      ]
-     ],
-     "label_at": -0.56,
      "label_offset": [
       0,
       -8
@@ -255,20 +270,20 @@
      ],
      "entry": [
       1,
-      0.5
+      0.6167
      ],
-     "label": "one job per step",
      "points": [
       [
-       785,
-       225
+       780,
+       240
       ],
       [
-       785,
-       289
+       780,
+       190
       ]
      ],
-     "label_at": -0.6,
+     "label": "one job per step",
+     "label_at": -0.55,
      "label_offset": [
       0,
       -8
@@ -284,20 +299,20 @@
      ],
      "entry": [
       1,
-      0.85
+      0.8667
      ],
-     "label": "tie-out",
      "points": [
       [
-       815,
-       301
+       760,
+       326
       ],
       [
-       815,
-       331
+       760,
+       220
       ]
      ],
-     "label_at": -0.7,
+     "label": "tie-out",
+     "label_at": -0.57,
      "label_offset": [
       0,
       -8
@@ -309,7 +324,7 @@
      "to": "verdict",
      "exit": [
       0,
-      0.6
+      0.7952
      ],
      "entry": [
       1,
@@ -322,16 +337,18 @@
      "role": "note",
      "text": "Why two answers\n\u2022 a query checked against its own split caught 0 of 9 planted faults\n\u2022 checked against an independently written whole: 9 of 9\n\u2022 without an independent reference the strongest verdict is reconciled, never verified",
      "x": 20,
-     "y": 600,
+     "y": 520,
      "w": 720,
      "h": "auto",
-     "font": 10
+     "font": 10,
+     "align": "left",
+     "valign": "top"
     },
     {
      "type": "legend",
      "id": "legend",
      "x": 870,
-     "y": 350,
+     "y": 376,
      "w": 200,
      "labels": {
       "human": "Max decides",

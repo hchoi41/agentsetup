@@ -223,6 +223,18 @@
       "note": "added 2026-11-07; multi-level draw.io diagrams (L0 one box .. L4 implementation) compiled from a JSON spec by scripts/drawio_spec.py; drill up/down on an existing .drawio"
     },
     {
+      "src": "AGENTS_SETUP/keep-it-simple-stupid",
+      "dest": "skills/keep-it-simple-stupid",
+      "mode": "tree",
+      "note": "added 2026-11-23; one output, one purpose, one reader: body / appendix / cut / ask-the-author; works on prose, code, spreadsheet, HTML, diagram, design"
+    },
+    {
+      "src": "AGENTS_SETUP/kiss",
+      "dest": "skills/kiss",
+      "mode": "tree",
+      "note": "added 2026-11-23; alias of keep-it-simple-stupid"
+    },
+    {
       "src": "HUB/scripts/sync_agent_adapters.ps1",
       "dest": "scripts/sync_agent_adapters.ps1",
       "mode": "file",
