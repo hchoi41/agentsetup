@@ -1,0 +1,10 @@
+{
+ "rotm_model": 1,
+ "name": "sales_vs_target",
+ "created": "2026-11-25T02:56:16+09:00",
+ "created_by": "rotm.py init",
+ "plugin_version": "0.1.0",
+ "spec": "model.spec.json",
+ "workbook": "model.xlsx",
+ "product": "both"
+}

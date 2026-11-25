@@ -1,0 +1,92 @@
+# Template: ar_aging
+
+Receivables aging by customer at 30 June 2026.
+
+Open invoices aged by days past due into five buckets per customer, with invoice counts, the overdue share and the amount over 90 days. The bucket is found with MATCH on the bucket bounds and INDEX on the bucket names instead of a ladder of nested IFs.
+
+## Use it
+
+1. `rotm.py init <new model folder> --template ar_aging` copies this folder into a new model folder without its
+   `queries/`, `raw/`, `reports/`, built workbook and manifest. The sample extract stays in `data/`. The contracts
+   come back as `proposed`.
+2. Show the user `contracts/open_items.contract.md` and record the reply with `rotm.py contract agree <new model folder>
+   --table open_items --reply "<their words>" --by <name>` (SKILL.md P1).
+3. After the agreement, land the sample extract (or your own extract of the same table):
+
+   ```
+   rotm.py land <new model folder> --table open_items --csv <new model folder>/data/open_items.csv
+   ```
+
+   Land writes `raw/open_items.csv` and `queries/open_items.sql` and `queries/open_items.pq.m`, each stamped with the agreed contract's
+   hash (P2).
+4. Build, audit, check and render: `rotm.py build <new model folder> --strict`, then SKILL.md P7. Change
+   `model.spec.json` for your own model first (P3 to P6).
+
+## Raw tables (contracts)
+
+- `open_items`: one row per open invoice; key invoice_id; columns invoice_id (text), customer (text), invoice_date (date, date), due_date (date, date), open_amount (number, KRW).
+
+The shipped contracts carry an agreement marked as the template's own (channel `example`, "no user gave it"); build
+accepts it only inside the plugin's folders.
+
+## Sheets
+
+- `inputs` (inputs)
+- `raw_open_items` (raw): open invoices as landed (contract open_items)
+- `h_open_items` (helpers): one row per open invoice: days past due, bucket number, bucket name, amount in KRW thousand
+- `calc` (calc): open amount and invoice count by customer and bucket
+- `summary` (output): overdue share per customer: the key result
+- `checks` (checks)
+- `notes` (notes)
+
+Build also writes the cover, the generated checks of every raw table (row count, control total, empty cells in
+never-null columns, coverage by helper rows, repeated keys) and the master check.
+
+## Display scale and units
+
+- The display scale (input `scale`) is fixed at 1000 (valid range 1000 to 1000).
+- It is fixed because every unit label of an amount in this template is the fixed text "KRW thousand". The open
+  amounts are landed in KRW; the helper column `open_k` divides each open amount by the scale.
+- The check `aging_ties_raw` divides the raw total by the same scale, so with another scale every check would still
+  hold and every amount would be shown in another unit under the label "KRW thousand". Measured in Excel on the v5
+  specification (valid range 1 to 1,000,000): a scale of 1 gave an open total of 351,130,000 in `summary!D15`
+  (unit label "KRW thousand") in place of 351,130, and 13 of 13 checks held.
+- Build refuses another value with exit 2 and writes nothing: `input 'scale' (Display scale (fixed at 1000)) holds
+  <value>, outside its valid range 1000 to 1000`, followed by the input's note.
+- A model in another unit needs the labels changed. In `model.spec.json`, change:
+  - every `"unit": "KRW thousand"` (7 places: the helper column `open_k`, the blocks `aging` and `overdue`, and the
+    measures `total`, `not_due`, `past_due` and `over90`);
+  - the labels with "(KRW thousand)" (the helper column `open_k`: "Open amount (KRW thousand)") and the purpose of
+    `h_open_items` ("amount in KRW thousand");
+  - the helper column `open_k` (its id and label name the unit);
+  - the scale input: its value, its valid range (`"valid": {"min": <new value>, "max": <new value>}`), its label
+    and its note.
+- Then rebuild, check and render (SKILL.md P7).
+
+## Checks written in the specification
+
+- `aging_ties_raw`: Aging grid total equals the raw open amount.
+- `counts_tie_raw`: Invoice count grid total equals the raw row count.
+- `pct_ties`: Past due % times total equals total less not-due amount (total not 0). A total of 0 gives 0 %
+  (IFERROR in Past due %), so the actual side is 0; the expected side is then 0 less the not-due amount: 0 when no
+  amount is open, not 0 (the check fails) when not-due and past-due amounts cancel out.
+- `over90_ties`: Over-90 total equals the open amount of invoices in the last bucket.
+
+## How it was built and tested
+
+- Data: `make_data.py` writes `data/*.csv` and `data/controls.json` (deterministic, seed 20261125). The data are
+  generated, not copied from a course or book file.
+- Built with `rotm.py build --strict` (exit 0) and audited with `rotm.py audit --strict` (exit 0).
+- Recalculated in Excel 16.0 by `rotm.py check --strict`: checks: 13 of 13 hold; master check 0.
+- Every sheet rendered to `reports/render/` and looked at.
+
+## Limitations
+
+- Template of the rule-of-thumb-model plugin: the open items are generated by make_data.py (seed 20261125).
+- Days past due = the as-of date minus the due date; a negative number means not yet due.
+- Bucket bounds and names are inputs: change them in `model.spec.json` (the items of the inputs sheet) and rebuild; the lists must stay in the same order.
+- Inputs are changed in `model.spec.json` and the model is rebuilt. A value typed into the workbook's inputs sheet is not kept by a rebuild, and build refuses to overwrite such a file without `--force`.
+
+## Why this template
+
+The nested-IF ladder (IF > IF > IF > IF > AND, 77 formulas in 10 surveyed workbooks) is a top deep chain (style survey section D); this template replaces it with MATCH on bounds, then INDEX.

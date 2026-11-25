@@ -1,0 +1,65 @@
+{
+ "rotm_status": 1,
+ "workbooks": {
+  "model.xlsx": {
+   "land": {
+    "exit_code": 0,
+    "table": "open_items",
+    "rows": 240,
+    "digest": "sha256:d68713b5c72aa0005b94519e11476b968b73a260cc955a96cb6359da39a3ffc6",
+    "source": "data/open_items.csv",
+    "at": "2026-11-25T03:13:41+09:00"
+   },
+   "build": {
+    "exit_code": 0,
+    "sha256": "1a611fd75c28113e89c6139f8fc62b179bba2f4f0a9c89f724123229f47f46f6",
+    "errors": 0,
+    "warnings": 0,
+    "strict": true,
+    "spec_sha256": "290aa4cef18d59765b12d75708ffc646c91fe420b34261027f634faa726f9dad",
+    "at": "2026-11-26T03:53:21+09:00"
+   },
+   "audit": {
+    "at": "2026-11-26T03:53:28+09:00",
+    "exit_code": 0,
+    "strict": true,
+    "sha256": "61d606617e14d56722263786d9b668d070eaedcc2ce737d9528e568dfb61521b",
+    "errors": 0,
+    "warnings": 0,
+    "info": 0
+   },
+   "check": {
+    "at": "2026-11-26T03:53:22+09:00",
+    "exit_code": 0,
+    "strict": true,
+    "input_sha256": "1a611fd75c28113e89c6139f8fc62b179bba2f4f0a9c89f724123229f47f46f6",
+    "output_sha256": "61d606617e14d56722263786d9b668d070eaedcc2ce737d9528e568dfb61521b",
+    "recalculated": true,
+    "refreshed": false,
+    "checks": 13,
+    "failed": 0,
+    "alerts": 0,
+    "alerts_shown": 0,
+    "master": 0,
+    "errors": 0,
+    "warnings": 0,
+    "line": "checks: 13 of 13 hold"
+   },
+   "render": {
+    "at": "2026-11-26T03:53:29+09:00",
+    "exit_code": 0,
+    "sha256": "61d606617e14d56722263786d9b668d070eaedcc2ce737d9528e568dfb61521b",
+    "files": [
+     "reports/render/cover.png",
+     "reports/render/inputs.png",
+     "reports/render/raw_open_items.png",
+     "reports/render/h_open_items.png",
+     "reports/render/calc.png",
+     "reports/render/summary.png",
+     "reports/render/checks.png",
+     "reports/render/notes.png"
+    ]
+   }
+  }
+ }
+}

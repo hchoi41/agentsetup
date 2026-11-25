@@ -1,0 +1,123 @@
+{
+ "rotm_contract": 1,
+ "table": "target",
+ "raw_sheet": "raw_target",
+ "excel_table": "tbl_raw_target",
+ "purpose": "Monthly sales target per region",
+ "source": {
+  "connector": "power_query",
+  "system": "BigQuery",
+  "object": "proj.plan.sales_targets",
+  "from": "proj.plan.sales_targets t",
+  "where": "t.version = 'FY2026 v3' AND t.month_end BETWEEN '2026-01-31' AND '2026-06-30'"
+ },
+ "grain": "one row per region and month",
+ "key": [
+  "region",
+  "month_end"
+ ],
+ "columns": [
+  {
+   "name": "region",
+   "type": "text",
+   "unit": null,
+   "null_rule": "never",
+   "allowed": [
+    "East",
+    "North",
+    "South",
+    "West"
+   ],
+   "source_expression": "t.region",
+   "observed": {
+    "sample_rows": 24,
+    "nulls": 0,
+    "distinct": 4,
+    "examples": [
+     "East",
+     "North",
+     "South"
+    ]
+   },
+   "description": "sales region"
+  },
+  {
+   "name": "month_end",
+   "type": "date",
+   "unit": "date",
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "LAST_DAY(t.month)",
+   "observed": {
+    "sample_rows": 24,
+    "nulls": 0,
+    "distinct": 6,
+    "examples": [
+     "2026-01-31",
+     "2026-02-28",
+     "2026-03-31"
+    ],
+    "min": "2026-01-31",
+    "max": "2026-06-30"
+   },
+   "description": "last day of the target month"
+  },
+  {
+   "name": "target_amount",
+   "type": "number",
+   "unit": "KRW",
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "t.target_net_krw",
+   "observed": {
+    "sample_rows": 24,
+    "nulls": 0,
+    "distinct": 14,
+    "examples": [
+     "12000000",
+     "15000000",
+     "13000000"
+    ],
+    "min": 3000000.0,
+    "max": 23000000.0,
+    "sum": 268000000.0
+   },
+   "description": "sales target for the region and month, net of VAT, in KRW"
+  }
+ ],
+ "expect": {
+  "rows": {
+   "exact": 24
+  },
+  "totals": [
+   {
+    "column": "target_amount",
+    "value": 268000000,
+    "tolerance": 0,
+    "note": "source-side control total given with --total"
+   }
+  ]
+ },
+ "refresh": {
+  "frequency": null,
+  "capacity_rows": null,
+  "allow_empty": false
+ },
+ "notes": [
+  "key candidates in the sample (unique and never null): region + month_end"
+ ],
+ "proposed_at": "2026-11-25T02:56:33+09:00",
+ "proposed_by": "rotm.py contract propose",
+ "description": "proposed from the sample target.csv (24 rows, 3 columns)",
+ "agreement": {
+  "status": "agreed",
+  "contract_sha256": "20d21eb3ac6f06197c90dff9a243f0e5211b11beec73b5761ce302c914c20b0d",
+  "reply": "agreed: example agreement shipped with the worked example; no user gave it. A model made from this folder asks its user again.",
+  "by": "worked example (plugin author)",
+  "at": "2026-11-25T02:57:13+09:00",
+  "channel": "example",
+  "source_file": null,
+  "recorded_by": "rotm.py contract agree",
+  "shown_sha256": "20d21eb3ac6f06197c90dff9a243f0e5211b11beec73b5761ce302c914c20b0d"
+ }
+}

@@ -1,0 +1,7 @@
+{
+ "note": "Row count and total as the ledger's own trial balance report gives them (generated with the data).",
+ "gl_actuals": {
+  "rows": 419,
+  "amount": 171636600
+ }
+}

@@ -1,0 +1,12 @@
+{
+ "session_id": "00000000-0000-4000-8000-000000000001",
+ "transcript_path": "D:/work/example/transcripts/00000000-0000-4000-8000-000000000001.jsonl",
+ "cwd": "D:/work/example/models/sales",
+ "permission_mode": "acceptEdits",
+ "hook_event_name": "PostToolUse",
+ "tool_name": "Bash",
+ "tool_input": {"command": "ls", "description": "List files"},
+ "tool_response": {"stdout": "", "stderr": "", "interrupted": false, "isImage": false},
+ "tool_use_id": "toolu_01AAAAAAAAAAAAAAAAAAAAAA",
+ "duration_ms": 120
+}

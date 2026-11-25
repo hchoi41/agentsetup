@@ -1,0 +1,179 @@
+{
+ "about": "v4 (C-sol-3): incomplete formula forms measured with Excel 16.0 on the build PC on 2026-11-25. Each formula was written with openpyxl into calc!C1 of its own workbook (calc!A1:A3 hold 1, 2, 3; calc!B1 holds 2) and opened through lib.excel.recalc (save to a copy). refused: Excel did not open the workbook (the job error: Unable to get the Open property of the Workbooks class); the reason and the offsets (start, end in the display form, as F-DEPTH) are what lib.formula records as F-PARSE (error). accepted: Excel opened, calculated and saved the workbook with the formula unchanged (excel_value: the value Excel calculated); lib.formula records no F-PARSE for them. Measuring script: build/v4/P1/measure_incomplete.py (outside the plugin).",
+ "measured": "2026-11-25",
+ "excel_version": "16.0",
+ "refused": [
+  {
+   "formula": "=D39+",
+   "reason": "the operator '+' has no operand after it",
+   "start": 4,
+   "end": 5
+  },
+  {
+   "formula": "=A1&",
+   "reason": "the operator '&' has no operand after it",
+   "start": 3,
+   "end": 4
+  },
+  {
+   "formula": "=A1*/B1",
+   "reason": "two operators in a row ('*/')",
+   "start": 3,
+   "end": 5
+  },
+  {
+   "formula": "=A1+*B1",
+   "reason": "two operators in a row ('+*')",
+   "start": 3,
+   "end": 5
+  },
+  {
+   "formula": "=*A1",
+   "reason": "an operand is missing before '*'",
+   "start": 1,
+   "end": 2
+  },
+  {
+   "formula": "=SUM(*A1)",
+   "reason": "an operand is missing before '*'",
+   "start": 5,
+   "end": 6
+  },
+  {
+   "formula": "=SUM(A1",
+   "reason": "1 opening and 0 closing brackets",
+   "start": 4,
+   "end": 5
+  },
+  {
+   "formula": "=SUM(A1))",
+   "reason": "1 opening and 2 closing brackets",
+   "start": 8,
+   "end": 9
+  },
+  {
+   "formula": "=\"abc",
+   "reason": "a text in quotes is not closed",
+   "start": 1,
+   "end": 5
+  },
+  {
+   "formula": "=()",
+   "reason": "an operand is missing before ')'",
+   "start": 2,
+   "end": 3
+  },
+  {
+   "formula": "=(A1+)",
+   "reason": "the operator '+' has no operand after it",
+   "start": 4,
+   "end": 5
+  },
+  {
+   "formula": "=A1+%",
+   "reason": "two operators in a row ('+%')",
+   "start": 3,
+   "end": 5
+  },
+  {
+   "formula": "=-",
+   "reason": "the operator '-' has no operand after it",
+   "start": 1,
+   "end": 2
+  },
+  {
+   "formula": "=SUM(A1+,1)",
+   "reason": "the operator '+' has no operand after it",
+   "start": 7,
+   "end": 8
+  },
+  {
+   "formula": "=A1 +",
+   "reason": "the operator '+' has no operand after it",
+   "start": 4,
+   "end": 5
+  }
+ ],
+ "accepted": [
+  {
+   "formula": "=ROUND(A1,)",
+   "excel_value": "1"
+  },
+  {
+   "formula": "=ROUND(,1)",
+   "excel_value": "0"
+  },
+  {
+   "formula": "=MATCH(A1,,0)",
+   "excel_value": "#N/A"
+  },
+  {
+   "formula": "=SUM(,)",
+   "excel_value": "0"
+  },
+  {
+   "formula": "=IF(,1,2)",
+   "excel_value": "2"
+  },
+  {
+   "formula": "=INDEX(,1)",
+   "excel_value": "#VALUE!"
+  },
+  {
+   "formula": "=A1+-B1",
+   "excel_value": "-1"
+  },
+  {
+   "formula": "=A1++B1",
+   "excel_value": "3"
+  },
+  {
+   "formula": "=-A1",
+   "excel_value": "-1"
+  },
+  {
+   "formula": "=A1%",
+   "excel_value": "0.01"
+  },
+  {
+   "formula": "=IF(A1,,1)",
+   "excel_value": "0"
+  },
+  {
+   "formula": "=SUM(A1,)",
+   "excel_value": "1"
+  },
+  {
+   "formula": "=INDEX(A1:A3,,1)",
+   "excel_value": "1"
+  },
+  {
+   "formula": "=TODAY()",
+   "excel_value": "46351"
+  },
+  {
+   "formula": "=A1:B2 A1:A3",
+   "excel_value": "1"
+  },
+  {
+   "formula": "=SUM((A1,B1))",
+   "excel_value": "3"
+  },
+  {
+   "formula": "=--A1",
+   "excel_value": "1"
+  },
+  {
+   "formula": "=A1^-2",
+   "excel_value": "1"
+  },
+  {
+   "formula": "=A1=-1",
+   "excel_value": "False"
+  },
+  {
+   "formula": "=SUM(A1:A3)%",
+   "excel_value": "0.06"
+  }
+ ]
+}

@@ -1,0 +1,65 @@
+{
+ "rotm_report": 1,
+ "tool": "rule-of-thumb-model",
+ "version": "0.1.0",
+ "command": "audit",
+ "target": "model.xlsx",
+ "at": "2026-11-25T23:25:09+09:00",
+ "strict": true,
+ "exit_code": 0,
+ "status": "pass",
+ "summary": {
+  "errors": 0,
+  "warnings": 0,
+  "info": 0
+ },
+ "findings": [],
+ "notes": [],
+ "verified": {
+  "recalculated": false,
+  "rendered": false
+ },
+ "data": {
+  "mode": "manifest",
+  "settings": {
+   "depth_limit": 2,
+   "length_limit": 100,
+   "allowed_literals": [
+    0,
+    1
+   ],
+   "allow_functions": []
+  },
+  "product": "both",
+  "dictionary": {
+   "font": "Arial",
+   "sizes": {
+    "dense": 8,
+    "spaced": 9
+   },
+   "applied": []
+  },
+  "raw_sheets": {
+   "raw_gl_actuals": "manifest"
+  },
+  "sheets": 8,
+  "cells": 6902,
+  "formula_cells": 4449,
+  "has_cached_values": true,
+  "rules_run": [
+   "formula",
+   "raw-sheet",
+   "manifest raw-sheet",
+   "helper-column",
+   "block",
+   "inferred consistency",
+   "check",
+   "value",
+   "no-value",
+   "style",
+   "workbook"
+  ],
+  "selected_rules": null,
+  "sha256": "8f6167ccf6e8e4a516158a9bac3d684b7a7fd06522a2b1901916262d6adf04ea"
+ }
+}

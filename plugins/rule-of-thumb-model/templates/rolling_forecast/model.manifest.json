@@ -1,0 +1,1260 @@
+{
+ "rotm_manifest": 1,
+ "plugin_version": "0.1.0",
+ "built_at": "2026-11-25T23:25:35+09:00",
+ "spec": "model.spec.json",
+ "spec_sha256": "7cd189f71afdb9fafd6ddb9a5c48fe59458b4352b0e14c0fc46c0ef6424ad9c5",
+ "dictionary_sha256": "af368b9475cc6952edc947b1973bc099b8f2fd6b9a85781c4d62db2b9269c82e",
+ "dictionary_applied": [],
+ "workbook": "model.xlsx",
+ "settings": {
+  "depth_limit": 2,
+  "length_limit": 100,
+  "allowed_literals": [
+   0,
+   1
+  ],
+  "check_tolerance": 0.001,
+  "helper_spare_rows": 0,
+  "formula_key_check_max_rows": 5000,
+  "allow_functions": [],
+  "product": "both"
+ },
+ "sheets": [
+  {
+   "name": "cover",
+   "type": "cover",
+   "font_size": 9
+  },
+  {
+   "name": "inputs",
+   "type": "inputs",
+   "font_size": 9
+  },
+  {
+   "name": "raw_sales",
+   "type": "raw",
+   "font_size": 8,
+   "table": "sales",
+   "excel_table": "tbl_raw_sales",
+   "landing": "static",
+   "query_name": null,
+   "columns": [
+    "line_id",
+    "sale_date",
+    "product",
+    "revenue"
+   ],
+   "types": [
+    "text",
+    "date",
+    "text",
+    "number"
+   ],
+   "formats": [
+    "text",
+    "date",
+    "text",
+    "amount"
+   ],
+   "rows": 305,
+   "digest": "sha256:1ea01fbd10006d9a0072bf20ecc33d9095f80739484bb34eac0689164bb54746",
+   "snapshot": "raw/sales.csv",
+   "contract_sha256": "498ce1b97012145d6805e01f37a9844f5471a8d1133942d2ea115740d72bfcf9",
+   "workbook_digest": "sha256:1ea01fbd10006d9a0072bf20ecc33d9095f80739484bb34eac0689164bb54746"
+  },
+  {
+   "name": "h_sales",
+   "type": "helpers",
+   "font_size": 8,
+   "table": "sales",
+   "first_row": 2,
+   "last_row": 306,
+   "capacity": 305,
+   "columns": [
+    {
+     "id": "row",
+     "col": "A",
+     "kind": "row",
+     "formula": "=ROW()",
+     "header": "row",
+     "format": "integer"
+    },
+    {
+     "id": "in_raw",
+     "col": "B",
+     "kind": "flag",
+     "formula": "=--(INDEX(raw_sales!$A:$A,A2)<>\"\")",
+     "header": "in_raw",
+     "format": "flag"
+    },
+    {
+     "id": "line_id",
+     "col": "C",
+     "kind": "fetch",
+     "formula": "=INDEX(raw_sales!$A:$A,A2)&\"\"",
+     "raw_column": "line_id",
+     "header": "line_id",
+     "format": "text",
+     "type": "text"
+    },
+    {
+     "id": "sale_date",
+     "col": "D",
+     "kind": "fetch",
+     "formula": "=INDEX(raw_sales!$B:$B,A2)",
+     "raw_column": "sale_date",
+     "header": "sale_date",
+     "format": "date",
+     "type": "date"
+    },
+    {
+     "id": "product",
+     "col": "E",
+     "kind": "fetch",
+     "formula": "=INDEX(raw_sales!$C:$C,A2)&\"\"",
+     "raw_column": "product",
+     "header": "product",
+     "format": "text",
+     "type": "text"
+    },
+    {
+     "id": "revenue",
+     "col": "F",
+     "kind": "fetch",
+     "formula": "=INDEX(raw_sales!$D:$D,A2)",
+     "raw_column": "revenue",
+     "header": "revenue",
+     "format": "amount",
+     "type": "number"
+    },
+    {
+     "id": "month_end",
+     "col": "G",
+     "kind": "derived",
+     "formula": "=EOMONTH(D2,0)",
+     "header": "month_end",
+     "format": "month",
+     "label": "Month end"
+    },
+    {
+     "id": "revenue_k",
+     "col": "H",
+     "kind": "derived",
+     "formula": "=F2/inputs!$D$10",
+     "header": "revenue_k",
+     "format": "amount1",
+     "label": "Revenue (KRW thousand)"
+    },
+    {
+     "id": "dup",
+     "col": "I",
+     "kind": "dup",
+     "formula": "=--(SUMPRODUCT(--EXACT(C$2:C2,C2))>1)*B2",
+     "header": "dup",
+     "format": "flag"
+    }
+   ],
+   "capacity_source": "landed rows"
+  },
+  {
+   "name": "calc",
+   "type": "calc",
+   "font_size": 8,
+   "blocks": [
+    {
+     "id": "actual",
+     "shape": "grid",
+     "body": "D6:O9",
+     "total": "P10",
+     "checks": [
+      "actual_ties_raw",
+      "outlook_ties",
+      "runrate_ties"
+     ],
+     "title": "Actual revenue (closed months)",
+     "heading_row": 4,
+     "header_row": 5,
+     "labels": "B6:B9",
+     "total_row": 10,
+     "total_col": "P",
+     "cols_kind": "timeline",
+     "rows_kind": "in"
+    },
+    {
+     "id": "is_actual",
+     "shape": "items",
+     "body": "D14:O14",
+     "total": null,
+     "checks": [
+      "months_flagged"
+     ],
+     "title": "Month type",
+     "heading_row": 12,
+     "header_row": 13,
+     "labels": "B14:B14",
+     "total_row": null,
+     "total_col": null,
+     "cols_kind": "same_as",
+     "rows_kind": "items",
+     "items": [
+      {
+       "id": "flag",
+       "label": "Actual month (1) or forecast month (0)",
+       "row": 14,
+       "first": false,
+       "key": false
+      }
+     ]
+    },
+    {
+     "id": "runrate",
+     "shape": "grid",
+     "body": "D18:D21",
+     "total": null,
+     "checks": [
+      "outlook_ties",
+      "runrate_ties"
+     ],
+     "title": "Run rate per month",
+     "heading_row": 16,
+     "header_row": 17,
+     "labels": "B18:B21",
+     "total_row": null,
+     "total_col": null,
+     "cols_kind": "values",
+     "rows_kind": "same_as"
+    },
+    {
+     "id": "growth_row",
+     "shape": "grid",
+     "body": "D25:D28",
+     "total": null,
+     "checks": [
+      "growth_ties",
+      "outlook_ties"
+     ],
+     "title": "Growth per product (looked up)",
+     "heading_row": 23,
+     "header_row": 24,
+     "labels": "B25:B28",
+     "total_row": null,
+     "total_col": null,
+     "cols_kind": "values",
+     "rows_kind": "same_as"
+    },
+    {
+     "id": "forecast",
+     "shape": "grid",
+     "body": "D32:O35",
+     "total": "P36",
+     "checks": [
+      "cum_ties",
+      "fy_pct_ties",
+      "months_total",
+      "outlook_ties"
+     ],
+     "title": "Outlook: actual months, then run rate times (1 + growth)",
+     "heading_row": 30,
+     "header_row": 31,
+     "labels": "B32:B35",
+     "total_row": 36,
+     "total_col": "P",
+     "cols_kind": "same_as",
+     "rows_kind": "same_as"
+    },
+    {
+     "id": "corkscrew",
+     "shape": "items",
+     "body": "D40:O41",
+     "total": null,
+     "checks": [
+      "cum_ties"
+     ],
+     "title": "Cumulative outlook, all products",
+     "heading_row": 38,
+     "header_row": 39,
+     "labels": "B40:B41",
+     "total_row": null,
+     "total_col": null,
+     "cols_kind": "same_as",
+     "rows_kind": "items",
+     "items": [
+      {
+       "id": "month_total",
+       "label": "Outlook of the month",
+       "row": 40,
+       "first": false,
+       "key": false
+      },
+      {
+       "id": "cum",
+       "label": "Cumulative outlook",
+       "row": 41,
+       "first": true,
+       "key": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "summary",
+   "type": "output",
+   "font_size": 9,
+   "blocks": [
+    {
+     "id": "fy",
+     "shape": "measures",
+     "body": "D7:H10",
+     "total": null,
+     "checks": [
+      "fy_pct_ties"
+     ],
+     "title": "Full-year outlook against budget",
+     "heading_row": 4,
+     "header_row": 5,
+     "labels": "B7:B10",
+     "total_row": 11,
+     "total_col": null,
+     "cols_kind": "measures",
+     "rows_kind": "same_as",
+     "measures": [
+      {
+       "id": "ytd",
+       "label": "Actual to date",
+       "col": "D",
+       "total": "sum",
+       "key": false
+      },
+      {
+       "id": "outlook",
+       "label": "Full-year outlook",
+       "col": "E",
+       "total": "sum",
+       "key": false
+      },
+      {
+       "id": "bud",
+       "label": "Budget",
+       "col": "F",
+       "total": "sum",
+       "key": false
+      },
+      {
+       "id": "var",
+       "label": "Outlook minus budget",
+       "col": "G",
+       "total": "sum",
+       "key": false
+      },
+      {
+       "id": "pct",
+       "label": "Variance %",
+       "col": "H",
+       "total": "same",
+       "key": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "checks",
+   "type": "checks",
+   "font_size": 9,
+   "master": "C2",
+   "results": "I5:I20",
+   "ids": "B5:B20"
+  },
+  {
+   "name": "notes",
+   "type": "notes",
+   "font_size": 9
+  }
+ ],
+ "inputs": {
+  "start_month": "inputs!D6",
+  "last_actual": "inputs!D7",
+  "actual_months": "inputs!D8",
+  "forecast_months": "inputs!D9",
+  "scale": "inputs!D10",
+  "products": "inputs!D14:D17",
+  "growth": "inputs!D21:D24",
+  "budget": "inputs!D28:D31",
+  "sales_rows_min": "inputs!D35",
+  "sales_rows_max": "inputs!D36",
+  "sales_total_revenue": "inputs!D37",
+  "sales_tol_revenue": "inputs!D38",
+  "check_tolerance": "inputs!D39"
+ },
+ "cells": {
+  "corkscrew.cum": "calc!O41",
+  "cum": "calc!O41",
+  "fy.pct": "summary!H11",
+  "pct": "summary!H11"
+ },
+ "checks": [
+  {
+   "id": "sales_rows",
+   "kind": "range",
+   "result": "checks!I5",
+   "auto": true,
+   "targets": [
+    "raw_sales"
+   ],
+   "label": "Rows of raw_sales lie within the contract's range",
+   "severity": "error",
+   "result_formula": "=--(OR(D5<E5,D5>F5))"
+  },
+  {
+   "id": "sales_total_revenue",
+   "kind": "equal",
+   "result": "checks!I6",
+   "auto": true,
+   "targets": [
+    "raw_sales"
+   ],
+   "label": "Sum of raw_sales revenue equals the contract's control total",
+   "severity": "error",
+   "result_formula": "=--(ABS(G6)>H6)"
+  },
+  {
+   "id": "sales_nulls_sale_date",
+   "kind": "zero",
+   "result": "checks!I7",
+   "auto": true,
+   "targets": [
+    "raw_sales"
+   ],
+   "label": "Empty cells in raw_sales sale_date (never null by contract)",
+   "severity": "error",
+   "result_formula": "=--(D7<>0)"
+  },
+  {
+   "id": "sales_nulls_product",
+   "kind": "zero",
+   "result": "checks!I8",
+   "auto": true,
+   "targets": [
+    "raw_sales"
+   ],
+   "label": "Empty cells in raw_sales product (never null by contract)",
+   "severity": "error",
+   "result_formula": "=--(D8<>0)"
+  },
+  {
+   "id": "sales_nulls_revenue",
+   "kind": "zero",
+   "result": "checks!I9",
+   "auto": true,
+   "targets": [
+    "raw_sales"
+   ],
+   "label": "Empty cells in raw_sales revenue (never null by contract)",
+   "severity": "error",
+   "result_formula": "=--(D9<>0)"
+  },
+  {
+   "id": "sales_cover",
+   "kind": "at_most",
+   "result": "checks!I10",
+   "auto": true,
+   "targets": [
+    "raw_sales",
+    "h_sales"
+   ],
+   "label": "Raw rows of raw_sales not covered by h_sales",
+   "severity": "error",
+   "result_formula": "=--(D10>E10)"
+  },
+  {
+   "id": "sales_beyond",
+   "kind": "zero",
+   "result": "checks!I11",
+   "auto": true,
+   "targets": [
+    "h_sales"
+   ],
+   "label": "Helper rows of h_sales below the last raw row of raw_sales",
+   "severity": "error",
+   "result_formula": "=--(D11<>0)"
+  },
+  {
+   "id": "sales_keys",
+   "kind": "zero",
+   "result": "checks!I12",
+   "auto": true,
+   "targets": [
+    "h_sales"
+   ],
+   "label": "Rows of raw_sales repeating an earlier key (line_id)",
+   "severity": "error",
+   "result_formula": "=--(D12<>0)"
+  },
+  {
+   "id": "actual_ties_raw",
+   "kind": "equal",
+   "result": "checks!I13",
+   "auto": false,
+   "targets": [
+    "calc!D6:O9",
+    "raw_sales"
+   ],
+   "label": "Actual block total equals the raw sales total",
+   "severity": "error",
+   "result_formula": "=--(ABS(G13)>H13)"
+  },
+  {
+   "id": "months_flagged",
+   "kind": "equal",
+   "result": "checks!I14",
+   "auto": false,
+   "targets": [
+    "calc!D14:O14"
+   ],
+   "label": "Actual months input equals the months flagged actual on the timeline",
+   "severity": "error",
+   "result_formula": "=--(ABS(G14)>H14)"
+  },
+  {
+   "id": "months_total",
+   "kind": "equal",
+   "result": "checks!I15",
+   "auto": false,
+   "targets": [
+    "calc!D32:O35"
+   ],
+   "label": "Actual months plus forecast months equals the timeline length",
+   "severity": "error",
+   "result_formula": "=--(ABS(G15)>H15)"
+  },
+  {
+   "id": "runrate_ties",
+   "kind": "equal",
+   "result": "checks!I16",
+   "auto": false,
+   "targets": [
+    "calc!D18:D21",
+    "calc!D6:O9"
+   ],
+   "label": "Run rates times actual months equal the actual total",
+   "severity": "error",
+   "result_formula": "=--(ABS(G16)>H16)"
+  },
+  {
+   "id": "growth_ties",
+   "kind": "equal",
+   "result": "checks!I17",
+   "auto": false,
+   "targets": [
+    "calc!D25:D28"
+   ],
+   "label": "Looked-up growth equals the growth inputs",
+   "severity": "error",
+   "result_formula": "=--(ABS(G17)>H17)"
+  },
+  {
+   "id": "outlook_ties",
+   "kind": "equal",
+   "result": "checks!I18",
+   "auto": false,
+   "targets": [
+    "calc!D32:O35",
+    "calc!D6:O9",
+    "calc!D18:D21",
+    "calc!D25:D28"
+   ],
+   "label": "Outlook total equals actuals plus forecast months at run rate times (1 + growth)",
+   "severity": "error",
+   "result_formula": "=--(ABS(G18)>H18)"
+  },
+  {
+   "id": "cum_ties",
+   "kind": "equal",
+   "result": "checks!I19",
+   "auto": false,
+   "targets": [
+    "calc!O41",
+    "calc!D32:O35"
+   ],
+   "label": "Cumulative outlook in December equals the outlook total",
+   "severity": "error",
+   "result_formula": "=--(ABS(G19)>H19)"
+  },
+  {
+   "id": "fy_pct_ties",
+   "kind": "equal",
+   "result": "checks!I20",
+   "auto": false,
+   "targets": [
+    "summary!H11",
+    "calc!D32:O35"
+   ],
+   "label": "Full-year variance % times budget equals outlook less budget (budget not 0)",
+   "severity": "error",
+   "result_formula": "=--(ABS(G20)>H20)"
+  }
+ ],
+ "master_check": "checks!C2",
+ "master_formula": "=--(OR(SUM(I5:I20)>0,COUNT(I5:I20)<>COUNTA(B5:B20)))",
+ "master_links": [
+  "cover!C2",
+  "inputs!C2",
+  "calc!C2",
+  "summary!C2",
+  "notes!C2"
+ ],
+ "cell_types": {
+  "cover": [
+   [
+    "B1",
+    "title"
+   ],
+   [
+    "B2",
+    "label"
+   ],
+   [
+    "C2",
+    "master_check"
+   ],
+   [
+    "B4",
+    "heading"
+   ],
+   [
+    "B5:B6",
+    "label"
+   ],
+   [
+    "B8",
+    "heading"
+   ],
+   [
+    "B9:E9",
+    "col_header"
+   ],
+   [
+    "B10:B17",
+    "row_header"
+   ],
+   [
+    "C10:C17",
+    "unit"
+   ],
+   [
+    "D10:D17",
+    "label"
+   ],
+   [
+    "E10:E17",
+    "note"
+   ],
+   [
+    "B19",
+    "heading"
+   ],
+   [
+    "B20:E20",
+    "col_header"
+   ],
+   [
+    "B21:B36",
+    "row_header"
+   ],
+   [
+    "C21:C29",
+    "unit"
+   ],
+   [
+    "D21",
+    "input"
+   ],
+   [
+    "E21:E26",
+    "note"
+   ],
+   [
+    "D22",
+    "calc"
+   ],
+   [
+    "D23",
+    "link"
+   ],
+   [
+    "D24",
+    "import"
+   ],
+   [
+    "D25",
+    "check"
+   ],
+   [
+    "D26",
+    "master_check"
+   ],
+   [
+    "D27:E27",
+    "note"
+   ],
+   [
+    "D28",
+    "col_header"
+   ],
+   [
+    "E28:E36",
+    "note"
+   ],
+   [
+    "D29",
+    "row_header"
+   ],
+   [
+    "C30:D30",
+    "unit"
+   ],
+   [
+    "C31:C36",
+    "unit"
+   ],
+   [
+    "D31",
+    "raw"
+   ],
+   [
+    "D32",
+    "title"
+   ],
+   [
+    "D33",
+    "heading"
+   ],
+   [
+    "D34",
+    "total"
+   ],
+   [
+    "D35",
+    "output"
+   ],
+   [
+    "D36",
+    "label"
+   ],
+   [
+    "B38",
+    "heading"
+   ],
+   [
+    "B39:B43",
+    "row_header"
+   ],
+   [
+    "C39:C43",
+    "unit"
+   ],
+   [
+    "E39:E43",
+    "note"
+   ],
+   [
+    "B45",
+    "heading"
+   ],
+   [
+    "B46:B51",
+    "label"
+   ]
+  ],
+  "inputs": [
+   [
+    "B1",
+    "title"
+   ],
+   [
+    "B2",
+    "label"
+   ],
+   [
+    "C2",
+    "master_check"
+   ],
+   [
+    "B4",
+    "heading"
+   ],
+   [
+    "B5:E5",
+    "col_header"
+   ],
+   [
+    "B6:B10",
+    "row_header"
+   ],
+   [
+    "C6:C10",
+    "unit"
+   ],
+   [
+    "D6:D10",
+    "input"
+   ],
+   [
+    "E6:E10",
+    "note"
+   ],
+   [
+    "B12",
+    "heading"
+   ],
+   [
+    "B13:E13",
+    "col_header"
+   ],
+   [
+    "B14:B17",
+    "row_header"
+   ],
+   [
+    "C14:C17",
+    "unit"
+   ],
+   [
+    "D14:D17",
+    "input"
+   ],
+   [
+    "E14",
+    "note"
+   ],
+   [
+    "B19",
+    "heading"
+   ],
+   [
+    "B20:D20",
+    "col_header"
+   ],
+   [
+    "E20",
+    "note"
+   ],
+   [
+    "B21:B24",
+    "row_header"
+   ],
+   [
+    "C21:C24",
+    "unit"
+   ],
+   [
+    "D21:D24",
+    "input"
+   ],
+   [
+    "B26",
+    "heading"
+   ],
+   [
+    "B27:D27",
+    "col_header"
+   ],
+   [
+    "E27",
+    "note"
+   ],
+   [
+    "B28:B31",
+    "row_header"
+   ],
+   [
+    "C28:C31",
+    "unit"
+   ],
+   [
+    "D28:D31",
+    "input"
+   ],
+   [
+    "B33",
+    "heading"
+   ],
+   [
+    "B34:E34",
+    "col_header"
+   ],
+   [
+    "B35:B39",
+    "row_header"
+   ],
+   [
+    "C35:C39",
+    "unit"
+   ],
+   [
+    "D35:D39",
+    "input"
+   ],
+   [
+    "E35:E39",
+    "note"
+   ]
+  ],
+  "raw_sales": [
+   [
+    "A1:D1",
+    "col_header"
+   ],
+   [
+    "A2:D306",
+    "raw"
+   ]
+  ],
+  "h_sales": [
+   [
+    "A1:I1",
+    "col_header"
+   ],
+   [
+    "A2:I306",
+    "calc"
+   ]
+  ],
+  "calc": [
+   [
+    "B1",
+    "title"
+   ],
+   [
+    "B2",
+    "label"
+   ],
+   [
+    "C2",
+    "master_check"
+   ],
+   [
+    "B4",
+    "heading"
+   ],
+   [
+    "B5:P5",
+    "col_header"
+   ],
+   [
+    "B6:B10",
+    "row_header"
+   ],
+   [
+    "C6:C10",
+    "unit"
+   ],
+   [
+    "D6:P9",
+    "calc"
+   ],
+   [
+    "D10:P10",
+    "total"
+   ],
+   [
+    "B12",
+    "heading"
+   ],
+   [
+    "B13:O13",
+    "col_header"
+   ],
+   [
+    "B14",
+    "row_header"
+   ],
+   [
+    "C14",
+    "unit"
+   ],
+   [
+    "D14:O14",
+    "calc"
+   ],
+   [
+    "B16",
+    "heading"
+   ],
+   [
+    "B17:D17",
+    "col_header"
+   ],
+   [
+    "B18:B21",
+    "row_header"
+   ],
+   [
+    "C18:C21",
+    "unit"
+   ],
+   [
+    "D18:D21",
+    "calc"
+   ],
+   [
+    "B23",
+    "heading"
+   ],
+   [
+    "B24:D24",
+    "col_header"
+   ],
+   [
+    "B25:B28",
+    "row_header"
+   ],
+   [
+    "C25:C28",
+    "unit"
+   ],
+   [
+    "D25:D28",
+    "calc"
+   ],
+   [
+    "B30",
+    "heading"
+   ],
+   [
+    "B31:P31",
+    "col_header"
+   ],
+   [
+    "B32:B36",
+    "row_header"
+   ],
+   [
+    "C32:C36",
+    "unit"
+   ],
+   [
+    "D32:P35",
+    "calc"
+   ],
+   [
+    "D36:P36",
+    "total"
+   ],
+   [
+    "B38",
+    "heading"
+   ],
+   [
+    "B39:O39",
+    "col_header"
+   ],
+   [
+    "B40:B41",
+    "row_header"
+   ],
+   [
+    "C40:C41",
+    "unit"
+   ],
+   [
+    "D40:O40",
+    "link"
+   ],
+   [
+    "D41:O41",
+    "output"
+   ]
+  ],
+  "summary": [
+   [
+    "B1",
+    "title"
+   ],
+   [
+    "B2",
+    "label"
+   ],
+   [
+    "C2",
+    "master_check"
+   ],
+   [
+    "B4",
+    "heading"
+   ],
+   [
+    "B5:H5",
+    "col_header"
+   ],
+   [
+    "B6:B11",
+    "row_header"
+   ],
+   [
+    "C6:H6",
+    "unit"
+   ],
+   [
+    "C7:C11",
+    "unit"
+   ],
+   [
+    "D7:G10",
+    "calc"
+   ],
+   [
+    "H7:H10",
+    "output"
+   ],
+   [
+    "D11:H11",
+    "total"
+   ]
+  ],
+  "checks": [
+   [
+    "B1",
+    "title"
+   ],
+   [
+    "B2",
+    "label"
+   ],
+   [
+    "C2",
+    "master_check"
+   ],
+   [
+    "B4:J4",
+    "col_header"
+   ],
+   [
+    "B5:C20",
+    "row_header"
+   ],
+   [
+    "D5:D9",
+    "calc"
+   ],
+   [
+    "E5:F5",
+    "import"
+   ],
+   [
+    "I5:I20",
+    "check"
+   ],
+   [
+    "J5:J20",
+    "note"
+   ],
+   [
+    "E6",
+    "import"
+   ],
+   [
+    "G6",
+    "calc"
+   ],
+   [
+    "H6",
+    "import"
+   ],
+   [
+    "D10:E10",
+    "calc"
+   ],
+   [
+    "D11:D12",
+    "calc"
+   ],
+   [
+    "D13:D14",
+    "import"
+   ],
+   [
+    "E13:E14",
+    "calc"
+   ],
+   [
+    "G13:G20",
+    "calc"
+   ],
+   [
+    "H13:H20",
+    "import"
+   ],
+   [
+    "D15:E15",
+    "calc"
+   ],
+   [
+    "D16",
+    "calc"
+   ],
+   [
+    "E16",
+    "import"
+   ],
+   [
+    "D17:E17",
+    "calc"
+   ],
+   [
+    "D18",
+    "import"
+   ],
+   [
+    "E18",
+    "calc"
+   ],
+   [
+    "D19:E19",
+    "import"
+   ],
+   [
+    "D20:E20",
+    "calc"
+   ]
+  ],
+  "notes": [
+   [
+    "B1",
+    "title"
+   ],
+   [
+    "B2",
+    "label"
+   ],
+   [
+    "C2",
+    "master_check"
+   ],
+   [
+    "B4",
+    "heading"
+   ],
+   [
+    "B5:E5",
+    "col_header"
+   ],
+   [
+    "B6:B7",
+    "row_header"
+   ],
+   [
+    "C6:C7",
+    "unit"
+   ],
+   [
+    "D6:E7",
+    "note"
+   ]
+  ]
+ },
+ "outside_checks": [],
+ "formula_cells": 3080
+}

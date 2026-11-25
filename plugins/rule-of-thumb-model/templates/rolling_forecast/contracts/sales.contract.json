@@ -1,0 +1,142 @@
+{
+ "rotm_contract": 1,
+ "table": "sales",
+ "raw_sheet": "raw_sales",
+ "excel_table": "tbl_raw_sales",
+ "purpose": "Sales lines of the closed months for the rolling forecast",
+ "source": {
+  "connector": "power_query",
+  "system": "BigQuery",
+  "object": "proj.sales.lines",
+  "from": "proj.sales.lines s",
+  "where": "s.sale_date BETWEEN '2026-01-01' AND '2026-03-31'"
+ },
+ "grain": "one row per sales line",
+ "key": [
+  "line_id"
+ ],
+ "columns": [
+  {
+   "name": "line_id",
+   "type": "text",
+   "unit": null,
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "s.line_id",
+   "observed": {
+    "sample_rows": 305,
+    "nulls": 0,
+    "distinct": 305,
+    "examples": [
+     "S00001",
+     "S00002",
+     "S00003"
+    ]
+   },
+   "description": "sales line id"
+  },
+  {
+   "name": "sale_date",
+   "type": "date",
+   "unit": "date",
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "s.sale_date",
+   "observed": {
+    "sample_rows": 305,
+    "nulls": 0,
+    "distinct": 81,
+    "examples": [
+     "2026-01-28",
+     "2026-01-15",
+     "2026-01-17"
+    ],
+    "min": "2026-01-01",
+    "max": "2026-03-27"
+   },
+   "description": "date of the sale"
+  },
+  {
+   "name": "product",
+   "type": "text",
+   "unit": null,
+   "null_rule": "never",
+   "allowed": [
+    "Alpha",
+    "Beta",
+    "Delta",
+    "Gamma"
+   ],
+   "source_expression": "s.product_name",
+   "observed": {
+    "sample_rows": 305,
+    "nulls": 0,
+    "distinct": 4,
+    "examples": [
+     "Delta",
+     "Beta",
+     "Alpha"
+    ]
+   },
+   "description": "product"
+  },
+  {
+   "name": "revenue",
+   "type": "number",
+   "unit": "KRW",
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "s.net_revenue_krw",
+   "observed": {
+    "sample_rows": 305,
+    "nulls": 0,
+    "distinct": 214,
+    "examples": [
+     "815000",
+     "100000",
+     "1720000"
+    ],
+    "min": 10000.0,
+    "max": 1995000.0,
+    "sum": 307355000.0
+   },
+   "description": "net revenue in KRW"
+  }
+ ],
+ "expect": {
+  "rows": {
+   "min": 1,
+   "max": 100000
+  },
+  "totals": [
+   {
+    "column": "revenue",
+    "value": 307355000,
+    "tolerance": 0,
+    "note": "source-side control total given with --total"
+   }
+  ]
+ },
+ "refresh": {
+  "frequency": null,
+  "capacity_rows": null,
+  "allow_empty": false
+ },
+ "notes": [
+  "key candidates in the sample (unique and never null): line_id"
+ ],
+ "proposed_at": "2026-11-25T03:10:45+09:00",
+ "proposed_by": "rotm.py contract propose",
+ "description": "proposed from the sample sales.csv (305 rows, 4 columns)",
+ "agreement": {
+  "status": "agreed",
+  "contract_sha256": "498ce1b97012145d6805e01f37a9844f5471a8d1133942d2ea115740d72bfcf9",
+  "reply": "agreed: example agreement shipped with this template; no user gave it. A model made from this folder asks its user again.",
+  "by": "template (plugin author)",
+  "at": "2026-11-25T03:10:47+09:00",
+  "channel": "example",
+  "source_file": null,
+  "recorded_by": "rotm.py contract agree",
+  "shown_sha256": "498ce1b97012145d6805e01f37a9844f5471a8d1133942d2ea115740d72bfcf9"
+ }
+}

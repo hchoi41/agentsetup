@@ -1,0 +1,12 @@
+{
+  "name": "agentsetup",
+  "description": "Max's Claude Code plugins.",
+  "owner": {"name": "Max"},
+  "plugins": [
+    {
+      "name": "rule-of-thumb-model",
+      "source": "./plugins/rule-of-thumb-model",
+      "description": "Spreadsheet models the rule-of-thumb way: agree the column contract, land raw data by SQL (Connected Sheets or Power Query), then model with short formulas (at most 2 nested functions), helper and checker cells and one style dictionary (Arial 8 or 9, grey headers, minimal colour). Commands: contract, build, theme, audit, check, compat, trace, split, lift, diff, document; four hooks."
+    }
+  ]
+}

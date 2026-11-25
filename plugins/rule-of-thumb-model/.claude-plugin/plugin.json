@@ -1,0 +1,8 @@
+{
+  "name": "rule-of-thumb-model",
+  "version": "0.1.0",
+  "description": "Build, audit, restyle and check spreadsheet models in Excel and Google Sheets on raw data landed by SQL (Power Query / Get Data or Connected Sheets). Agree the destination columns first, keep raw sheets as landed data, model with short formulas (at most 2 nested functions), helper columns and checker cells, style every cell from one dictionary (Arial 8 or 9, grey headers, minimal colour), recalculate in Excel and look at the sheets. Commands: contract, build, theme, audit, check, compat, trace, split, lift, diff, document. Hooks: contract gate, raw-sheet guard, audit on write, finish check.",
+  "author": {
+    "name": "Max"
+  }
+}

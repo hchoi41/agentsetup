@@ -529,6 +529,18 @@
       "dest": "docs/tikitaka_role_charter.md",
       "mode": "file",
       "note": "Tikitaka role charter (authority for the engine)."
+    },
+    {
+      "src": "AGENTS_SETUP/rule-of-thumb-model",
+      "dest": "plugins/rule-of-thumb-model",
+      "mode": "tree",
+      "note": "Claude Code plugin rule-of-thumb-model (v6 of the 2026-11-24 tikitaka run); listed in .claude-plugin/marketplace.json"
+    },
+    {
+      "src": "STAGED/repo_marketplace.json",
+      "dest": ".claude-plugin/marketplace.json",
+      "mode": "file",
+      "note": "plugin marketplace of this repo: /plugin marketplace add hchoi41/agentsetup"
     }
   ],
   "exclude_always": [

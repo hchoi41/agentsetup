@@ -1,0 +1,42 @@
+{
+  "description": "rule-of-thumb-model hooks (design section 13): contract gate and raw-sheet guard (PreToolUse), audit on write (PostToolUse and PostToolUseFailure), finish check (Stop). They act only inside a model folder: a folder holding rotm_model.json, written by rotm.py init (the first step of the procedure) or by rotm.py contract propose. Standard-library Python run with -I; PYTHONUTF8=1 and -X utf8 because hook stdout is cp1252 on Windows otherwise. Not a security boundary: a hook whose own script fails lets the action through and prints one line (run_hook.sh covers a Python that cannot start).",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|Bash|PowerShell",
+        "hooks": [
+          {"type": "command", "timeout": 20, "command": "PYTHONUTF8=1 python -I -X utf8 -B \"${CLAUDE_PLUGIN_ROOT}/hooks/contract_gate.py\" || \"${BASH:-bash}\" \"${CLAUDE_PLUGIN_ROOT}/hooks/run_hook.sh\" $? contract_gate.py"}
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell",
+        "hooks": [
+          {"type": "command", "timeout": 20, "command": "PYTHONUTF8=1 python -I -X utf8 -B \"${CLAUDE_PLUGIN_ROOT}/hooks/raw_guard.py\" || \"${BASH:-bash}\" \"${CLAUDE_PLUGIN_ROOT}/hooks/run_hook.sh\" $? raw_guard.py"}
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {"type": "command", "timeout": 120, "command": "PYTHONUTF8=1 python -I -X utf8 -B \"${CLAUDE_PLUGIN_ROOT}/hooks/audit_on_write.py\" || \"${BASH:-bash}\" \"${CLAUDE_PLUGIN_ROOT}/hooks/run_hook.sh\" $? audit_on_write.py"}
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {"type": "command", "timeout": 120, "command": "PYTHONUTF8=1 python -I -X utf8 -B \"${CLAUDE_PLUGIN_ROOT}/hooks/audit_on_write.py\" || \"${BASH:-bash}\" \"${CLAUDE_PLUGIN_ROOT}/hooks/run_hook.sh\" $? audit_on_write.py"}
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {"type": "command", "timeout": 30, "command": "PYTHONUTF8=1 python -I -X utf8 -B \"${CLAUDE_PLUGIN_ROOT}/hooks/finish_check.py\" || \"${BASH:-bash}\" \"${CLAUDE_PLUGIN_ROOT}/hooks/run_hook.sh\" $? finish_check.py"}
+        ]
+      }
+    ]
+  }
+}

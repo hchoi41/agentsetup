@@ -1,0 +1,65 @@
+{
+ "rotm_status": 1,
+ "workbooks": {
+  "model.xlsx": {
+   "land": {
+    "exit_code": 0,
+    "table": "sales",
+    "rows": 250,
+    "digest": "sha256:a135d2a4b9b9cc420c64a97cefad510f9055cc766d270532151d36ffdea71567",
+    "source": "data/sales.csv",
+    "at": "2026-11-25T03:13:10+09:00"
+   },
+   "build": {
+    "exit_code": 0,
+    "sha256": "643a11ef23bf7f44f7acef227005a279a50eeabe780946aa9e2a7f7c07679a7a",
+    "errors": 0,
+    "warnings": 0,
+    "strict": true,
+    "spec_sha256": "10e784a3951a814b9010fbb5d12f19fe86340dd0d01a8d2de04fbdce2d3ba8e6",
+    "at": "2026-11-26T03:53:38+09:00"
+   },
+   "audit": {
+    "at": "2026-11-26T03:53:45+09:00",
+    "exit_code": 0,
+    "strict": true,
+    "sha256": "4e5c229013726476f3b1baf7310aa59ddf0357d62cdccd96a912f28e9554dc7f",
+    "errors": 0,
+    "warnings": 0,
+    "info": 0
+   },
+   "check": {
+    "at": "2026-11-26T03:53:39+09:00",
+    "exit_code": 0,
+    "strict": true,
+    "input_sha256": "643a11ef23bf7f44f7acef227005a279a50eeabe780946aa9e2a7f7c07679a7a",
+    "output_sha256": "4e5c229013726476f3b1baf7310aa59ddf0357d62cdccd96a912f28e9554dc7f",
+    "recalculated": true,
+    "refreshed": false,
+    "checks": 14,
+    "failed": 0,
+    "alerts": 0,
+    "alerts_shown": 0,
+    "master": 0,
+    "errors": 0,
+    "warnings": 0,
+    "line": "checks: 14 of 14 hold"
+   },
+   "render": {
+    "at": "2026-11-26T03:53:45+09:00",
+    "exit_code": 0,
+    "sha256": "4e5c229013726476f3b1baf7310aa59ddf0357d62cdccd96a912f28e9554dc7f",
+    "files": [
+     "reports/render/cover.png",
+     "reports/render/inputs.png",
+     "reports/render/raw_sales.png",
+     "reports/render/h_sales.png",
+     "reports/render/calc.png",
+     "reports/render/summary.png",
+     "reports/render/checks.png",
+     "reports/render/notes.png"
+    ]
+   }
+  }
+ }
+}

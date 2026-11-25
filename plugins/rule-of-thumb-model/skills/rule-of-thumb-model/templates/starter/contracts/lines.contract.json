@@ -1,0 +1,142 @@
+{
+ "rotm_contract": 1,
+ "table": "lines",
+ "raw_sheet": "raw_lines",
+ "excel_table": "tbl_raw_lines",
+ "purpose": "Expense lines for the starter model",
+ "source": {
+  "connector": "power_query",
+  "system": "BigQuery",
+  "object": "proj.fin.expense_lines",
+  "from": "proj.fin.expense_lines e",
+  "where": "e.line_date BETWEEN '2026-01-01' AND '2026-03-31'"
+ },
+ "grain": "one row per expense line",
+ "key": [
+  "line_id"
+ ],
+ "columns": [
+  {
+   "name": "line_id",
+   "type": "text",
+   "unit": null,
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "e.line_id",
+   "observed": {
+    "sample_rows": 60,
+    "nulls": 0,
+    "distinct": 60,
+    "examples": [
+     "L0001",
+     "L0002",
+     "L0003"
+    ]
+   },
+   "description": "expense line id"
+  },
+  {
+   "name": "line_date",
+   "type": "date",
+   "unit": "date",
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "e.line_date",
+   "observed": {
+    "sample_rows": 60,
+    "nulls": 0,
+    "distinct": 43,
+    "examples": [
+     "2026-01-02",
+     "2026-02-27",
+     "2026-02-01"
+    ],
+    "min": "2026-01-02",
+    "max": "2026-03-31"
+   },
+   "description": "date of the expense"
+  },
+  {
+   "name": "category",
+   "type": "text",
+   "unit": null,
+   "null_rule": "never",
+   "allowed": [
+    "Rent",
+    "Staff",
+    "Supplies",
+    "Travel"
+   ],
+   "source_expression": "e.category",
+   "observed": {
+    "sample_rows": 60,
+    "nulls": 0,
+    "distinct": 4,
+    "examples": [
+     "Staff",
+     "Supplies",
+     "Travel"
+    ]
+   },
+   "description": "expense category"
+  },
+  {
+   "name": "amount",
+   "type": "number",
+   "unit": "KRW",
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "e.amount_krw",
+   "observed": {
+    "sample_rows": 60,
+    "nulls": 0,
+    "distinct": 59,
+    "examples": [
+     "655000",
+     "1158000",
+     "1938500"
+    ],
+    "min": 49000.0,
+    "max": 1981500.0,
+    "sum": 57514500.0
+   },
+   "description": "amount in KRW"
+  }
+ ],
+ "expect": {
+  "rows": {
+   "min": 1,
+   "max": 10000
+  },
+  "totals": [
+   {
+    "column": "amount",
+    "value": 57514500,
+    "tolerance": 0,
+    "note": "source-side control total given with --total"
+   }
+  ]
+ },
+ "refresh": {
+  "frequency": null,
+  "capacity_rows": null,
+  "allow_empty": false
+ },
+ "notes": [
+  "key candidates in the sample (unique and never null): line_id"
+ ],
+ "proposed_at": "2026-11-25T03:07:51+09:00",
+ "proposed_by": "rotm.py contract propose",
+ "description": "proposed from the sample lines.csv (60 rows, 4 columns)",
+ "agreement": {
+  "status": "agreed",
+  "contract_sha256": "faec27f3b5574f095e80c760c494156ab84ae6dd8793e5fc01c8575f87b5314c",
+  "reply": "agreed: example agreement shipped with this template; no user gave it. A model made from this folder asks its user again.",
+  "by": "template (plugin author)",
+  "at": "2026-11-25T03:07:53+09:00",
+  "channel": "example",
+  "source_file": null,
+  "recorded_by": "rotm.py contract agree",
+  "shown_sha256": "faec27f3b5574f095e80c760c494156ab84ae6dd8793e5fc01c8575f87b5314c"
+ }
+}

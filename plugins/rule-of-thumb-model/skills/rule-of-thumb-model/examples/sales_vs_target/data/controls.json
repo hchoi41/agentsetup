@@ -1,0 +1,11 @@
+{
+ "note": "Row counts and totals as the source system's own reports give them (generated with the data).",
+ "sales": {
+  "rows": 600,
+  "amount": 264697350
+ },
+ "target": {
+  "rows": 24,
+  "target_amount": 268000000
+ }
+}

@@ -1,0 +1,311 @@
+{
+ "rotm_spec": 1,
+ "name": "sales_test",
+ "title": "Sales versus target, January to June 2026 (build test)",
+ "purpose": "Monthly sales by region against target, with variance.",
+ "output": "model.xlsx",
+ "product": "both",
+ "limitations": [
+  "Test model for tests/test_build.py; targets are invented."
+ ],
+ "sheets": [
+  {
+   "name": "inputs",
+   "type": "inputs",
+   "items": [
+    {
+     "id": "start_month",
+     "label": "First month",
+     "value": "2026-01-31",
+     "type": "date",
+     "unit": "date",
+     "source": "test"
+    },
+    {
+     "id": "scale",
+     "label": "Display scale (fixed at 1000)",
+     "value": 1000,
+     "type": "number",
+     "format": "count",
+     "unit": "KRW per unit shown",
+     "source": "test",
+     "valid": {
+      "min": 1000,
+      "max": 1000
+     },
+     "note": "Fixed: the target grid is typed in KRW thousand."
+    },
+    {
+     "id": "regions",
+     "kind": "list",
+     "label": "Regions",
+     "values": [
+      "East",
+      "North",
+      "South",
+      "West"
+     ],
+     "format": "text",
+     "source": "contract sales"
+    },
+    {
+     "id": "target",
+     "kind": "grid",
+     "label": "Target",
+     "unit": "KRW thousand",
+     "format": "amount",
+     "rows": {
+      "values": [
+       "East",
+       "North",
+       "South",
+       "West"
+      ],
+      "label": "Region",
+      "format": "text"
+     },
+     "cols": {
+      "values": [
+       "2026-01-31",
+       "2026-02-28",
+       "2026-03-31",
+       "2026-04-30",
+       "2026-05-31",
+       "2026-06-30"
+      ],
+      "format": "month"
+     },
+     "values": [
+      [
+       1500,
+       1550,
+       1600,
+       1650,
+       1700,
+       1750
+      ],
+      [
+       1600,
+       1650,
+       1700,
+       1750,
+       1800,
+       1850
+      ],
+      [
+       1700,
+       1750,
+       1800,
+       1850,
+       1900,
+       1950
+      ],
+      [
+       1800,
+       1850,
+       1900,
+       1950,
+       2000,
+       2050
+      ]
+     ],
+     "source": "invented for the test"
+    }
+   ]
+  },
+  {
+   "name": "raw_sales",
+   "type": "raw",
+   "table": "sales"
+  },
+  {
+   "name": "h_sales",
+   "type": "helpers",
+   "table": "sales",
+   "columns": [
+    {
+     "id": "month_end",
+     "expr": "EOMONTH({this:inv_date},0)",
+     "format": "month",
+     "label": "Month end"
+    },
+    {
+     "id": "amount_k",
+     "expr": "{this:amount}/{in:scale}",
+     "format": "amount1",
+     "label": "Amount (KRW thousand)"
+    }
+   ]
+  },
+  {
+   "name": "calc",
+   "type": "calc",
+   "blocks": [
+    {
+     "id": "actual",
+     "title": "Actual sales",
+     "unit": "KRW thousand",
+     "format": "amount",
+     "rows": {
+      "in": "regions"
+     },
+     "cols": {
+      "timeline": {
+       "start": "start_month",
+       "periods": 6,
+       "step": "month"
+      }
+     },
+     "cell": "SUMIFS({h:sales.amount_k},{h:sales.region},{row},{h:sales.month_end},{col})",
+     "total": {
+      "row": true,
+      "col": true
+     }
+    },
+    {
+     "id": "tgt",
+     "title": "Target",
+     "unit": "KRW thousand",
+     "format": "amount",
+     "rows": {
+      "same_as": "actual"
+     },
+     "cols": {
+      "same_as": "actual"
+     },
+     "cell": "INDEX({in:target},MATCH({row},{in:target.rows},0),MATCH({col},{in:target.cols},0))",
+     "total": {
+      "row": true,
+      "col": true
+     }
+    },
+    {
+     "id": "bridge",
+     "title": "Variance",
+     "cols": {
+      "same_as": "actual"
+     },
+     "items": [
+      {
+       "id": "act",
+       "label": "Actual",
+       "unit": "KRW thousand",
+       "expr": "{b:actual.total}"
+      },
+      {
+       "id": "tg",
+       "label": "Target",
+       "unit": "KRW thousand",
+       "expr": "{b:tgt.total}"
+      },
+      {
+       "id": "var",
+       "label": "Variance",
+       "unit": "KRW thousand",
+       "expr": "{r:act}-{r:tg}"
+      },
+      {
+       "id": "cum",
+       "label": "Cumulative variance",
+       "unit": "KRW thousand",
+       "expr": "{prev}+{r:var}",
+       "first": "{r:var}",
+       "key": true,
+       "note": "running sum of the variance"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "summary",
+   "type": "output",
+   "blocks": [
+    {
+     "id": "ytd",
+     "title": "Year to date by region",
+     "rows": {
+      "same_as": "actual"
+     },
+     "unit": "KRW thousand",
+     "measures": [
+      {
+       "id": "act",
+       "label": "Actual",
+       "format": "amount",
+       "expr": "SUM({grow:actual})",
+       "total": "sum"
+      },
+      {
+       "id": "tg",
+       "label": "Target",
+       "format": "amount",
+       "expr": "SUM({grow:tgt})",
+       "total": "sum"
+      },
+      {
+       "id": "pct",
+       "label": "Variance %",
+       "format": "rate",
+       "unit": "%",
+       "expr": "IFERROR({m:act}/{m:tg}-1,0)",
+       "total": "same",
+       "key": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "checks",
+   "type": "checks",
+   "checks": [
+    {
+     "id": "actual_ties_raw",
+     "kind": "equal",
+     "label": "Actual block total equals the raw sales total",
+     "actual": "{blk:actual.total}",
+     "expected": "SUM({raw:sales.amount})/{in:scale}"
+    },
+    {
+     "id": "tgt_ties_input",
+     "kind": "equal",
+     "label": "Target block total equals the target grid",
+     "actual": "{blk:tgt.total}",
+     "expected": "SUM({in:target})"
+    },
+    {
+     "id": "cum_ties",
+     "kind": "equal",
+     "label": "Cumulative variance equals actual minus target",
+     "actual": "{cell:cum}",
+     "expected": "{blk:actual.total}-{blk:tgt.total}"
+    },
+    {
+     "id": "pct_ties",
+     "kind": "equal",
+     "label": "Variance % equals actual over target",
+     "actual": "{cell:pct}",
+     "expected": "{blk:actual.total}/{blk:tgt.total}-1"
+    },
+    {
+     "id": "neg_months",
+     "kind": "zero",
+     "severity": "alert",
+     "label": "Months with a negative cumulative variance",
+     "actual": "COUNTIF({blk:bridge},\"<-1000000000\")"
+    }
+   ]
+  },
+  {
+   "name": "notes",
+   "type": "notes",
+   "notes": [
+    {
+     "text": "Amounts are net of VAT.",
+     "source": "contract sales"
+    }
+   ]
+  }
+ ]
+}

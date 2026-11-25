@@ -1,0 +1,167 @@
+{
+ "rotm_contract": 1,
+ "table": "open_items",
+ "raw_sheet": "raw_open_items",
+ "excel_table": "tbl_raw_open_items",
+ "purpose": "Open receivables at the aging date",
+ "source": {
+  "connector": "power_query",
+  "system": "BigQuery",
+  "object": "proj.ar.open_items",
+  "from": "proj.ar.open_items a",
+  "where": "a.snapshot_date = '2026-06-30' AND a.open_amount_krw <> 0"
+ },
+ "grain": "one row per open invoice",
+ "key": [
+  "invoice_id"
+ ],
+ "columns": [
+  {
+   "name": "invoice_id",
+   "type": "text",
+   "unit": null,
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "a.invoice_id",
+   "observed": {
+    "sample_rows": 240,
+    "nulls": 0,
+    "distinct": 240,
+    "examples": [
+     "INV00001",
+     "INV00002",
+     "INV00003"
+    ]
+   },
+   "description": "invoice number"
+  },
+  {
+   "name": "customer",
+   "type": "text",
+   "unit": null,
+   "null_rule": "never",
+   "allowed": [
+    "Arden",
+    "Birch",
+    "Cobalt",
+    "Dunmore",
+    "Elm",
+    "Fairview",
+    "Granite",
+    "Harbor"
+   ],
+   "source_expression": "a.customer_name",
+   "observed": {
+    "sample_rows": 240,
+    "nulls": 0,
+    "distinct": 8,
+    "examples": [
+     "Arden",
+     "Granite",
+     "Elm"
+    ]
+   },
+   "description": "customer"
+  },
+  {
+   "name": "invoice_date",
+   "type": "date",
+   "unit": "date",
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "a.invoice_date",
+   "observed": {
+    "sample_rows": 240,
+    "nulls": 0,
+    "distinct": 118,
+    "examples": [
+     "2026-04-09",
+     "2026-03-16",
+     "2026-06-19"
+    ],
+    "min": "2026-01-18",
+    "max": "2026-06-28"
+   },
+   "description": "invoice date"
+  },
+  {
+   "name": "due_date",
+   "type": "date",
+   "unit": "date",
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "a.due_date",
+   "observed": {
+    "sample_rows": 240,
+    "nulls": 0,
+    "distinct": 128,
+    "examples": [
+     "2026-05-09",
+     "2026-05-15",
+     "2026-08-18"
+    ],
+    "min": "2026-02-17",
+    "max": "2026-08-27"
+   },
+   "description": "due date under the payment terms"
+  },
+  {
+   "name": "open_amount",
+   "type": "number",
+   "unit": "KRW",
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "a.open_amount_krw",
+   "observed": {
+    "sample_rows": 240,
+    "nulls": 0,
+    "distinct": 237,
+    "examples": [
+     "161000",
+     "515000",
+     "231000"
+    ],
+    "min": 17000.0,
+    "max": 2995000.0,
+    "sum": 351130000.0
+   },
+   "description": "amount still open at the snapshot date, in KRW"
+  }
+ ],
+ "expect": {
+  "rows": {
+   "min": 1,
+   "max": 100000
+  },
+  "totals": [
+   {
+    "column": "open_amount",
+    "value": 351130000,
+    "tolerance": 0,
+    "note": "source-side control total given with --total"
+   }
+  ]
+ },
+ "refresh": {
+  "frequency": null,
+  "capacity_rows": null,
+  "allow_empty": false
+ },
+ "notes": [
+  "key candidates in the sample (unique and never null): invoice_id"
+ ],
+ "proposed_at": "2026-11-25T03:13:39+09:00",
+ "proposed_by": "rotm.py contract propose",
+ "description": "proposed from the sample open_items.csv (240 rows, 5 columns)",
+ "agreement": {
+  "status": "agreed",
+  "contract_sha256": "646c2d36ebd3520e4d8344a7a1ad0a7a611b66223193a9dee3760118216abb8f",
+  "reply": "agreed: example agreement shipped with this template; no user gave it. A model made from this folder asks its user again.",
+  "by": "template (plugin author)",
+  "at": "2026-11-25T03:13:41+09:00",
+  "channel": "example",
+  "source_file": null,
+  "recorded_by": "rotm.py contract agree",
+  "shown_sha256": "646c2d36ebd3520e4d8344a7a1ad0a7a611b66223193a9dee3760118216abb8f"
+ }
+}

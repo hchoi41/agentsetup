@@ -1,0 +1,191 @@
+{
+ "rotm_contract": 1,
+ "table": "sales",
+ "raw_sheet": "raw_sales",
+ "excel_table": "tbl_raw_sales",
+ "purpose": "Invoice lines for the sales-versus-target model",
+ "source": {
+  "connector": "power_query",
+  "system": "BigQuery",
+  "object": "proj.ds.invoice_lines",
+  "from": "proj.ds.invoice_lines l JOIN proj.ds.invoices i USING (invoice_id)",
+  "where": "i.posted AND i.inv_date BETWEEN '2026-01-01' AND '2026-06-30'"
+ },
+ "grain": "one row per invoice line",
+ "key": [
+  "invoice_id",
+  "line_no"
+ ],
+ "columns": [
+  {
+   "name": "invoice_id",
+   "type": "text",
+   "unit": null,
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "CAST(i.invoice_id AS STRING)",
+   "observed": {
+    "sample_rows": 600,
+    "nulls": 0,
+    "distinct": 322,
+    "examples": [
+     "000101",
+     "000102",
+     "000103"
+    ]
+   },
+   "description": "invoice number, six digits, leading zeros kept"
+  },
+  {
+   "name": "line_no",
+   "type": "integer",
+   "unit": "count",
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "l.line_no",
+   "observed": {
+    "sample_rows": 600,
+    "nulls": 0,
+    "distinct": 3,
+    "examples": [
+     "1",
+     "2",
+     "3"
+    ],
+    "min": 1,
+    "max": 3,
+    "sum": 954
+   },
+   "description": "line number within the invoice, from 1"
+  },
+  {
+   "name": "inv_date",
+   "type": "date",
+   "unit": "date",
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "i.inv_date",
+   "observed": {
+    "sample_rows": 600,
+    "nulls": 0,
+    "distinct": 152,
+    "examples": [
+     "2026-01-03",
+     "2026-06-09",
+     "2026-06-13"
+    ],
+    "min": "2026-01-01",
+    "max": "2026-06-30"
+   },
+   "description": "invoice date"
+  },
+  {
+   "name": "region",
+   "type": "text",
+   "unit": null,
+   "null_rule": "never",
+   "allowed": [
+    "East",
+    "North",
+    "South",
+    "West"
+   ],
+   "source_expression": "i.region",
+   "observed": {
+    "sample_rows": 600,
+    "nulls": 0,
+    "distinct": 4,
+    "examples": [
+     "North",
+     "West",
+     "South"
+    ]
+   },
+   "description": "sales region of the customer"
+  },
+  {
+   "name": "product",
+   "type": "text",
+   "unit": null,
+   "null_rule": "allowed",
+   "allowed": [
+    "P1",
+    "P2",
+    "P3",
+    "P4",
+    "P5",
+    "P6"
+   ],
+   "source_expression": "l.product_code",
+   "observed": {
+    "sample_rows": 600,
+    "nulls": 27,
+    "distinct": 6,
+    "examples": [
+     "P1",
+     "P6",
+     "P3"
+    ]
+   },
+   "description": "product code; empty when the line has no product (service lines)"
+  },
+  {
+   "name": "amount",
+   "type": "number",
+   "unit": "KRW",
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "l.net_amount",
+   "observed": {
+    "sample_rows": 600,
+    "nulls": 0,
+    "distinct": 590,
+    "examples": [
+     "858800",
+     "791050",
+     "492100"
+    ],
+    "min": 10750.0,
+    "max": 897700.0,
+    "sum": 264697350.0
+   },
+   "description": "line amount net of VAT, in KRW"
+  }
+ ],
+ "expect": {
+  "rows": {
+   "min": 1,
+   "max": 5000
+  },
+  "totals": [
+   {
+    "column": "amount",
+    "value": 264697350,
+    "tolerance": 0,
+    "note": "source-side control total given with --total"
+   }
+  ]
+ },
+ "refresh": {
+  "frequency": null,
+  "capacity_rows": null,
+  "allow_empty": false
+ },
+ "notes": [
+  "key candidates in the sample (unique and never null): invoice_id + line_no"
+ ],
+ "proposed_at": "2026-11-25T02:56:31+09:00",
+ "proposed_by": "rotm.py contract propose",
+ "description": "proposed from the sample sales.csv (600 rows, 6 columns)",
+ "agreement": {
+  "status": "agreed",
+  "contract_sha256": "8498b10038384772cc814369b50538a6fda636bd0ebdadac63e5b4958d846e12",
+  "reply": "agreed: example agreement shipped with the worked example; no user gave it. A model made from this folder asks its user again.",
+  "by": "worked example (plugin author)",
+  "at": "2026-11-25T02:57:11+09:00",
+  "channel": "example",
+  "source_file": null,
+  "recorded_by": "rotm.py contract agree",
+  "shown_sha256": "8498b10038384772cc814369b50538a6fda636bd0ebdadac63e5b4958d846e12"
+ }
+}

@@ -1,0 +1,170 @@
+{
+ "rotm_contract": 1,
+ "table": "sales",
+ "raw_sheet": "raw_sales",
+ "excel_table": "tbl_raw_sales",
+ "purpose": "Order lines of the prior and the current period for the price-volume-mix bridge",
+ "source": {
+  "connector": "power_query",
+  "system": "BigQuery",
+  "object": "proj.sales.order_lines",
+  "from": "proj.sales.order_lines o",
+  "where": "o.fiscal_year IN (2025, 2026) AND o.status = 'invoiced'"
+ },
+ "grain": "one row per order line",
+ "key": [
+  "line_id"
+ ],
+ "columns": [
+  {
+   "name": "line_id",
+   "type": "text",
+   "unit": null,
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "o.line_id",
+   "observed": {
+    "sample_rows": 250,
+    "nulls": 0,
+    "distinct": 250,
+    "examples": [
+     "O00001",
+     "O00002",
+     "O00003"
+    ]
+   },
+   "description": "order line id"
+  },
+  {
+   "name": "period",
+   "type": "text",
+   "unit": null,
+   "null_rule": "never",
+   "allowed": [
+    "CY",
+    "PY"
+   ],
+   "source_expression": "IF(o.fiscal_year = 2025, 'PY', 'CY')",
+   "observed": {
+    "sample_rows": 250,
+    "nulls": 0,
+    "distinct": 2,
+    "examples": [
+     "PY",
+     "CY"
+    ]
+   },
+   "description": "PY = prior year, CY = current year (a label, not a calculation: the contract's scope has these two years)"
+  },
+  {
+   "name": "product",
+   "type": "text",
+   "unit": null,
+   "null_rule": "never",
+   "allowed": [
+    "Basic",
+    "Max",
+    "Plus",
+    "Pro"
+   ],
+   "source_expression": "o.product_name",
+   "observed": {
+    "sample_rows": 250,
+    "nulls": 0,
+    "distinct": 4,
+    "examples": [
+     "Pro",
+     "Plus",
+     "Basic"
+    ]
+   },
+   "description": "product"
+  },
+  {
+   "name": "qty",
+   "type": "integer",
+   "unit": "units",
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "o.quantity",
+   "observed": {
+    "sample_rows": 250,
+    "nulls": 0,
+    "distinct": 20,
+    "examples": [
+     "1",
+     "2",
+     "16"
+    ],
+    "min": 1,
+    "max": 20,
+    "sum": 2607
+   },
+   "description": "units on the line"
+  },
+  {
+   "name": "revenue",
+   "type": "number",
+   "unit": "KRW",
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "o.net_revenue_krw",
+   "observed": {
+    "sample_rows": 250,
+    "nulls": 0,
+    "distinct": 220,
+    "examples": [
+     "59300",
+     "70000",
+     "324800"
+    ],
+    "min": 19500.0,
+    "max": 2082400.0,
+    "sum": 102662100.0
+   },
+   "description": "net revenue of the line in KRW"
+  }
+ ],
+ "expect": {
+  "rows": {
+   "min": 1,
+   "max": 200000
+  },
+  "totals": [
+   {
+    "column": "qty",
+    "value": 2607,
+    "tolerance": 0,
+    "note": "source-side control total given with --total"
+   },
+   {
+    "column": "revenue",
+    "value": 102662100,
+    "tolerance": 0,
+    "note": "source-side control total given with --total"
+   }
+  ]
+ },
+ "refresh": {
+  "frequency": null,
+  "capacity_rows": null,
+  "allow_empty": false
+ },
+ "notes": [
+  "key candidates in the sample (unique and never null): line_id"
+ ],
+ "proposed_at": "2026-11-25T03:13:08+09:00",
+ "proposed_by": "rotm.py contract propose",
+ "description": "proposed from the sample sales.csv (250 rows, 5 columns)",
+ "agreement": {
+  "status": "agreed",
+  "contract_sha256": "5a0d75bc1dc92d3bb27c43735848d3bf3d03d7065f674adf7f663c42571d0d46",
+  "reply": "agreed: example agreement shipped with this template; no user gave it. A model made from this folder asks its user again.",
+  "by": "template (plugin author)",
+  "at": "2026-11-25T03:13:09+09:00",
+  "channel": "example",
+  "source_file": null,
+  "recorded_by": "rotm.py contract agree",
+  "shown_sha256": "5a0d75bc1dc92d3bb27c43735848d3bf3d03d7065f674adf7f663c42571d0d46"
+ }
+}

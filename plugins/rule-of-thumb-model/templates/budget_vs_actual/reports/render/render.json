@@ -1,0 +1,97 @@
+{
+ "rotm_render": 1,
+ "workbook": "model.xlsx",
+ "sha256": "8f6167ccf6e8e4a516158a9bac3d684b7a7fd06522a2b1901916262d6adf04ea",
+ "at": "2026-11-25T23:25:29+09:00",
+ "note": "rendered, not looked at by code",
+ "files": [
+  {
+   "sheet": "cover",
+   "file": "cover.png",
+   "range": "A1:E48",
+   "last_row": 48,
+   "last_col": 5,
+   "truncated": false,
+   "width_px": 724,
+   "height_px": 921,
+   "problem": null
+  },
+  {
+   "sheet": "inputs",
+   "file": "inputs.png",
+   "range": "A1:J36",
+   "last_row": 36,
+   "last_col": 10,
+   "truncated": false,
+   "width_px": 1402,
+   "height_px": 609,
+   "problem": null
+  },
+  {
+   "sheet": "raw_gl_actuals",
+   "file": "raw_gl_actuals.png",
+   "range": "A1:E200",
+   "last_row": 420,
+   "last_col": 5,
+   "truncated": true,
+   "width_px": 518,
+   "height_px": 3200,
+   "problem": null
+  },
+  {
+   "sheet": "h_gl_actuals",
+   "file": "h_gl_actuals.png",
+   "range": "A1:J200",
+   "last_row": 420,
+   "last_col": 10,
+   "truncated": true,
+   "width_px": 834,
+   "height_px": 3200,
+   "problem": null
+  },
+  {
+   "sheet": "calc",
+   "file": "calc.png",
+   "range": "A1:J34",
+   "last_row": 34,
+   "last_col": 10,
+   "truncated": false,
+   "width_px": 954,
+   "height_px": 544,
+   "problem": null
+  },
+  {
+   "sheet": "summary",
+   "file": "summary.png",
+   "range": "A1:G11",
+   "last_row": 11,
+   "last_col": 7,
+   "truncated": false,
+   "width_px": 633,
+   "height_px": 176,
+   "problem": null
+  },
+  {
+   "sheet": "checks",
+   "file": "checks.png",
+   "range": "A1:J18",
+   "last_row": 18,
+   "last_col": 10,
+   "truncated": false,
+   "width_px": 1624,
+   "height_px": 288,
+   "problem": null
+  },
+  {
+   "sheet": "notes",
+   "file": "notes.png",
+   "range": "A1:E7",
+   "last_row": 7,
+   "last_col": 5,
+   "truncated": false,
+   "width_px": 891,
+   "height_px": 146,
+   "problem": null
+  }
+ ]
+}

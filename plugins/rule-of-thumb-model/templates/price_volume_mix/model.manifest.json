@@ -1,0 +1,1089 @@
+{
+ "rotm_manifest": 1,
+ "plugin_version": "0.1.0",
+ "built_at": "2026-11-26T03:53:38+09:00",
+ "spec": "model.spec.json",
+ "spec_sha256": "10e784a3951a814b9010fbb5d12f19fe86340dd0d01a8d2de04fbdce2d3ba8e6",
+ "dictionary_sha256": "4fdc5e5739af4964b0652d11f313f996ac67880477916c6799763e60e942e400",
+ "dictionary_applied": [],
+ "workbook": "model.xlsx",
+ "settings": {
+  "depth_limit": 2,
+  "length_limit": 100,
+  "allowed_literals": [
+   0,
+   1
+  ],
+  "check_tolerance": 0.001,
+  "helper_spare_rows": 0,
+  "formula_key_check_max_rows": 5000,
+  "allow_functions": [],
+  "product": "both"
+ },
+ "sheets": [
+  {
+   "name": "cover",
+   "type": "cover",
+   "font_size": 9
+  },
+  {
+   "name": "inputs",
+   "type": "inputs",
+   "font_size": 9
+  },
+  {
+   "name": "raw_sales",
+   "type": "raw",
+   "font_size": 8,
+   "table": "sales",
+   "excel_table": "tbl_raw_sales",
+   "landing": "static",
+   "query_name": null,
+   "columns": [
+    "line_id",
+    "period",
+    "product",
+    "qty",
+    "revenue"
+   ],
+   "types": [
+    "text",
+    "text",
+    "text",
+    "integer",
+    "number"
+   ],
+   "formats": [
+    "text",
+    "text",
+    "text",
+    "count",
+    "amount"
+   ],
+   "rows": 250,
+   "digest": "sha256:a135d2a4b9b9cc420c64a97cefad510f9055cc766d270532151d36ffdea71567",
+   "snapshot": "raw/sales.csv",
+   "contract_sha256": "5a0d75bc1dc92d3bb27c43735848d3bf3d03d7065f674adf7f663c42571d0d46",
+   "workbook_digest": "sha256:a135d2a4b9b9cc420c64a97cefad510f9055cc766d270532151d36ffdea71567"
+  },
+  {
+   "name": "h_sales",
+   "type": "helpers",
+   "font_size": 8,
+   "table": "sales",
+   "first_row": 2,
+   "last_row": 251,
+   "capacity": 250,
+   "columns": [
+    {
+     "id": "row",
+     "col": "A",
+     "kind": "row",
+     "formula": "=ROW()",
+     "header": "row",
+     "format": "integer"
+    },
+    {
+     "id": "in_raw",
+     "col": "B",
+     "kind": "flag",
+     "formula": "=--(INDEX(raw_sales!$A:$A,A2)<>\"\")",
+     "header": "in_raw",
+     "format": "flag"
+    },
+    {
+     "id": "line_id",
+     "col": "C",
+     "kind": "fetch",
+     "formula": "=INDEX(raw_sales!$A:$A,A2)&\"\"",
+     "raw_column": "line_id",
+     "header": "line_id",
+     "format": "text",
+     "type": "text"
+    },
+    {
+     "id": "period",
+     "col": "D",
+     "kind": "fetch",
+     "formula": "=INDEX(raw_sales!$B:$B,A2)&\"\"",
+     "raw_column": "period",
+     "header": "period",
+     "format": "text",
+     "type": "text"
+    },
+    {
+     "id": "product",
+     "col": "E",
+     "kind": "fetch",
+     "formula": "=INDEX(raw_sales!$C:$C,A2)&\"\"",
+     "raw_column": "product",
+     "header": "product",
+     "format": "text",
+     "type": "text"
+    },
+    {
+     "id": "qty",
+     "col": "F",
+     "kind": "fetch",
+     "formula": "=INDEX(raw_sales!$D:$D,A2)",
+     "raw_column": "qty",
+     "header": "qty",
+     "format": "count",
+     "type": "integer"
+    },
+    {
+     "id": "revenue",
+     "col": "G",
+     "kind": "fetch",
+     "formula": "=INDEX(raw_sales!$E:$E,A2)",
+     "raw_column": "revenue",
+     "header": "revenue",
+     "format": "amount",
+     "type": "number"
+    },
+    {
+     "id": "revenue_k",
+     "col": "H",
+     "kind": "derived",
+     "formula": "=G2/inputs!$D$6",
+     "header": "revenue_k",
+     "format": "amount2",
+     "label": "Revenue (KRW thousand)"
+    },
+    {
+     "id": "dup",
+     "col": "I",
+     "kind": "dup",
+     "formula": "=--(SUMPRODUCT(--EXACT(C$2:C2,C2))>1)*B2",
+     "header": "dup",
+     "format": "flag"
+    }
+   ],
+   "capacity_source": "landed rows"
+  },
+  {
+   "name": "calc",
+   "type": "calc",
+   "font_size": 9,
+   "blocks": [
+    {
+     "id": "units",
+     "shape": "items",
+     "body": "D6:D7",
+     "total": null,
+     "checks": [
+      "units_tie_raw"
+     ],
+     "title": "Total units",
+     "heading_row": 4,
+     "header_row": 5,
+     "labels": "B6:B7",
+     "total_row": null,
+     "total_col": null,
+     "cols_kind": "value",
+     "rows_kind": "items",
+     "items": [
+      {
+       "id": "tq_py",
+       "label": "Total units, prior period",
+       "row": 6,
+       "first": false,
+       "key": true
+      },
+      {
+       "id": "tq_cy",
+       "label": "Total units, current period",
+       "row": 7,
+       "first": false,
+       "key": true
+      }
+     ]
+    },
+    {
+     "id": "pvm",
+     "shape": "measures",
+     "body": "D12:N15",
+     "total": null,
+     "checks": [
+      "bridge_ties",
+      "r_cy_ties_raw",
+      "r_py_ties_raw"
+     ],
+     "title": "Effects per product",
+     "heading_row": 9,
+     "header_row": 10,
+     "labels": "B12:B15",
+     "total_row": 16,
+     "total_col": null,
+     "cols_kind": "measures",
+     "rows_kind": "in",
+     "measures": [
+      {
+       "id": "q_py",
+       "label": "Units PY",
+       "col": "D",
+       "total": "sum",
+       "key": false
+      },
+      {
+       "id": "q_cy",
+       "label": "Units CY",
+       "col": "E",
+       "total": "sum",
+       "key": false
+      },
+      {
+       "id": "r_py",
+       "label": "Revenue PY",
+       "col": "F",
+       "total": "sum",
+       "key": true
+      },
+      {
+       "id": "r_cy",
+       "label": "Revenue CY",
+       "col": "G",
+       "total": "sum",
+       "key": true
+      },
+      {
+       "id": "p_py",
+       "label": "Price PY",
+       "col": "H",
+       "total": "same",
+       "key": false
+      },
+      {
+       "id": "p_cy",
+       "label": "Price CY",
+       "col": "I",
+       "total": "same",
+       "key": false
+      },
+      {
+       "id": "mix_py",
+       "label": "Mix PY",
+       "col": "J",
+       "total": "sum",
+       "key": false
+      },
+      {
+       "id": "mix_cy",
+       "label": "Mix CY",
+       "col": "K",
+       "total": "sum",
+       "key": false
+      },
+      {
+       "id": "vol",
+       "label": "Volume effect",
+       "col": "L",
+       "total": "sum",
+       "key": true
+      },
+      {
+       "id": "mix",
+       "label": "Mix effect",
+       "col": "M",
+       "total": "sum",
+       "key": true
+      },
+      {
+       "id": "price",
+       "label": "Price effect",
+       "col": "N",
+       "total": "sum",
+       "key": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "summary",
+   "type": "output",
+   "font_size": 9,
+   "blocks": [
+    {
+     "id": "bridge",
+     "shape": "items",
+     "body": "D6:D10",
+     "total": null,
+     "checks": [
+      "bridge_ties"
+     ],
+     "title": "Revenue bridge",
+     "heading_row": 4,
+     "header_row": 5,
+     "labels": "B6:B10",
+     "total_row": null,
+     "total_col": null,
+     "cols_kind": "value",
+     "rows_kind": "items",
+     "items": [
+      {
+       "id": "b_start",
+       "label": "Revenue, prior period",
+       "row": 6,
+       "first": false,
+       "key": false
+      },
+      {
+       "id": "b_vol",
+       "label": "Volume effect",
+       "row": 7,
+       "first": false,
+       "key": false
+      },
+      {
+       "id": "b_mix",
+       "label": "Mix effect",
+       "row": 8,
+       "first": false,
+       "key": false
+      },
+      {
+       "id": "b_price",
+       "label": "Price effect",
+       "row": 9,
+       "first": false,
+       "key": false
+      },
+      {
+       "id": "b_end",
+       "label": "Revenue, current period",
+       "row": 10,
+       "first": false,
+       "key": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "checks",
+   "type": "checks",
+   "font_size": 9,
+   "master": "C2",
+   "results": "I5:I18",
+   "ids": "B5:B18"
+  },
+  {
+   "name": "notes",
+   "type": "notes",
+   "font_size": 9
+  }
+ ],
+ "inputs": {
+  "scale": "inputs!D6",
+  "py_label": "inputs!D7",
+  "cy_label": "inputs!D8",
+  "products": "inputs!D12:D15",
+  "sales_rows_min": "inputs!D19",
+  "sales_rows_max": "inputs!D20",
+  "sales_total_qty": "inputs!D21",
+  "sales_tol_qty": "inputs!D22",
+  "sales_total_revenue": "inputs!D23",
+  "sales_tol_revenue": "inputs!D24",
+  "check_tolerance": "inputs!D25"
+ },
+ "cells": {
+  "units.tq_py": "calc!D6",
+  "tq_py": "calc!D6",
+  "units.tq_cy": "calc!D7",
+  "tq_cy": "calc!D7",
+  "pvm.r_py": "calc!F16",
+  "r_py": "calc!F16",
+  "pvm.r_cy": "calc!G16",
+  "r_cy": "calc!G16",
+  "pvm.vol": "calc!L16",
+  "vol": "calc!L16",
+  "pvm.mix": "calc!M16",
+  "mix": "calc!M16",
+  "pvm.price": "calc!N16",
+  "price": "calc!N16",
+  "bridge.b_end": "summary!D10",
+  "b_end": "summary!D10"
+ },
+ "checks": [
+  {
+   "id": "sales_rows",
+   "kind": "range",
+   "result": "checks!I5",
+   "auto": true,
+   "targets": [
+    "raw_sales"
+   ],
+   "label": "Rows of raw_sales lie within the contract's range",
+   "severity": "error",
+   "result_formula": "=--(OR(D5<E5,D5>F5))"
+  },
+  {
+   "id": "sales_total_qty",
+   "kind": "equal",
+   "result": "checks!I6",
+   "auto": true,
+   "targets": [
+    "raw_sales"
+   ],
+   "label": "Sum of raw_sales qty equals the contract's control total",
+   "severity": "error",
+   "result_formula": "=--(ABS(G6)>H6)"
+  },
+  {
+   "id": "sales_total_revenue",
+   "kind": "equal",
+   "result": "checks!I7",
+   "auto": true,
+   "targets": [
+    "raw_sales"
+   ],
+   "label": "Sum of raw_sales revenue equals the contract's control total",
+   "severity": "error",
+   "result_formula": "=--(ABS(G7)>H7)"
+  },
+  {
+   "id": "sales_nulls_period",
+   "kind": "zero",
+   "result": "checks!I8",
+   "auto": true,
+   "targets": [
+    "raw_sales"
+   ],
+   "label": "Empty cells in raw_sales period (never null by contract)",
+   "severity": "error",
+   "result_formula": "=--(D8<>0)"
+  },
+  {
+   "id": "sales_nulls_product",
+   "kind": "zero",
+   "result": "checks!I9",
+   "auto": true,
+   "targets": [
+    "raw_sales"
+   ],
+   "label": "Empty cells in raw_sales product (never null by contract)",
+   "severity": "error",
+   "result_formula": "=--(D9<>0)"
+  },
+  {
+   "id": "sales_nulls_qty",
+   "kind": "zero",
+   "result": "checks!I10",
+   "auto": true,
+   "targets": [
+    "raw_sales"
+   ],
+   "label": "Empty cells in raw_sales qty (never null by contract)",
+   "severity": "error",
+   "result_formula": "=--(D10<>0)"
+  },
+  {
+   "id": "sales_nulls_revenue",
+   "kind": "zero",
+   "result": "checks!I11",
+   "auto": true,
+   "targets": [
+    "raw_sales"
+   ],
+   "label": "Empty cells in raw_sales revenue (never null by contract)",
+   "severity": "error",
+   "result_formula": "=--(D11<>0)"
+  },
+  {
+   "id": "sales_cover",
+   "kind": "at_most",
+   "result": "checks!I12",
+   "auto": true,
+   "targets": [
+    "raw_sales",
+    "h_sales"
+   ],
+   "label": "Raw rows of raw_sales not covered by h_sales",
+   "severity": "error",
+   "result_formula": "=--(D12>E12)"
+  },
+  {
+   "id": "sales_beyond",
+   "kind": "zero",
+   "result": "checks!I13",
+   "auto": true,
+   "targets": [
+    "h_sales"
+   ],
+   "label": "Helper rows of h_sales below the last raw row of raw_sales",
+   "severity": "error",
+   "result_formula": "=--(D13<>0)"
+  },
+  {
+   "id": "sales_keys",
+   "kind": "zero",
+   "result": "checks!I14",
+   "auto": true,
+   "targets": [
+    "h_sales"
+   ],
+   "label": "Rows of raw_sales repeating an earlier key (line_id)",
+   "severity": "error",
+   "result_formula": "=--(D14<>0)"
+  },
+  {
+   "id": "r_py_ties_raw",
+   "kind": "equal",
+   "result": "checks!I15",
+   "auto": false,
+   "targets": [
+    "calc!F16",
+    "raw_sales"
+   ],
+   "label": "Prior-period revenue equals the raw prior-period total",
+   "severity": "error",
+   "result_formula": "=--(ABS(G15)>H15)"
+  },
+  {
+   "id": "r_cy_ties_raw",
+   "kind": "equal",
+   "result": "checks!I16",
+   "auto": false,
+   "targets": [
+    "calc!G16",
+    "raw_sales"
+   ],
+   "label": "Current-period revenue equals the raw current-period total",
+   "severity": "error",
+   "result_formula": "=--(ABS(G16)>H16)"
+  },
+  {
+   "id": "units_tie_raw",
+   "kind": "equal",
+   "result": "checks!I17",
+   "auto": false,
+   "targets": [
+    "calc!D6",
+    "calc!D7",
+    "raw_sales"
+   ],
+   "label": "Units of both periods equal the raw units total",
+   "severity": "error",
+   "result_formula": "=--(ABS(G17)>H17)"
+  },
+  {
+   "id": "bridge_ties",
+   "kind": "equal",
+   "result": "checks!I18",
+   "auto": false,
+   "targets": [
+    "summary!D10",
+    "calc!G16"
+   ],
+   "label": "The bridge ends at current-period revenue: the three effects add up to the change",
+   "severity": "error",
+   "result_formula": "=--(ABS(G18)>H18)"
+  }
+ ],
+ "master_check": "checks!C2",
+ "master_formula": "=--(OR(SUM(I5:I18)>0,COUNT(I5:I18)<>COUNTA(B5:B18)))",
+ "master_links": [
+  "cover!C2",
+  "inputs!C2",
+  "calc!C2",
+  "summary!C2",
+  "notes!C2"
+ ],
+ "cell_types": {
+  "cover": [
+   [
+    "B1",
+    "title"
+   ],
+   [
+    "B2",
+    "label"
+   ],
+   [
+    "C2",
+    "master_check"
+   ],
+   [
+    "B4",
+    "heading"
+   ],
+   [
+    "B5:B6",
+    "label"
+   ],
+   [
+    "B8",
+    "heading"
+   ],
+   [
+    "B9:E9",
+    "col_header"
+   ],
+   [
+    "B10:B17",
+    "row_header"
+   ],
+   [
+    "C10:C17",
+    "unit"
+   ],
+   [
+    "D10:D17",
+    "label"
+   ],
+   [
+    "E10:E17",
+    "note"
+   ],
+   [
+    "B19",
+    "heading"
+   ],
+   [
+    "B20:E20",
+    "col_header"
+   ],
+   [
+    "B21:B35",
+    "row_header"
+   ],
+   [
+    "C21:C28",
+    "unit"
+   ],
+   [
+    "D21",
+    "input"
+   ],
+   [
+    "E21:E25",
+    "note"
+   ],
+   [
+    "D22",
+    "calc"
+   ],
+   [
+    "D23",
+    "import"
+   ],
+   [
+    "D24",
+    "check"
+   ],
+   [
+    "D25",
+    "master_check"
+   ],
+   [
+    "D26:E26",
+    "note"
+   ],
+   [
+    "D27",
+    "col_header"
+   ],
+   [
+    "E27:E35",
+    "note"
+   ],
+   [
+    "D28",
+    "row_header"
+   ],
+   [
+    "C29:D29",
+    "unit"
+   ],
+   [
+    "C30:C35",
+    "unit"
+   ],
+   [
+    "D30",
+    "raw"
+   ],
+   [
+    "D31",
+    "title"
+   ],
+   [
+    "D32",
+    "heading"
+   ],
+   [
+    "D33",
+    "total"
+   ],
+   [
+    "D34",
+    "output"
+   ],
+   [
+    "D35",
+    "label"
+   ],
+   [
+    "B37",
+    "heading"
+   ],
+   [
+    "B38:B42",
+    "row_header"
+   ],
+   [
+    "C38:C42",
+    "unit"
+   ],
+   [
+    "E38:E42",
+    "note"
+   ],
+   [
+    "B44",
+    "heading"
+   ],
+   [
+    "B45:B50",
+    "label"
+   ]
+  ],
+  "inputs": [
+   [
+    "B1",
+    "title"
+   ],
+   [
+    "B2",
+    "label"
+   ],
+   [
+    "C2",
+    "master_check"
+   ],
+   [
+    "B4",
+    "heading"
+   ],
+   [
+    "B5:E5",
+    "col_header"
+   ],
+   [
+    "B6:B8",
+    "row_header"
+   ],
+   [
+    "C6:C8",
+    "unit"
+   ],
+   [
+    "D6:D8",
+    "input"
+   ],
+   [
+    "E6:E8",
+    "note"
+   ],
+   [
+    "B10",
+    "heading"
+   ],
+   [
+    "B11:E11",
+    "col_header"
+   ],
+   [
+    "B12:B15",
+    "row_header"
+   ],
+   [
+    "C12:C15",
+    "unit"
+   ],
+   [
+    "D12:D15",
+    "input"
+   ],
+   [
+    "E12",
+    "note"
+   ],
+   [
+    "B17",
+    "heading"
+   ],
+   [
+    "B18:E18",
+    "col_header"
+   ],
+   [
+    "B19:B25",
+    "row_header"
+   ],
+   [
+    "C19:C25",
+    "unit"
+   ],
+   [
+    "D19:D25",
+    "input"
+   ],
+   [
+    "E19:E25",
+    "note"
+   ]
+  ],
+  "raw_sales": [
+   [
+    "A1:E1",
+    "col_header"
+   ],
+   [
+    "A2:E251",
+    "raw"
+   ]
+  ],
+  "h_sales": [
+   [
+    "A1:I1",
+    "col_header"
+   ],
+   [
+    "A2:I251",
+    "calc"
+   ]
+  ],
+  "calc": [
+   [
+    "B1",
+    "title"
+   ],
+   [
+    "B2",
+    "label"
+   ],
+   [
+    "C2",
+    "master_check"
+   ],
+   [
+    "B4",
+    "heading"
+   ],
+   [
+    "B5:D5",
+    "col_header"
+   ],
+   [
+    "B6:B7",
+    "row_header"
+   ],
+   [
+    "C6:C7",
+    "unit"
+   ],
+   [
+    "D6:D7",
+    "output"
+   ],
+   [
+    "B9",
+    "heading"
+   ],
+   [
+    "B10:N10",
+    "col_header"
+   ],
+   [
+    "B11:B16",
+    "row_header"
+   ],
+   [
+    "C11:N11",
+    "unit"
+   ],
+   [
+    "C12:C16",
+    "unit"
+   ],
+   [
+    "D12:E15",
+    "calc"
+   ],
+   [
+    "F12:G15",
+    "output"
+   ],
+   [
+    "H12:K15",
+    "calc"
+   ],
+   [
+    "L12:N15",
+    "output"
+   ],
+   [
+    "D16:N16",
+    "total"
+   ]
+  ],
+  "summary": [
+   [
+    "B1",
+    "title"
+   ],
+   [
+    "B2",
+    "label"
+   ],
+   [
+    "C2",
+    "master_check"
+   ],
+   [
+    "B4",
+    "heading"
+   ],
+   [
+    "B5:D5",
+    "col_header"
+   ],
+   [
+    "B6:B10",
+    "row_header"
+   ],
+   [
+    "C6:C10",
+    "unit"
+   ],
+   [
+    "D6:D9",
+    "import"
+   ],
+   [
+    "D10",
+    "output"
+   ]
+  ],
+  "checks": [
+   [
+    "B1",
+    "title"
+   ],
+   [
+    "B2",
+    "label"
+   ],
+   [
+    "C2",
+    "master_check"
+   ],
+   [
+    "B4:J4",
+    "col_header"
+   ],
+   [
+    "B5:C18",
+    "row_header"
+   ],
+   [
+    "D5:D11",
+    "calc"
+   ],
+   [
+    "E5:F5",
+    "import"
+   ],
+   [
+    "I5:I18",
+    "check"
+   ],
+   [
+    "J5:J18",
+    "note"
+   ],
+   [
+    "E6:E7",
+    "import"
+   ],
+   [
+    "G6:G7",
+    "calc"
+   ],
+   [
+    "H6:H7",
+    "import"
+   ],
+   [
+    "D12:E12",
+    "calc"
+   ],
+   [
+    "D13:D14",
+    "calc"
+   ],
+   [
+    "D15:D16",
+    "import"
+   ],
+   [
+    "E15:E16",
+    "calc"
+   ],
+   [
+    "G15:G18",
+    "calc"
+   ],
+   [
+    "H15:H18",
+    "import"
+   ],
+   [
+    "D17:E17",
+    "calc"
+   ],
+   [
+    "D18:E18",
+    "import"
+   ]
+  ],
+  "notes": [
+   [
+    "B1",
+    "title"
+   ],
+   [
+    "B2",
+    "label"
+   ],
+   [
+    "C2",
+    "master_check"
+   ],
+   [
+    "B4",
+    "heading"
+   ],
+   [
+    "B5:E5",
+    "col_header"
+   ],
+   [
+    "B6:B7",
+    "row_header"
+   ],
+   [
+    "C6:C7",
+    "unit"
+   ],
+   [
+    "D6:E7",
+    "note"
+   ]
+  ]
+ },
+ "outside_checks": [],
+ "formula_cells": 2371
+}

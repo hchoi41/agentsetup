@@ -1,0 +1,1111 @@
+{
+ "rotm_manifest": 1,
+ "plugin_version": "0.1.0",
+ "built_at": "2026-11-25T23:25:01+09:00",
+ "spec": "model.spec.json",
+ "spec_sha256": "514c0e29857521b814e2c0ae272e6f3ca72e6763a22f762a72358456fbbf0615",
+ "dictionary_sha256": "af368b9475cc6952edc947b1973bc099b8f2fd6b9a85781c4d62db2b9269c82e",
+ "dictionary_applied": [],
+ "workbook": "model.xlsx",
+ "settings": {
+  "depth_limit": 2,
+  "length_limit": 100,
+  "allowed_literals": [
+   0,
+   1
+  ],
+  "check_tolerance": 0.001,
+  "helper_spare_rows": 0,
+  "formula_key_check_max_rows": 5000,
+  "allow_functions": [],
+  "product": "both"
+ },
+ "sheets": [
+  {
+   "name": "cover",
+   "type": "cover",
+   "font_size": 9
+  },
+  {
+   "name": "inputs",
+   "type": "inputs",
+   "font_size": 9
+  },
+  {
+   "name": "raw_gl_actuals",
+   "type": "raw",
+   "font_size": 8,
+   "table": "gl_actuals",
+   "excel_table": "tbl_raw_gl_actuals",
+   "landing": "static",
+   "query_name": null,
+   "columns": [
+    "entry_id",
+    "posting_date",
+    "cost_centre",
+    "account",
+    "amount"
+   ],
+   "types": [
+    "text",
+    "date",
+    "text",
+    "text",
+    "number"
+   ],
+   "formats": [
+    "text",
+    "date",
+    "text",
+    "text",
+    "amount"
+   ],
+   "rows": 419,
+   "digest": "sha256:ae3a38f74a07781821d4bc82e9c51af4e6664922773376f4287466532f856055",
+   "snapshot": "raw/gl_actuals.csv",
+   "contract_sha256": "876d191e002f95cbea3a42e438822a7c4f8dd453dcdc9b1781bcbf6eff2ed650",
+   "workbook_digest": "sha256:ae3a38f74a07781821d4bc82e9c51af4e6664922773376f4287466532f856055"
+  },
+  {
+   "name": "h_gl_actuals",
+   "type": "helpers",
+   "font_size": 8,
+   "table": "gl_actuals",
+   "first_row": 2,
+   "last_row": 420,
+   "capacity": 419,
+   "columns": [
+    {
+     "id": "row",
+     "col": "A",
+     "kind": "row",
+     "formula": "=ROW()",
+     "header": "row",
+     "format": "integer"
+    },
+    {
+     "id": "in_raw",
+     "col": "B",
+     "kind": "flag",
+     "formula": "=--(INDEX(raw_gl_actuals!$A:$A,A2)<>\"\")",
+     "header": "in_raw",
+     "format": "flag"
+    },
+    {
+     "id": "entry_id",
+     "col": "C",
+     "kind": "fetch",
+     "formula": "=INDEX(raw_gl_actuals!$A:$A,A2)&\"\"",
+     "raw_column": "entry_id",
+     "header": "entry_id",
+     "format": "text",
+     "type": "text"
+    },
+    {
+     "id": "posting_date",
+     "col": "D",
+     "kind": "fetch",
+     "formula": "=INDEX(raw_gl_actuals!$B:$B,A2)",
+     "raw_column": "posting_date",
+     "header": "posting_date",
+     "format": "date",
+     "type": "date"
+    },
+    {
+     "id": "cost_centre",
+     "col": "E",
+     "kind": "fetch",
+     "formula": "=INDEX(raw_gl_actuals!$C:$C,A2)&\"\"",
+     "raw_column": "cost_centre",
+     "header": "cost_centre",
+     "format": "text",
+     "type": "text"
+    },
+    {
+     "id": "account",
+     "col": "F",
+     "kind": "fetch",
+     "formula": "=INDEX(raw_gl_actuals!$D:$D,A2)&\"\"",
+     "raw_column": "account",
+     "header": "account",
+     "format": "text",
+     "type": "text"
+    },
+    {
+     "id": "amount",
+     "col": "G",
+     "kind": "fetch",
+     "formula": "=INDEX(raw_gl_actuals!$E:$E,A2)",
+     "raw_column": "amount",
+     "header": "amount",
+     "format": "amount",
+     "type": "number"
+    },
+    {
+     "id": "month_end",
+     "col": "H",
+     "kind": "derived",
+     "formula": "=EOMONTH(D2,0)",
+     "header": "month_end",
+     "format": "month",
+     "label": "Month end"
+    },
+    {
+     "id": "amount_k",
+     "col": "I",
+     "kind": "derived",
+     "formula": "=G2/inputs!$D$7",
+     "header": "amount_k",
+     "format": "amount1",
+     "label": "Amount (KRW thousand)"
+    },
+    {
+     "id": "dup",
+     "col": "J",
+     "kind": "dup",
+     "formula": "=--(SUMPRODUCT(--EXACT(C$2:C2,C2))>1)*B2",
+     "header": "dup",
+     "format": "flag"
+    }
+   ],
+   "capacity_source": "landed rows"
+  },
+  {
+   "name": "calc",
+   "type": "calc",
+   "font_size": 8,
+   "blocks": [
+    {
+     "id": "actual",
+     "shape": "grid",
+     "body": "D6:I9",
+     "total": "J10",
+     "checks": [
+      "accounts_tie",
+      "actual_ties_raw",
+      "variance_ties"
+     ],
+     "title": "Actual by cost centre",
+     "heading_row": 4,
+     "header_row": 5,
+     "labels": "B6:B9",
+     "total_row": 10,
+     "total_col": "J",
+     "cols_kind": "timeline",
+     "rows_kind": "in"
+    },
+    {
+     "id": "budget_grid",
+     "shape": "grid",
+     "body": "D14:I17",
+     "total": "J18",
+     "checks": [
+      "budget_ties_input",
+      "variance_ties",
+      "ytd_pct_ties"
+     ],
+     "title": "Budget by cost centre",
+     "heading_row": 12,
+     "header_row": 13,
+     "labels": "B14:B17",
+     "total_row": 18,
+     "total_col": "J",
+     "cols_kind": "same_as",
+     "rows_kind": "same_as"
+    },
+    {
+     "id": "variance",
+     "shape": "grid",
+     "body": "D22:I25",
+     "total": "J26",
+     "checks": [
+      "variance_ties",
+      "ytd_pct_ties"
+     ],
+     "title": "Variance (actual minus budget)",
+     "heading_row": 20,
+     "header_row": 21,
+     "labels": "B22:B25",
+     "total_row": 26,
+     "total_col": "J",
+     "cols_kind": "same_as",
+     "rows_kind": "same_as"
+    },
+    {
+     "id": "by_account",
+     "shape": "grid",
+     "body": "D30:I33",
+     "total": "J34",
+     "checks": [
+      "accounts_tie"
+     ],
+     "title": "Actual by account (independent path)",
+     "heading_row": 28,
+     "header_row": 29,
+     "labels": "B30:B33",
+     "total_row": 34,
+     "total_col": "J",
+     "cols_kind": "same_as",
+     "rows_kind": "in"
+    }
+   ]
+  },
+  {
+   "name": "summary",
+   "type": "output",
+   "font_size": 9,
+   "blocks": [
+    {
+     "id": "ytd",
+     "shape": "measures",
+     "body": "D7:G10",
+     "total": null,
+     "checks": [
+      "ytd_pct_ties"
+     ],
+     "title": "Year to date by cost centre",
+     "heading_row": 4,
+     "header_row": 5,
+     "labels": "B7:B10",
+     "total_row": 11,
+     "total_col": null,
+     "cols_kind": "measures",
+     "rows_kind": "same_as",
+     "measures": [
+      {
+       "id": "act",
+       "label": "Actual",
+       "col": "D",
+       "total": "sum",
+       "key": false
+      },
+      {
+       "id": "bud",
+       "label": "Budget",
+       "col": "E",
+       "total": "sum",
+       "key": false
+      },
+      {
+       "id": "var",
+       "label": "Variance",
+       "col": "F",
+       "total": "sum",
+       "key": false
+      },
+      {
+       "id": "pct",
+       "label": "Variance %",
+       "col": "G",
+       "total": "same",
+       "key": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "checks",
+   "type": "checks",
+   "font_size": 9,
+   "master": "C2",
+   "results": "I5:I18",
+   "ids": "B5:B18"
+  },
+  {
+   "name": "notes",
+   "type": "notes",
+   "font_size": 9
+  }
+ ],
+ "inputs": {
+  "start_month": "inputs!D6",
+  "scale": "inputs!D7",
+  "centres": "inputs!D11:D14",
+  "accounts": "inputs!D18:D21",
+  "budget": "inputs!D25:I28",
+  "gl_actuals_rows_min": "inputs!D32",
+  "gl_actuals_rows_max": "inputs!D33",
+  "gl_actuals_total_amount": "inputs!D34",
+  "gl_actuals_tol_amount": "inputs!D35",
+  "check_tolerance": "inputs!D36"
+ },
+ "cells": {
+  "ytd.pct": "summary!G11",
+  "pct": "summary!G11"
+ },
+ "checks": [
+  {
+   "id": "gl_actuals_rows",
+   "kind": "range",
+   "result": "checks!I5",
+   "auto": true,
+   "targets": [
+    "raw_gl_actuals"
+   ],
+   "label": "Rows of raw_gl_actuals lie within the contract's range",
+   "severity": "error",
+   "result_formula": "=--(OR(D5<E5,D5>F5))"
+  },
+  {
+   "id": "gl_actuals_total_amount",
+   "kind": "equal",
+   "result": "checks!I6",
+   "auto": true,
+   "targets": [
+    "raw_gl_actuals"
+   ],
+   "label": "Sum of raw_gl_actuals amount equals the contract's control total",
+   "severity": "error",
+   "result_formula": "=--(ABS(G6)>H6)"
+  },
+  {
+   "id": "gl_actuals_nulls_posting_date",
+   "kind": "zero",
+   "result": "checks!I7",
+   "auto": true,
+   "targets": [
+    "raw_gl_actuals"
+   ],
+   "label": "Empty cells in raw_gl_actuals posting_date (never null by contract)",
+   "severity": "error",
+   "result_formula": "=--(D7<>0)"
+  },
+  {
+   "id": "gl_actuals_nulls_cost_centre",
+   "kind": "zero",
+   "result": "checks!I8",
+   "auto": true,
+   "targets": [
+    "raw_gl_actuals"
+   ],
+   "label": "Empty cells in raw_gl_actuals cost_centre (never null by contract)",
+   "severity": "error",
+   "result_formula": "=--(D8<>0)"
+  },
+  {
+   "id": "gl_actuals_nulls_account",
+   "kind": "zero",
+   "result": "checks!I9",
+   "auto": true,
+   "targets": [
+    "raw_gl_actuals"
+   ],
+   "label": "Empty cells in raw_gl_actuals account (never null by contract)",
+   "severity": "error",
+   "result_formula": "=--(D9<>0)"
+  },
+  {
+   "id": "gl_actuals_nulls_amount",
+   "kind": "zero",
+   "result": "checks!I10",
+   "auto": true,
+   "targets": [
+    "raw_gl_actuals"
+   ],
+   "label": "Empty cells in raw_gl_actuals amount (never null by contract)",
+   "severity": "error",
+   "result_formula": "=--(D10<>0)"
+  },
+  {
+   "id": "gl_actuals_cover",
+   "kind": "at_most",
+   "result": "checks!I11",
+   "auto": true,
+   "targets": [
+    "raw_gl_actuals",
+    "h_gl_actuals"
+   ],
+   "label": "Raw rows of raw_gl_actuals not covered by h_gl_actuals",
+   "severity": "error",
+   "result_formula": "=--(D11>E11)"
+  },
+  {
+   "id": "gl_actuals_beyond",
+   "kind": "zero",
+   "result": "checks!I12",
+   "auto": true,
+   "targets": [
+    "h_gl_actuals"
+   ],
+   "label": "Helper rows of h_gl_actuals below the last raw row of raw_gl_actuals",
+   "severity": "error",
+   "result_formula": "=--(D12<>0)"
+  },
+  {
+   "id": "gl_actuals_keys",
+   "kind": "zero",
+   "result": "checks!I13",
+   "auto": true,
+   "targets": [
+    "h_gl_actuals"
+   ],
+   "label": "Rows of raw_gl_actuals repeating an earlier key (entry_id)",
+   "severity": "error",
+   "result_formula": "=--(D13<>0)"
+  },
+  {
+   "id": "actual_ties_raw",
+   "kind": "equal",
+   "result": "checks!I14",
+   "auto": false,
+   "targets": [
+    "calc!D6:I9",
+    "raw_gl_actuals"
+   ],
+   "label": "Actual block total equals the raw ledger total",
+   "severity": "error",
+   "result_formula": "=--(ABS(G14)>H14)"
+  },
+  {
+   "id": "budget_ties_input",
+   "kind": "equal",
+   "result": "checks!I15",
+   "auto": false,
+   "targets": [
+    "calc!D14:I17"
+   ],
+   "label": "Budget block total equals the budget input grid",
+   "severity": "error",
+   "result_formula": "=--(ABS(G15)>H15)"
+  },
+  {
+   "id": "variance_ties",
+   "kind": "equal",
+   "result": "checks!I16",
+   "auto": false,
+   "targets": [
+    "calc!D22:I25",
+    "calc!D6:I9",
+    "calc!D14:I17"
+   ],
+   "label": "Variance block total equals actual minus budget",
+   "severity": "error",
+   "result_formula": "=--(ABS(G16)>H16)"
+  },
+  {
+   "id": "accounts_tie",
+   "kind": "equal",
+   "result": "checks!I17",
+   "auto": false,
+   "targets": [
+    "calc!D30:I33",
+    "calc!D6:I9"
+   ],
+   "label": "Actual by account equals actual by cost centre",
+   "severity": "error",
+   "result_formula": "=--(ABS(G17)>H17)"
+  },
+  {
+   "id": "ytd_pct_ties",
+   "kind": "equal",
+   "result": "checks!I18",
+   "auto": false,
+   "targets": [
+    "summary!G11",
+    "calc!D14:I17",
+    "calc!D22:I25"
+   ],
+   "label": "YTD variance % times budget total equals variance total (budget not 0)",
+   "severity": "error",
+   "result_formula": "=--(ABS(G18)>H18)"
+  }
+ ],
+ "master_check": "checks!C2",
+ "master_formula": "=--(OR(SUM(I5:I18)>0,COUNT(I5:I18)<>COUNTA(B5:B18)))",
+ "master_links": [
+  "cover!C2",
+  "inputs!C2",
+  "calc!C2",
+  "summary!C2",
+  "notes!C2"
+ ],
+ "cell_types": {
+  "cover": [
+   [
+    "B1",
+    "title"
+   ],
+   [
+    "B2",
+    "label"
+   ],
+   [
+    "C2",
+    "master_check"
+   ],
+   [
+    "B4",
+    "heading"
+   ],
+   [
+    "B5:B6",
+    "label"
+   ],
+   [
+    "B8",
+    "heading"
+   ],
+   [
+    "B9:E9",
+    "col_header"
+   ],
+   [
+    "B10:B17",
+    "row_header"
+   ],
+   [
+    "C10:C17",
+    "unit"
+   ],
+   [
+    "D10:D17",
+    "label"
+   ],
+   [
+    "E10:E17",
+    "note"
+   ],
+   [
+    "B19",
+    "heading"
+   ],
+   [
+    "B20:E20",
+    "col_header"
+   ],
+   [
+    "B21:B35",
+    "row_header"
+   ],
+   [
+    "C21:C28",
+    "unit"
+   ],
+   [
+    "D21",
+    "input"
+   ],
+   [
+    "E21:E25",
+    "note"
+   ],
+   [
+    "D22",
+    "calc"
+   ],
+   [
+    "D23",
+    "import"
+   ],
+   [
+    "D24",
+    "check"
+   ],
+   [
+    "D25",
+    "master_check"
+   ],
+   [
+    "D26:E26",
+    "note"
+   ],
+   [
+    "D27",
+    "col_header"
+   ],
+   [
+    "E27:E35",
+    "note"
+   ],
+   [
+    "D28",
+    "row_header"
+   ],
+   [
+    "C29:D29",
+    "unit"
+   ],
+   [
+    "C30:C35",
+    "unit"
+   ],
+   [
+    "D30",
+    "raw"
+   ],
+   [
+    "D31",
+    "title"
+   ],
+   [
+    "D32",
+    "heading"
+   ],
+   [
+    "D33",
+    "total"
+   ],
+   [
+    "D34",
+    "output"
+   ],
+   [
+    "D35",
+    "label"
+   ],
+   [
+    "B37",
+    "heading"
+   ],
+   [
+    "B38:B42",
+    "row_header"
+   ],
+   [
+    "C38:C42",
+    "unit"
+   ],
+   [
+    "E38:E42",
+    "note"
+   ],
+   [
+    "B44",
+    "heading"
+   ],
+   [
+    "B45:B48",
+    "label"
+   ]
+  ],
+  "inputs": [
+   [
+    "B1",
+    "title"
+   ],
+   [
+    "B2",
+    "label"
+   ],
+   [
+    "C2",
+    "master_check"
+   ],
+   [
+    "B4",
+    "heading"
+   ],
+   [
+    "B5:J5",
+    "col_header"
+   ],
+   [
+    "B6:B7",
+    "row_header"
+   ],
+   [
+    "C6:C7",
+    "unit"
+   ],
+   [
+    "D6:D7",
+    "input"
+   ],
+   [
+    "J6:J7",
+    "note"
+   ],
+   [
+    "B9",
+    "heading"
+   ],
+   [
+    "B10:J10",
+    "col_header"
+   ],
+   [
+    "B11:B14",
+    "row_header"
+   ],
+   [
+    "C11:C14",
+    "unit"
+   ],
+   [
+    "D11:D14",
+    "input"
+   ],
+   [
+    "J11",
+    "note"
+   ],
+   [
+    "B16",
+    "heading"
+   ],
+   [
+    "B17:J17",
+    "col_header"
+   ],
+   [
+    "B18:B21",
+    "row_header"
+   ],
+   [
+    "C18:C21",
+    "unit"
+   ],
+   [
+    "D18:D21",
+    "input"
+   ],
+   [
+    "J18",
+    "note"
+   ],
+   [
+    "B23",
+    "heading"
+   ],
+   [
+    "B24:I24",
+    "col_header"
+   ],
+   [
+    "J24",
+    "note"
+   ],
+   [
+    "B25:B28",
+    "row_header"
+   ],
+   [
+    "C25:C28",
+    "unit"
+   ],
+   [
+    "D25:I28",
+    "input"
+   ],
+   [
+    "B30",
+    "heading"
+   ],
+   [
+    "B31:J31",
+    "col_header"
+   ],
+   [
+    "B32:B36",
+    "row_header"
+   ],
+   [
+    "C32:C36",
+    "unit"
+   ],
+   [
+    "D32:D36",
+    "input"
+   ],
+   [
+    "J32:J36",
+    "note"
+   ]
+  ],
+  "raw_gl_actuals": [
+   [
+    "A1:E1",
+    "col_header"
+   ],
+   [
+    "A2:E420",
+    "raw"
+   ]
+  ],
+  "h_gl_actuals": [
+   [
+    "A1:J1",
+    "col_header"
+   ],
+   [
+    "A2:J420",
+    "calc"
+   ]
+  ],
+  "calc": [
+   [
+    "B1",
+    "title"
+   ],
+   [
+    "B2",
+    "label"
+   ],
+   [
+    "C2",
+    "master_check"
+   ],
+   [
+    "B4",
+    "heading"
+   ],
+   [
+    "B5:J5",
+    "col_header"
+   ],
+   [
+    "B6:B10",
+    "row_header"
+   ],
+   [
+    "C6:C10",
+    "unit"
+   ],
+   [
+    "D6:J9",
+    "calc"
+   ],
+   [
+    "D10:J10",
+    "total"
+   ],
+   [
+    "B12",
+    "heading"
+   ],
+   [
+    "B13:J13",
+    "col_header"
+   ],
+   [
+    "B14:B18",
+    "row_header"
+   ],
+   [
+    "C14:C18",
+    "unit"
+   ],
+   [
+    "D14:J17",
+    "calc"
+   ],
+   [
+    "D18:J18",
+    "total"
+   ],
+   [
+    "B20",
+    "heading"
+   ],
+   [
+    "B21:J21",
+    "col_header"
+   ],
+   [
+    "B22:B26",
+    "row_header"
+   ],
+   [
+    "C22:C26",
+    "unit"
+   ],
+   [
+    "D22:J25",
+    "calc"
+   ],
+   [
+    "D26:J26",
+    "total"
+   ],
+   [
+    "B28",
+    "heading"
+   ],
+   [
+    "B29:J29",
+    "col_header"
+   ],
+   [
+    "B30:B34",
+    "row_header"
+   ],
+   [
+    "C30:C34",
+    "unit"
+   ],
+   [
+    "D30:J33",
+    "calc"
+   ],
+   [
+    "D34:J34",
+    "total"
+   ]
+  ],
+  "summary": [
+   [
+    "B1",
+    "title"
+   ],
+   [
+    "B2",
+    "label"
+   ],
+   [
+    "C2",
+    "master_check"
+   ],
+   [
+    "B4",
+    "heading"
+   ],
+   [
+    "B5:G5",
+    "col_header"
+   ],
+   [
+    "B6:B11",
+    "row_header"
+   ],
+   [
+    "C6:G6",
+    "unit"
+   ],
+   [
+    "C7:C11",
+    "unit"
+   ],
+   [
+    "D7:F10",
+    "calc"
+   ],
+   [
+    "G7:G10",
+    "output"
+   ],
+   [
+    "D11:G11",
+    "total"
+   ]
+  ],
+  "checks": [
+   [
+    "B1",
+    "title"
+   ],
+   [
+    "B2",
+    "label"
+   ],
+   [
+    "C2",
+    "master_check"
+   ],
+   [
+    "B4:J4",
+    "col_header"
+   ],
+   [
+    "B5:C18",
+    "row_header"
+   ],
+   [
+    "D5:D10",
+    "calc"
+   ],
+   [
+    "E5:F5",
+    "import"
+   ],
+   [
+    "I5:I18",
+    "check"
+   ],
+   [
+    "J5:J18",
+    "note"
+   ],
+   [
+    "E6",
+    "import"
+   ],
+   [
+    "G6",
+    "calc"
+   ],
+   [
+    "H6",
+    "import"
+   ],
+   [
+    "D11:E11",
+    "calc"
+   ],
+   [
+    "D12:D13",
+    "calc"
+   ],
+   [
+    "D14:D16",
+    "import"
+   ],
+   [
+    "E14:E16",
+    "calc"
+   ],
+   [
+    "G14:G18",
+    "calc"
+   ],
+   [
+    "H14:H18",
+    "import"
+   ],
+   [
+    "D17:E17",
+    "import"
+   ],
+   [
+    "D18:E18",
+    "calc"
+   ]
+  ],
+  "notes": [
+   [
+    "B1",
+    "title"
+   ],
+   [
+    "B2",
+    "label"
+   ],
+   [
+    "C2",
+    "master_check"
+   ],
+   [
+    "B4",
+    "heading"
+   ],
+   [
+    "B5:E5",
+    "col_header"
+   ],
+   [
+    "B6:B7",
+    "row_header"
+   ],
+   [
+    "C6:C7",
+    "unit"
+   ],
+   [
+    "D6:E7",
+    "note"
+   ]
+  ]
+ },
+ "outside_checks": [],
+ "formula_cells": 4449
+}

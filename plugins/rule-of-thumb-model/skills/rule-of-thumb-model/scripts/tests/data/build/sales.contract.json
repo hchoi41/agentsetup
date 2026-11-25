@@ -1,0 +1,96 @@
+{
+ "rotm_contract": 1,
+ "table": "sales",
+ "raw_sheet": "raw_sales",
+ "excel_table": "tbl_raw_sales",
+ "purpose": "Invoice lines for the build tests",
+ "source": {
+  "connector": "power_query",
+  "system": "BigQuery",
+  "object": "proj.ds.invoice_lines",
+  "from": "proj.ds.invoice_lines l JOIN proj.ds.invoices i USING (invoice_id)",
+  "where": "i.posted AND i.inv_date BETWEEN '2026-01-01' AND '2026-06-30'"
+ },
+ "grain": "one row per invoice line",
+ "key": [
+  "invoice_id",
+  "line_no"
+ ],
+ "columns": [
+  {
+   "name": "invoice_id",
+   "type": "text",
+   "unit": null,
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "CAST(i.invoice_id AS STRING)",
+   "description": "invoice number, leading zeros kept"
+  },
+  {
+   "name": "line_no",
+   "type": "integer",
+   "unit": "count",
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "l.line_no"
+  },
+  {
+   "name": "inv_date",
+   "type": "date",
+   "unit": "date",
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "i.inv_date"
+  },
+  {
+   "name": "region",
+   "type": "text",
+   "unit": null,
+   "null_rule": "never",
+   "allowed": [
+    "East",
+    "North",
+    "South",
+    "West"
+   ],
+   "source_expression": "i.region"
+  },
+  {
+   "name": "product",
+   "type": "text",
+   "unit": null,
+   "null_rule": "allowed",
+   "allowed": null,
+   "source_expression": "l.product_code"
+  },
+  {
+   "name": "amount",
+   "type": "number",
+   "unit": "KRW",
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "l.net_amount"
+  }
+ ],
+ "expect": {
+  "rows": {
+   "min": 1,
+   "max": 1000
+  },
+  "totals": [
+   {
+    "column": "amount",
+    "value": 31435000,
+    "tolerance": 0
+   }
+  ]
+ },
+ "refresh": {
+  "frequency": "monthly",
+  "capacity_rows": null,
+  "allow_empty": false
+ },
+ "agreement": {
+  "status": "proposed"
+ }
+}

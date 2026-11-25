@@ -1,0 +1,119 @@
+{
+ "rotm_render": 1,
+ "workbook": "model.xlsx",
+ "sha256": "d30dc593148c67c957e50fc5c31569b52bd47b9bff40eb33c9d36af6707439b7",
+ "at": "2026-11-26T03:53:20+09:00",
+ "note": "rendered, not looked at by code",
+ "files": [
+  {
+   "sheet": "cover",
+   "file": "cover.png",
+   "range": "A1:E52",
+   "last_row": 52,
+   "last_col": 5,
+   "truncated": false,
+   "width_px": 717,
+   "height_px": 1002,
+   "problem": null
+  },
+  {
+   "sheet": "inputs",
+   "file": "inputs.png",
+   "range": "A1:E26",
+   "last_row": 26,
+   "last_col": 5,
+   "truncated": false,
+   "width_px": 1065,
+   "height_px": 465,
+   "problem": null
+  },
+  {
+   "sheet": "raw_sales",
+   "file": "raw_sales.png",
+   "range": "A1:F200",
+   "last_row": 601,
+   "last_col": 6,
+   "truncated": true,
+   "width_px": 542,
+   "height_px": 3200,
+   "problem": null
+  },
+  {
+   "sheet": "raw_target",
+   "file": "raw_target.png",
+   "range": "A1:C25",
+   "last_row": 25,
+   "last_col": 3,
+   "truncated": false,
+   "width_px": 314,
+   "height_px": 400,
+   "problem": null
+  },
+  {
+   "sheet": "h_sales",
+   "file": "h_sales.png",
+   "range": "A1:K200",
+   "last_row": 601,
+   "last_col": 11,
+   "truncated": true,
+   "width_px": 858,
+   "height_px": 3200,
+   "problem": null
+  },
+  {
+   "sheet": "h_target",
+   "file": "h_target.png",
+   "range": "A1:H25",
+   "last_row": 25,
+   "last_col": 8,
+   "truncated": false,
+   "width_px": 638,
+   "height_px": 400,
+   "problem": null
+  },
+  {
+   "sheet": "calc",
+   "file": "calc.png",
+   "range": "A1:K41",
+   "last_row": 41,
+   "last_col": 11,
+   "truncated": false,
+   "width_px": 1252,
+   "height_px": 656,
+   "problem": null
+  },
+  {
+   "sheet": "summary",
+   "file": "summary.png",
+   "range": "A1:G11",
+   "last_row": 11,
+   "last_col": 7,
+   "truncated": false,
+   "width_px": 633,
+   "height_px": 176,
+   "problem": null
+  },
+  {
+   "sheet": "checks",
+   "file": "checks.png",
+   "range": "A1:J32",
+   "last_row": 32,
+   "last_col": 10,
+   "truncated": false,
+   "width_px": 1666,
+   "height_px": 512,
+   "problem": null
+  },
+  {
+   "sheet": "notes",
+   "file": "notes.png",
+   "range": "A1:E10",
+   "last_row": 10,
+   "last_col": 5,
+   "truncated": false,
+   "width_px": 849,
+   "height_px": 260,
+   "problem": null
+  }
+ ]
+}

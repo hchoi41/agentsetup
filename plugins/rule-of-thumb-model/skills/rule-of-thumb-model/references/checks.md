@@ -1,0 +1,209 @@
+# Checks: checker cells, the checks sheet and the master check
+
+Max asked for "lots of helper columns, cells, and checker cells and columns" (Max, spec 1.2). This file says which checks `build` writes by itself, which checks you add in the specification, how each check cell is built, how the master check reads them all, and how `rotm.py check` verifies them after a refresh.
+
+Read it at step P5 of the procedure in [SKILL.md](../SKILL.md), when `build` warns W-NO-CHECK, W-SELF-CHECK or D-CRITERIA, when `audit` reports C-MISSING, C-BLOCK, C-WIRING, C-RECOMPUTE, C-FAIL or C-ALERT, when `check` or `audit` reports H-BEYOND, when `check` reports D-KEY, D-CONTROL-INPUT, D-CRITERIA, V-NO-VALUE, X-OPEN, X-NO-QUERY, X-QUERY-CHANGED, I-HIDDEN-DECIMALS or C-RECOMPUTE, and when you report check results to the user.
+
+In a workbook without a manifest, `audit` reports as C-BLOCK (inferred) each calculation block that no check cell reads: two or more formula cells with one formula copied down a column or along a row; a check reads a block when its formula refers to at least one cell of it. A run of cells whose formula is only a reference to one cell (a link such as `=Sheet!B2` or `=B2`) is not a calculation block and gets no C-BLOCK; a note gives the count of link runs left out. `check`, `recalc` and `audit` report a formula cell without a value with one rule id, V-NO-VALUE, and a fix that depends on what is known about the cell:
+
+- `check` and `recalc`, a cell Excel names as circular (the message starts `no value (circular reference)`): a formula that refers to itself through other cells has no value: find the cycle with `rotm.py trace <workbook> <ref>` and break it. Excel names one cell of a cycle per sheet; the other cells of that cycle get the same message and fix.
+- `check` and `recalc`, another formula Excel saved without a value (the message `no value`): Excel saved this formula without a value and named no circular reference for it: recalculate the workbook (`rotm.py check <model>`, or `rotm.py recalc <workbook>` outside a model folder) and look at the formula and its inputs (`rotm.py trace <workbook> <ref>`).
+- `audit`, every V-NO-VALUE (the saved file does not say which cells are circular): `rotm.py check <model>` recalculates the workbook in Excel and names a circular reference when there is one; otherwise look at the formula and its inputs (`rotm.py trace <workbook> <ref>`).
+- A formula whose result is empty text and that holds a volatile function (RAND, RANDBETWEEN, RANDARRAY, NOW, TODAY, OFFSET, INDIRECT, CELL, INFO) or depends on one is not reported. A cell whose formulas' references show that it lies on a cycle of references (for example A1 `=B1+TODAY()*0` and B1 `=A1+1`) is still reported.
+- Excel 16 names a cell that holds a volatile function as the circular reference of its sheet when another sheet holds a cycle. `check` and `recalc` do not report that cell when its references show no cycle or the saved file holds a value for it.
+
+## Evidence labels
+
+- "confirmed": a claim check in the research (`research/verify/`) found the claim in its source ("books B-32" is item B-32 of `books_check_v1.json`, "local guides L-38" is item L-38 of `local_guides_check_v1.json`, "style survey #17" is item 17 of `style_survey_check_v1.json`).
+- "not confirmed": a research report states it, but no claim check confirmed it.
+- "design n": section n of the plugin's design (`rotm_design_v1.md`, kept in the project's build folder, not shipped). It describes what the plugin does.
+- "Max, spec 1.x": Max's own words, quoted from Part 1 of the job's specification.
+
+## The rules every check follows
+
+1. A check returns 0 when it passes and 1 when it fails. "We prefer a 0 if all is well and a 1 if there is a problem" (local guides L-38, confirmed). Flags of 0 and 1 can be added up, so failures are reported by exception (books B-33, not confirmed).
+2. A check compares two independent paths to the same figure, within a tolerance (books B-32, confirmed: FMD p. 73 to 75). A total calculated twice from the same landed cells is an internal tie, not an independent check (researcher 2 section 4, not confirmed); a contract's control total therefore comes from the source side (see [column-contract.md](column-contract.md)).
+3. A check compares an absolute difference with a tolerance; it does not round. PwC writes `= -- ( ABS( 1 - SUM(T57:T58) ) > ErrorTolerance )` (local guides L-39, confirmed), and says ROUND "may inadvertently hide mistakes particularly when used on error checks" (local guides L-98, confirmed).
+4. An error value inside a check stays visible. No check is wrapped in IFERROR. The shape `=IFERROR(IF(ABS(R)>1,"ERROR","OK"),"OK")` was found in the surveyed workbooks (style survey #17, confirmed for this part: the check found this IFERROR-wrapped form, which the report's summary table had shortened); it shows OK when the calculation fails. Do not write it.
+5. Every check is always on. There is no switch that turns a check off.
+6. One master check reads every error check. It fails when any check fails, and when a check result is missing or is not a number (design 9.4).
+7. An alert is a business condition (for example negative cash or a covenant breach). It is shown, but it is not part of the master check (books B-36 and local guides L-37, not confirmed; FAST Appendix B, platforms C1.54, not confirmed).
+
+## The kinds of check
+
+Each check is one row of the `checks` sheet. Columns: B id, C what it checks, D actual, E expected or minimum, F maximum, G difference, H tolerance, I result, J the sheet or range it checks. The header is row 4; checks start at row 5; alerts are in a second table below the error checks (design 9.1).
+
+| Kind | Cells of row r | Result in I r | Passes when |
+| --- | --- | --- | --- |
+| `equal` | D actual, E expected, G `=D r-E r`, H tolerance (a link to an input) | `=--(ABS(G r)>H r)` | the absolute difference is at most the tolerance |
+| `range` | D actual, E minimum, F maximum (links to inputs) | `=--(OR(D r<E r,D r>F r))` | minimum ≤ actual ≤ maximum |
+| `zero` | D actual: a count of bad items | `=--(D r<>0)` | the actual is 0 |
+| `at_most` | D actual, E bound | `=--(D r>E r)` | the actual ≤ the bound |
+
+- Every result has depth 1 or 0, so every check passes the depth limit of 2.
+- The number format of a result shows `OK` for 0 and a red `FAIL` for 1; the result of an alert row shows `OK` for 0 and a red `ALERT` for a raised alert (see "How a check looks").
+
+## Checks `build` writes for every raw table
+
+For a raw table `t` (sheet `raw_t`, helper sheet `h_t`), `build` adds these rows by itself (design 9.2). Their expected values come from the contract and sit in the "Contract controls" block of the inputs sheet.
+
+| Id | Kind | Actual | Compared with |
+| --- | --- | --- | --- |
+| `<t>_rows` | `range` or `equal` | `=COUNTA(raw_t!$A:$A)-1` (landed rows: the first column is never null) | the contract's rows: exact, or minimum and maximum |
+| `<t>_total_<col>` | `equal` | `=SUM(raw_t!$<X>:$<X>)` | the contract's control total and its tolerance |
+| `<t>_nulls_<col>` | `zero`; `at_most` with a known exception | `=COUNTA(raw_t!$A:$A)-COUNTA(raw_t!$<X>:$<X>)`, one per never-null column after the first | 0; or the agreed count (input `<t>_known_nulls_<col>`) |
+| `<t>_cover` | `at_most` | `=COUNTA(raw_t!$A:$A)-1-COUNT(h_t!$A:$A)` (raw rows the helper sheet does not cover; 0 for a table with zero rows and zero helper rows) | 0 |
+| `<t>_beyond` | `zero` | `=COUNTIF(h_t!$B:$B,0)` (helper rows below the last raw row: B is the `in_raw` column) | 0 |
+| `<t>_keys` | `zero`; `at_most` with a known exception | `=SUM(h_t!$<dup>:$<dup>)` (rows that repeat an earlier row's key) | 0; or the agreed count (input `<t>_key_repeats`) |
+
+- Keys are compared by one rule in `land`, in `check`, in the workbook and in `lift`: exact text, case-sensitive, no wildcard, and text is never read as a number. So `001` and `1` are two keys, `Case` and `CASE` are two keys, `M*` does not match `Monday`, `A?` does not match `AB`, and two 20-digit text keys that share their first 15 digits are two keys. Numbers, dates and booleans compare by value.
+- The helper column `dup` is `=--(SUMPRODUCT(--EXACT(C$2:C2,C2))>1)*B2`, depth 2. It counts the rows from the first helper row down to this row whose key equals this row's key exactly (EXACT), so it is 0 on the first copy of a key and 1 on every later copy. C is the key column; for a key of several columns, the column `dup_key` holds the parts joined by `|` and `dup` compares `dup_key`. EXACT has no wildcards and does not read text as a number. MATCH and COUNTIFS are not used: both compare text without regard to case and read `*`, `?` and `~` as wildcards, and COUNTIFS counted the text keys 00123, 0123 and 123 as one key (measured in Excel 16, 2026-11-25).
+- `<t>_keys` exists only when the table has at most `formula_key_check_max_rows` rows (default 5,000, the plugin's own choice for speed: the work of `dup` grows with the square of the row count) and, for a key of several columns, no landed key part holds `|`. Otherwise `build` reports I-KEYS-OUTSIDE, the row says "key uniqueness: checked by rotm.py check" and holds no result, and `rotm.py check` tests the keys in Python by the same rule (design 9.2).
+- When a key part of the current raw rows holds `|`, `check` warns D-KEY-SEPARATOR and names the first such row: the joined key in `dup_key` cannot tell such keys apart (for example (`A|B`, `C`) and (`A`, `B|C`)), so the workbook's key check may show a repeat that is none. The key check of `rotm.py check` stands. Rebuild (`rotm.py build <model> --force`): build then leaves the key check to `rotm.py check`.
+- A repeated key is reported by `check` as D-KEY with its rows, for example "row 12 repeats row 4". Look at those rows with the user. If the user accepts them as they are, propose the contract again with `--key-repeats <count>` (a known exception) and get the user's agreement; otherwise have the source corrected and land again. Do not remove rows to make the check hold.
+- A known exception (an agreed count of repeated keys or empty cells, [column-contract.md](column-contract.md#known-exceptions-landing-data-that-breaks-the-contract)) keeps the check: it shows the actual count and holds while the count is at most the agreed one.
+- `<t>_cover` fails after a refresh that brings more raw rows than the helper sheet holds. It is a plain formula, so its result turns to 1 and the master check fails in Excel without the plugin; the same formula is expected to work in Google Sheets, which was not tested (design 7.2). The fix is in [excel-power-query.md](excel-power-query.md#after-a-refresh).
+- `<t>_beyond` fails after a refresh that brings fewer raw rows than the helper sheet holds. A helper row below the last raw row reads empty raw cells, and a number column reads an empty cell as 0, so a helper such as `--({this:amount}=0)` counts that row and the calculations that read the helper column change. `check` reports H-BEYOND with the helper sheet and its first and last row below the raw rows; `rotm.py extend <model> --table <t>` clears those rows, and the check then holds. `audit` with a manifest reports H-BEYOND for helper formulas (and typed values) below the last data row of the raw sheet, one finding per helper sheet, and reports H-GAP and H-INCONSISTENT only from the first helper row to the last raw row; rows below the last raw row that are empty in every helper column give no finding. For the same reason `build` refuses a helper capacity above the landed rows (`--capacity`, the contract's `refresh.capacity_rows`, or `helper_spare_rows` above 0).
+- Nullable number and date columns: for each fetched raw column of type number, integer, date or datetime whose null rule is `allowed`, or whose contract agrees `known_nulls` for it, `build` adds the helper column `<column>_null` (header `<column> empty`), `=--(INDEX(raw_t!$X:$X,A2)="")`, 1 where the raw cell is empty. The fetched column shows 0 there, so COUNT and AVERAGE over the helper columns use the flag: `COUNTIFS({h:t.<column>_null},0)` counts the rows that hold a value, and `AVERAGEIFS({h:t.<column>},{h:t.<column>_null},0)` averages them. `COUNT({raw:t.<column>})` on the raw sheet needs no flag.
+
+## Checks you add in the specification
+
+`build` warns W-NO-CHECK (strict mode exits 1) when a block on a `calc` or `output` sheet is not named in any check of severity error (design 9.2). So for every block, add at least one error check that ties it to an independent figure. Check expressions use the same placeholders as the rest of the specification ([model-spec-format.md](model-spec-format.md)).
+
+- An alert does not count as a block's check: it is not part of the master check, so a block that only an alert reads gets W-NO-CHECK.
+- A check whose actual and expected compile to the same expression, or to links to the same cell, can never fail: `build` warns W-SELF-CHECK (strict mode exits 1), and `audit` with a manifest reports the same for a registered check; point one side at an independent total (a raw column total, a control total or another block's total).
+- Counting the numeric cells of a block is not an independent total: `COUNT({blk:b})` against the number of cells of the block holds whatever the cells compute. Tie the block to a total from another path (the raw sheet, an input, another block), for example `SUMPRODUCT({blk:pct},{blk:target})` against `SUMPRODUCT(--({blk:target}<>0),{blk:variance})` for a percentage grid.
+- A block that sums or counts by label (SUMIFS, COUNTIFS, AVERAGEIFS, MAXIFS, MINIFS, SUMIF, COUNTIF, AVERAGEIF) adds every row whose value Excel's criteria matching takes as equal to the label, not only the rows that hold the label exactly: `001` and `1`, `North` and `north`, and every value a label with `*` or `?` matches. When the landed rows hold such a pair, `build` and `check` warn D-CRITERIA (strict mode exits 1); the warning names the block, the label, the other value, the column and its first row. When both values are labels of the block, the block total counts their rows twice and its check against the raw total fails without naming the cause; when only one of them is a label of the block, the checks can hold while that row shows a wrong amount. The fix is in [helper-patterns.md](helper-patterns.md#labels-that-excels-criteria-matching-merges).
+
+```json
+{"name": "checks", "type": "checks", "checks": [
+  {"id": "actual_ties_raw", "kind": "equal", "label": "Actual block total equals the raw sales total",
+   "actual": "{blk:actual.total}", "expected": "SUM({raw:sales.amount})/{in:scale}", "tolerance": "check_tolerance"},
+  {"id": "sales_unmapped", "kind": "zero", "label": "Sales lines whose product code is not in the mapping",
+   "actual": "SUM({h:sales.unmapped})"},
+  {"id": "neg_var", "kind": "zero", "severity": "alert", "label": "Months with negative variance",
+   "actual": "COUNTIF({blk:variance},\"<0\")"}]}
+```
+
+- `"format"`: a number-format key of the style dictionary for the check's value cells (D actual, E expected or minimum, F maximum, G difference), for example `"amount2"` for money or `"rate2"` for a percentage. Without it they take the format of what the `actual` expression reads first: the block (`{blk:}`), the line item or measure (`{cell:}`, `{b:}`), the raw column (`{raw:}`) or the helper column (`{h:}`). When the expression reads none of these, they show General (for example 979070 and -0.212966238).
+
+Checks that find real errors, in order of value:
+
+1. A block total against the raw total for the same scope, for example a SUMIFS grid by region and month against `SUM` of the raw amount column. A difference shows codes or periods that the grid does not catch (new or misspelled categories); a row-sum against column-sum tie is of low value (books B-37, not confirmed).
+2. Missing keys: the count of unmapped or unmatched rows from a lookup helper (helper-patterns.md H5) against 0.
+3. Values outside every band (helper-patterns.md H6) against 0, when the business says that cannot happen.
+4. Balance checks where a balance sheet exists: assets against liabilities and equity; cash at the end of the cash flow against cash on the balance sheet; closing balance = opening balance + movements (local guides L-43, not confirmed).
+5. Alerts (`"severity": "alert"`): negative cash, a covenant breach, a negative variance. They are listed for the reader and do not fail the master check.
+
+## Tolerance
+
+- The input `check_tolerance` holds the default tolerance of `equal` checks: 0.001 in the unit of the checked values. This number is the plugin's own choice; no source gives a universal tolerance (design 9.3). Fairhurst's check allows a difference of 1 dollar, which is her example value (books B-32, confirmed: FMD p. 75).
+- Counts use no tolerance: `range`, `zero` and `at_most` compare exactly.
+- A contract's control total uses the tolerance written in the contract.
+- When amounts carry decimals and totals reach about 10,000,000,000,000 (1e13) or more, raise `check_tolerance` and write the reason in the input's note. The research synthesis summed 50,000 amounts with two decimals, about 2e13 in total, in two different orders and found differences of 0.012 to 0.23 (computed in Python by the research synthesis, not confirmed by a claim check). Excel keeps 15 significant digits (platforms B5.1, confirmed). Whole-won amounts summed exactly in the same computation.
+- Name the tolerance per check with `"tolerance": "<input id>"` when one family of checks needs another value.
+- The tolerance must be a finite number of 0 or more. `build` refuses (exit 2, nothing built) an `equal` check whose tolerance input holds anything else (text, a negative number, true or false), with the JSON path `<check path>.tolerance`; the same holds for `settings.check_tolerance` and for a contract total's tolerance (`expect.totals[<i>].tolerance`).
+
+## The master check
+
+- The master check is in `checks!C2`: `=--(OR(SUM(I5:I<last>)>0,COUNT(I5:I<last>)<>COUNTA(B5:B<last>)))`, depth 2. It is 1 when any error check is 1, and when a result cell is empty or holds text (a deleted check) (design 9.4).
+- An error value in any result makes the master show the error too. Read it as a failure.
+- C2 of every other block sheet (cover, inputs, calc, output, notes) holds `=checks!$C$2` (design 6.3, 9.4). On the inputs, calc and output sheets it is inside the frozen rows (frozen at D4); the cover and notes sheets have no frozen rows (design 6.2). FAST 2.03-05 asks for the master check in the freeze pane (platforms C1.24, not confirmed); IFM links the summary check to the top of each sheet (books B-34, confirmed: IFM p. 168).
+- Raw sheets and helper sheets show no master check: row 1 of a raw sheet is its header row, and row r of a helper sheet belongs to raw row r (design 6.3).
+- The master check sums 0/1 results, never signed differences, so two errors cannot cancel each other.
+
+## C-RECOMPUTE: each check computed again from its own operands
+
+A check cell can show OK while its own operands say it fails: a Result cell replaced by `=0`, or a Difference cell replaced by a number. C-RECOMPUTE (an error, exit 1) finds this. `check` runs it after a completed recalculation in Excel; `audit` runs it on the saved values of a workbook that has a manifest (r4 verdict A-aera-3, C-sol-5; `scripts/lib/recompute.py`).
+
+- It reads every check and alert the manifest registers. The row comes from the check's `result` cell. The operands come from the columns `build` writes: D actual; E expected, minimum or bound; F maximum; H tolerance; I result.
+- It computes the result again from the saved values of those cells:
+  - `equal`: 1 when ABS(actual - expected) is greater than the tolerance, else 0;
+  - `range`: 1 when actual is below the minimum or above the maximum, else 0;
+  - `zero`: 1 when actual is not 0, else 0;
+  - `at_most`: 1 when actual is greater than the bound, else 0.
+- An `equal` check computes its difference from D and E, not from the Difference cell, so a Difference cell replaced by a number is found too. The margin is 1e-12 times the largest absolute value of actual, expected and tolerance. When the difference is within the margin of 0, the result of a difference of 0 is accepted too, because Excel may round such a difference to 0. When the difference is within the margin of the tolerance, either result is accepted.
+- An operand, or the tolerance of an `equal` check, that is not a number is reported: text (also a number stored as text), an empty cell, TRUE or FALSE, or an error value when the Result itself holds no error value. A Result that holds an error value is left to V-ERROR.
+- A cell with a date or time format (the Actual and Expected cells of a check of two dates) counts as the serial number Excel holds in it, so a check of two dates is computed again like any other `equal` check.
+- It computes the master check again from the result cells as `build`'s master formula does: 1 when the numbers in the results range sum to more than 0, or when the count of numbers there differs from the count of filled id cells. Alerts are not part of the master check.
+- `build` records the formula text of each Result cell (`result_formula`, in each check entry of the manifest) and of the master check (`master_formula`). When the manifest holds them, a cell whose formula differs from the recorded text is reported, also when its saved value still agrees. A manifest written before v5 has no such fields: then only the recomputation runs.
+- Operand formulas changed by hand (for example D pointed at another total) are out of scope: the rule takes the operand cells as they are.
+- A workbook whose Result cells hold no saved values (written by `build`, not yet calculated) gets only the formula comparison.
+
+The messages:
+
+| Case | Message |
+| --- | --- |
+| the saved result differs | `check '<id>' (<sheet>!<cell>): the saved result is <r>, but its operands give <c>: <detail>`; the detail is `\|<actual> - <expected>\| = <d>, tolerance <t>` (equal), `<actual> against <min> to <max>` (range), `<actual> against 0` (zero) or `<actual> against at most <bound>` (at_most) |
+| an operand is not a number | `check '<id>' (<sheet>!<cell>): <field> <ref> holds <value>, not a number`; the field is actual, expected, minimum, maximum, bound or tolerance |
+| the master differs | `the master check <ref> holds <m>, but the check results give <c>` |
+| a formula differs | `check '<id>' (<sheet>!<cell>): its formula <now> differs from the formula build wrote (<recorded>)`, and for the master check `the master check <ref>: its formula <now> differs from the formula build wrote (<recorded>)` |
+
+The fix: rebuild the workbook with `rotm.py build "<model>" --force` (build writes the check formulas again), then run `rotm.py check "<model>"`.
+
+## How a check looks
+
+- Result cells of error checks and the master check use the number format `[Red]"FAIL";[Red]"FAIL";"OK"`: 0 shows `OK` in the normal text colour, 1 shows `FAIL` in red (design 9.5).
+- Result cells of alert rows (`"severity": "alert"`) use the number format `[Red]"ALERT";[Red]"ALERT";"OK"` (cell type `alert` in `style_dictionary.json`): 0 shows `OK`, a raised alert shows `ALERT` in red. An alert row shows OK or ALERT, never FAIL, because a raised alert is not a failed check. `check` and `audit` report a raised alert as C-ALERT, severity info, which does not change the exit code.
+- No fill and no conditional formatting. Red is used nowhere else in the default dictionary, so a red word on a sheet always means a failed check (`FAIL`) or a raised alert (`ALERT`) (Max: "i like minimal color usages", spec 1.2).
+- The words FAIL and ALERT read correctly with colour turned off.
+- The master check is bold (cell type `master_check` in `style_dictionary.json`).
+- Whether Google Sheets shows the red colour of this number format after conversion is not confirmed (platforms E5; [google-sheets.md](google-sheets.md)).
+
+## What `rotm.py check` does
+
+Run `python -P -X utf8 -B "<SKILL_DIR>/scripts/rotm.py" check "<model>"` after `build`, after `land`, and after every refresh (design 15).
+
+1. It reads the state of every contract (agreed, proposed, stale).
+2. It compares each `raw/<t>.csv` with the digest the manifest recorded.
+3. It checks the raw snapshot against its contract in Python: rows, keys, nulls, types, allowed values, control totals.
+4. It compares each raw sheet of the workbook with the snapshot's digest.
+5. It checks coverage: the last raw row against the last helper row.
+6. It recalculates the workbook in Excel and saves it. When Excel started but could not open or calculate the workbook, `check` reports X-OPEN (an error, exit 1, not exit 3): the check cells were not read and nothing was saved. The most likely cause is a formula Excel rejects. The strict audit finds two such causes: an incomplete formula (F-PARSE) and a listed function with too few or too many arguments (F-ARGS, `references/model-spec-format.md` "Argument counts"). Run `rotm.py audit "<workbook>" --strict`, correct the expression in `model.spec.json`, rebuild, and run `rotm.py check "<model>"` again. For another cause, open the workbook in Excel and read the message Excel shows. Exit 3 and the words "not recalculated" stay for Excel missing and `--no-excel`; Excel busy is exit 5.
+7. It reads back every check result, the master check and every error value. A formula cell that Excel gives no value is reported as V-NO-VALUE with its sheet and cell. For a cell Excel names as circular (a formula that refers to itself through other cells), the fix says: find the cycle with `rotm.py trace` and break it. For another formula without a value, it says: recalculate the workbook (`rotm.py check <model>`) and look at the formula and its inputs (`rotm.py trace`). A volatile formula whose result is empty text is not reported, unless its references show that it lies on a cycle. `build` already refuses a specification whose helper columns, blocks, items, measures or checks read each other in a cycle, and names the JSON paths of the expressions in the cycle.
+8. It prints one count line: `checks: H of N hold; alerts: S of A show a value` (N error checks, of which H hold; A alerts, of which S show a value; the alerts part only when the model has alerts). An alert counts as showing a value only when its cell holds a number other than 0. A check or alert cell that holds no saved value is counted as not calculated, not as failing and not as raised: a workbook with no saved values gives `checks: not calculated (0 of N have a value)` (and `alerts: not calculated (0 of A have a value)`); when only some cells have no value the line reads `checks: H of N hold, K not calculated (no value)`. The words ` (cached values)` are added when the run did not recalculate and at least one check or alert cell holds a value. After a completed recalculation an empty or non-numeric check result is still an error (C-FAIL). `rotm.py status` prints the same line. `reports/status.json` keeps the counts as `checks`, `failed`, `alerts` and `alerts_shown`.
+9. It warns D-CRITERIA for a label and another value of the same column that Excel's criteria matching takes as equal (see "Checks you add in the specification" and [helper-patterns.md](helper-patterns.md#labels-that-excels-criteria-matching-merges)): in Python on the landed rows, for criteria ranges that are fetch columns of a raw text column; after a completed recalculation also on the values Excel saved, for criteria ranges on other helper columns. It is a warning: strict mode exits 1.
+10. After a completed recalculation it computes every check, alert and the master check again from the saved values of their own operand cells and compares the Result and master formulas with the text `build` recorded (C-RECOMPUTE, an error; see "C-RECOMPUTE: each check computed again from its own operands" above).
+
+| Exit code | Meaning | What to tell the user |
+| --- | --- | --- |
+| 0 | every check passed after recalculation in Excel | the checks hold; name the number of checks |
+| 1 | at least one check failed, an error value was found, a check's Result does not follow from its operands (C-RECOMPUTE), or Excel started but could not open or calculate the workbook (X-OPEN) | the failed check's id and label, its actual and expected values, and the fix; for X-OPEN, that Excel could not open the workbook, so no check value was read, and the formula `audit` names |
+| 2 | refused: bad input | the message: it names the file or key to change |
+| 3 | not recalculated: Excel was not available, or `--no-excel` | "audited but not recalculated": the check values were not computed |
+| 4 | internal error: one line names the module; the traceback is saved in the plugin's state folder as `last_error.txt` | the line, and that the check did not finish |
+| 5 | Excel busy: another Excel job held the lock | run it again later |
+
+- `check --refresh` refreshes every Power Query first and waits until the refresh has finished before it reads the sheet ([excel-power-query.md](excel-power-query.md)).
+- `check --accept-refresh` checks the new raw rows against the contract and only then records them as the new landed data (design 7.3). With `--control <t>.<column>=<value>` the new source total is checked, written into the control cell on the inputs sheet and recorded with the snapshot's digest in `raw/<t>.controls.json` (with the time and the words given). `build` and `check` take the control total of the snapshot they read from that file, so a rebuild keeps the accepted total; the snapshot first landed uses the contract's total. The contract and its agreement are not changed. Running the same acceptance again gives the same record.
+- The control total `check` uses for a table and column, in this order: `--control` given in this run; else the total recorded for this exact snapshot (its digest) in `raw/<t>.controls.json`; else the agreed contract's total. Never the inputs sheet: a value typed into the inputs sheet is not a control total, and `check` never records a value read from the workbook as an accepted total. When the inputs-sheet control cell holds another value than the control used, `check` warns D-CONTROL-INPUT (strict mode exits 1) and names the cell and both values. After a refresh with a new source total, give it with `--control`, which writes it there; otherwise rebuild.
+- A failing `<t>_total_<column>` check: find the missing or extra rows in `raw_<t>` (compare them with the source system); after a refresh with a new source total run `rotm.py check <model> --accept-refresh --control <t>.<column>=<source total>`.
+- The manifest keeps, for each raw table, two digests: `digest`, the landed snapshot's rows, which `land` updates; and `workbook_digest`, the rows the raw sheet held when a `rotm.py` command last wrote them (build, the query attach, `extend`, an acceptance). Changed rows (the sheet differs from `digest`) are accepted only when the sheet also differs from `workbook_digest`. When the sheet equals `workbook_digest` and differs from `digest`, `raw/<t>.csv` holds rows landed after the workbook's rows (`land --force`): R-CHANGED, nothing is accepted and `raw/<t>.csv` is not changed; refresh the query (`rotm.py check <model> --refresh`) or rebuild from the snapshot (`rotm.py build <model> --force`). A manifest without `workbook_digest` (built before v3): R-CHANGED, nothing is accepted for that table; rebuild once (`rotm.py build <model> --force`), which records the digest.
+- A run counts as refreshed (`refreshed` true in the report and in `reports/status.json`) only when the refresh step reports at least one query table it refreshed.
+- `--refresh` asked for and no refresh ran (Excel not available or busy, the refresh failed, the refresh step refreshed no query table, or the workbook has no query): no table is accepted in that run; `raw/<t>.csv`, `raw/<t>.controls.json` and the manifest stay byte for byte, a note says so, and the exit code is not 0.
+- CT-VERSION (error, in `check` and in `audit` with a manifest): each raw entry of the manifest records `contract_sha256`, the hash of the agreed contract build read. When the agreed contract's hash is another one, the workbook was built from another version of the contract: land again if the rows change (`rotm.py land <model> --table <t> --csv <file> --force`) and rebuild (`rotm.py build <model> --force`). A manifest without the hash (built before v3) gets a note that the contract version was not compared. At an acceptance (`--accept-refresh`), nothing is accepted for a table with CT-VERSION in that run: `raw/<t>.csv`, `raw/<t>.controls.json` and the manifest stay byte for byte, and a note says so.
+- A cell of an integer, number, date, datetime or boolean column that the workbook stores as text: D-TYPE in `check` and R-TYPE in `audit` (errors), naming the first cell and the count. The stored type is part of the row comparison, so the text `1` is not equal to the number 1. A cell of a text column that the workbook stores as a number is D-TYPE and R-TYPE too: the text `901` is not the number 901. So is a cell of a text column that the workbook stores as a logical value: the text `TRUE` is not the logical value TRUE, and such a raw sheet is never reported as unchanged since landing. A date or datetime column stored as Excel's serial numbers stays accepted. Land the data again and rebuild; a raw sheet holds landed values only.
+- Control totals compare exactly: the sum of the raw column against the control total, within the contract's tolerance only (D-TOTAL). A control total of 1,000,000,000,000 with tolerance 0 against raw amounts that sum to 999,999,999,500 fails.
+- `check --refresh` refuses (exit 2, nothing refreshed) a Power Query table whose query was written for another contract than the agreed one; the message names the table and the commands that write the query again.
+- `check --refresh` also refuses, before Excel starts (exit 2, "nothing was refreshed"), a Power Query table whose `queries/<t>.pq.m` differs from the query text attached to the workbook: `land --power-query` (and `build`, which attaches through it) records the hash of the attached text as `query_body_sha256` in the raw entry of the manifest, and `check` compares it with the body of the file now (the text without its rotm-stamp line, LF line ends). `land` and `land --keep-queries` change the query file only; the workbook keeps the query it was given until it is attached again, so a refresh would run the workbook's query, not the file. The line names the table and the fix `rotm.py land "<model>" --table <t> --power-query`, which attaches the file's query. A missing `queries/<t>.pq.m` is refused the same way. A query attached by hand is not compared (its note says so). A manifest that records no `query_body_sha256` (attached before v5) gets a note and no refusal.
+- `check --refresh` also reads, through Excel and before the refresh, the formula of the query bound to the table at A1 of `raw_<t>` and compares its hash with `query_formula_sha256`, the hash the attach recorded from the formula Excel gave back. A query changed outside `rotm.py` (for example in Excel's Power Query editor) is X-QUERY-CHANGED (a warning; an error with `--accept-refresh`): no table is refreshed and nothing is accepted, so `raw/<t>.csv`, `raw/<t>.controls.json` and the manifest stay as they were. Put the change into `queries/<t>.pq.m` and run `rotm.py land "<model>" --table <t> --power-query` ([excel-power-query.md](excel-power-query.md#after-a-refresh)). A manifest written before v6 records no such hash: a note says that the workbook's query was not compared.
+- After a refresh that ran, and after `land`, I-HIDDEN-DECIMALS (information; the exit code does not change) names a number column of a raw table whose values hold more decimals than its number format shows, with the first row and the count. The values are stored and calculated in full; no format is changed. A rebuild shows them when build chose the format; when the contract names the format, agree another format in the contract, then rebuild.
+- `check --refresh` also refuses, before Excel starts (exit 2, "nothing was refreshed"), while a raw table loaded by a query has a contract that is missing, invalid, proposed, stale, or agreed only on the example channel outside the plugin; one line per table names the state, and the fix names `rotm.py contract show` and `rotm.py contract agree`.
+- `check --refresh` on a workbook with no Power Query query or connection: X-NO-QUERY, a warning (strict mode exits 1); an error when `--accept-refresh` is given too. The raw sheets are static snapshots and nothing was refreshed: land new rows and rebuild, or attach a query (`rotm.py land <model> --table <t> --power-query`).
+- `check --refresh` and a raw table whose manifest entry records `landing` `power_query` while the workbook holds no query table at A1 of its sheet: X-NO-QUERY for that table, naming its sheet (a warning; an error with `--accept-refresh`): `raw_<t>: the manifest records that a Power Query query loads it, but the workbook holds no query table at A1 of raw_<t>; it was not refreshed and nothing was accepted for it`. Its `raw/<t>.csv`, `raw/<t>.controls.json` and its manifest entry stay byte for byte. Fix: attach the query again with `rotm.py land "<model>" --table <t> --power-query`, then run `rotm.py check "<model>" --refresh`.
+- A raw sheet counts as loaded by a query when the workbook holds a query-backed table at A1 of `raw_<t>`, whatever the query's name and whatever the manifest says. The report's `query_loaded` is true only then: `landing` `power_query` in the manifest alone does not make it true, so `query_loaded` is never true where `query_table` is false. At the acceptance of a query attached by hand, `check` records `landing` `power_query`, the query's name and `query_attach` `hand`, also when its first load equals the landed snapshot (the rows did not change); no contract hash is recorded for such a query, and `check --refresh` says so in a note.
+- Changed rows are accepted only from a live query table. When the manifest says `power_query` but the workbook holds no query table at A1 of `raw_<t>` (it was converted to a range or deleted), the changed rows are refused with R-CHANGED, which says that the query table is no longer there, and nothing is accepted: `raw/<t>.csv`, `raw/<t>.controls.json` and the manifest stay byte for byte. Attach the query again and refresh, or rebuild from the snapshot.
+- A refresh that returns no rows: `rotm.py extend <model> --table <t>` clears every helper row, row 2 included, and the manifest's helper rows become 0. A later refresh with rows: `extend` writes the first helper row from the formulas the manifest keeps, then fills down.
+- A workbook written by openpyxl holds formulas but no values until Excel has recalculated and saved it. Do not report a check value you did not read after recalculation.
+
+## Common mistakes
+
+- Comparing a total with itself: `SUM` of the landed amount against a control total that was also computed from the landed amount. Take control totals from the source system.
+- Typing a new source total into the inputs sheet's control cell. `check` does not take it as the control total (D-CONTROL-INPUT); give it with `rotm.py check <model> --accept-refresh --control <t>.<column>=<source total>`.
+- Writing `IFERROR` around a check, or `ROUND` inside it.
+- Showing OK and FAIL with a fill or a conditional format: that adds colours the dictionary does not define (S-FILL).
+- Putting an alert into the master check, so a business warning stops the model from passing.
+- Adding a helper flag (unmapped, below bands) without a check that counts it.
+- Removing rows that repeat a key to make `<t>_keys` hold: look at the rows D-KEY names with the user instead.
+- Using COUNT or AVERAGE on a helper column of a nullable number column, or of a number column with agreed known nulls: the empty cells show 0 there; use the column's null flag.
+- Reporting "all checks pass" when `check` exited 3: the workbook was not recalculated.

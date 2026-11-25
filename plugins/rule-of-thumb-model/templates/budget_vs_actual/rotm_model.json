@@ -1,0 +1,10 @@
+{
+ "rotm_model": 1,
+ "name": "budget_vs_actual",
+ "created": "2026-11-25T03:09:12+09:00",
+ "created_by": "rotm.py init",
+ "plugin_version": "0.1.0",
+ "spec": "model.spec.json",
+ "workbook": "model.xlsx",
+ "product": "both"
+}

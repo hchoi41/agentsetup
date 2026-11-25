@@ -1,0 +1,65 @@
+{
+ "rotm_status": 1,
+ "workbooks": {
+  "model.xlsx": {
+   "land": {
+    "exit_code": 0,
+    "table": "gl_actuals",
+    "rows": 419,
+    "digest": "sha256:ae3a38f74a07781821d4bc82e9c51af4e6664922773376f4287466532f856055",
+    "source": "data/gl_actuals.csv",
+    "at": "2026-11-25T03:09:15+09:00"
+   },
+   "build": {
+    "exit_code": 0,
+    "sha256": "8b6bb90aaf97fdcb6b5b6386a069d1aca90d0428cdb555018a1e80b33c07f05a",
+    "errors": 0,
+    "warnings": 0,
+    "strict": true,
+    "spec_sha256": "514c0e29857521b814e2c0ae272e6f3ca72e6763a22f762a72358456fbbf0615",
+    "at": "2026-11-25T23:25:02+09:00"
+   },
+   "audit": {
+    "at": "2026-11-25T23:25:09+09:00",
+    "exit_code": 0,
+    "strict": true,
+    "sha256": "8f6167ccf6e8e4a516158a9bac3d684b7a7fd06522a2b1901916262d6adf04ea",
+    "errors": 0,
+    "warnings": 0,
+    "info": 0
+   },
+   "check": {
+    "at": "2026-11-25T23:25:03+09:00",
+    "exit_code": 0,
+    "strict": true,
+    "input_sha256": "8b6bb90aaf97fdcb6b5b6386a069d1aca90d0428cdb555018a1e80b33c07f05a",
+    "output_sha256": "8f6167ccf6e8e4a516158a9bac3d684b7a7fd06522a2b1901916262d6adf04ea",
+    "recalculated": true,
+    "refreshed": false,
+    "checks": 14,
+    "failed": 0,
+    "alerts": 0,
+    "alerts_shown": 0,
+    "master": 0,
+    "errors": 0,
+    "warnings": 0,
+    "line": "checks: 14 of 14 hold"
+   },
+   "render": {
+    "at": "2026-11-25T23:25:11+09:00",
+    "exit_code": 0,
+    "sha256": "8f6167ccf6e8e4a516158a9bac3d684b7a7fd06522a2b1901916262d6adf04ea",
+    "files": [
+     "reports/render/cover.png",
+     "reports/render/inputs.png",
+     "reports/render/raw_gl_actuals.png",
+     "reports/render/h_gl_actuals.png",
+     "reports/render/calc.png",
+     "reports/render/summary.png",
+     "reports/render/checks.png",
+     "reports/render/notes.png"
+    ]
+   }
+  }
+ }
+}

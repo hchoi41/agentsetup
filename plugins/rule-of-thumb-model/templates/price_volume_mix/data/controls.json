@@ -1,0 +1,8 @@
+{
+ "note": "Row count and totals as the sales system's own report gives them (generated with the data).",
+ "sales": {
+  "rows": 250,
+  "qty": 2607,
+  "revenue": 102662100
+ }
+}

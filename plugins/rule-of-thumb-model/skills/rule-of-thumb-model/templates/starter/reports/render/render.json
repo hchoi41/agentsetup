@@ -1,0 +1,75 @@
+{
+ "rotm_render": 1,
+ "workbook": "model.xlsx",
+ "sha256": "4bf45c07e7af087183fd7111731d761f085e75cc08c043ddc6aec6c7f65aa252",
+ "at": "2026-11-25T23:21:42+09:00",
+ "note": "rendered, not looked at by code",
+ "files": [
+  {
+   "sheet": "cover",
+   "file": "cover.png",
+   "range": "A1:E44",
+   "last_row": 44,
+   "last_col": 5,
+   "truncated": false,
+   "width_px": 717,
+   "height_px": 840,
+   "problem": null
+  },
+  {
+   "sheet": "inputs",
+   "file": "inputs.png",
+   "range": "A1:E21",
+   "last_row": 21,
+   "last_col": 5,
+   "truncated": false,
+   "width_px": 904,
+   "height_px": 336,
+   "problem": null
+  },
+  {
+   "sheet": "raw_lines",
+   "file": "raw_lines.png",
+   "range": "A1:D61",
+   "last_row": 61,
+   "last_col": 4,
+   "truncated": false,
+   "width_px": 379,
+   "height_px": 976,
+   "problem": null
+  },
+  {
+   "sheet": "h_lines",
+   "file": "h_lines.png",
+   "range": "A1:H61",
+   "last_row": 61,
+   "last_col": 8,
+   "truncated": false,
+   "width_px": 595,
+   "height_px": 976,
+   "problem": null
+  },
+  {
+   "sheet": "calc",
+   "file": "calc.png",
+   "range": "A1:G10",
+   "last_row": 10,
+   "last_col": 7,
+   "truncated": false,
+   "width_px": 615,
+   "height_px": 160,
+   "problem": null
+  },
+  {
+   "sheet": "checks",
+   "file": "checks.png",
+   "range": "A1:J13",
+   "last_row": 13,
+   "last_col": 10,
+   "truncated": false,
+   "width_px": 1351,
+   "height_px": 208,
+   "problem": null
+  }
+ ]
+}

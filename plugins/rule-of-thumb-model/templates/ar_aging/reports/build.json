@@ -1,0 +1,47 @@
+{
+ "rotm_report": 1,
+ "tool": "rule-of-thumb-model",
+ "version": "0.1.0",
+ "command": "build",
+ "target": "model.xlsx",
+ "at": "2026-11-26T03:53:21+09:00",
+ "strict": true,
+ "exit_code": 0,
+ "status": "pass",
+ "summary": {
+  "errors": 0,
+  "warnings": 0,
+  "info": 0
+ },
+ "findings": [],
+ "notes": [
+  "values not verified: the workbook holds no cached values (not recalculated); run rotm.py check \"<model folder>\" to recalculate it in Excel and read every check"
+ ],
+ "verified": {
+  "recalculated": false,
+  "rendered": false
+ },
+ "data": {
+  "sheets": [
+   "cover",
+   "inputs",
+   "raw_open_items",
+   "h_open_items",
+   "calc",
+   "summary",
+   "checks",
+   "notes"
+  ],
+  "formulas": 3117,
+  "manifest": "model.manifest.json",
+  "power_query_attached": [],
+  "hand_queries_carried": {},
+  "hand_queries_dropped": [],
+  "capacity": {
+   "open_items": 240
+  },
+  "rows": {
+   "open_items": 240
+  }
+ }
+}

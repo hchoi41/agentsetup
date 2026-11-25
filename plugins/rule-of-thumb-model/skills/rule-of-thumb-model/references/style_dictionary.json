@@ -1,0 +1,1302 @@
+{
+ "rotm_dictionary": 1,
+ "name": "rule-of-thumb-model default dictionary",
+ "version": "0.1.0",
+ "note": "Owner M2. Every leaf is {value, source}; a source names a key of 'sources' and may add a decision id, a page or a claim-check id. 'check #N' and 'check X' name items of research/verify/*_check_v1.json; a claim not among those items is marked 'not re-checked'. Explained value by value in references/style-dictionary.md. A project changes it with <model>/style_overrides.json, never by editing this file.",
+ "sources": {
+  "MAX": "Max's stated preferences (spec Part 1, section 1.2): Arial; size 8 for a brick wall of data, 9 where there is white space; minimal colour; light grey column headers; row headers a lighter grey. Fixed points, not claims to check.",
+  "SYNTHESIS": "Research synthesis v2 (research/20261124_create_skill_ruleofthumb_financial_modeling_research_synthesis_v2.md), decisions D8 (style dictionary), D9 (number formats), D13 (sheet view), D16 (input marking), D17 (link colour), D18 (greys, density, unit band).",
+  "SURVEY": "Style survey of the template files on Max's PC (research ..._research_style_survey_v1.md, sections C and F, pass 2); claim checks in research/verify/style_survey_check_v1.json.",
+  "R2": "Researcher 2 report, section 5 (research/researcher2/research2_report_v1.md); claim checks in research/verify/researcher2_check_v1.json.",
+  "FAST": "FAST Standard 02c, July 2019, FAST Standard Organisation, licensed CC BY 4.0 (via research ..._platforms_standards_v1.md, section C1); claim checks in research/verify/platforms_standards_check_v1.json.",
+  "ICAEW": "ICAEW Financial Modelling Code (2024), summarised in research ..._platforms_standards_v1.md, section C2 (all rights reserved; not quoted); claim checks in research/verify/platforms_standards_check_v1.json.",
+  "BOOKS": "Book research (research ..._research_books_v1.md); claim checks in research/verify/books_check_v1.json.",
+  "GUIDES": "Local guides research (research ..._research_local_guides_v1.md), including Max's own files (its section C); claim checks in research/verify/local_guides_check_v1.json.",
+  "PLATFORMS": "Platform research (research ..._research_platforms_standards_v1.md); claim checks in research/verify/platforms_standards_check_v1.json.",
+  "PLUGIN": "The plugin's own choice (design rotm_design_v1.md, or builder M2); listed for Max to decide where it matters."
+ },
+ "font": {
+  "value": "Arial",
+  "source": "MAX (Arial in every cell); SYNTHESIS D8 (Arial has no Hangul glyphs, so Korean text is drawn in a fallback font; the stored font stays Arial)"
+ },
+ "sizes": {
+  "dense": {
+   "value": 8,
+   "source": "MAX (8 for a brick wall of data)"
+  },
+  "spaced": {
+   "value": 9,
+   "source": "MAX (9 where there is white space)"
+  }
+ },
+ "sheet_types": {
+  "cover": {
+   "size": {
+    "value": "spaced",
+    "source": "MAX; SYNTHESIS D18"
+   },
+   "gridlines": {
+    "value": false,
+    "source": "SYNTHESIS D13; SURVEY F (hidden on 762 of 1,008 sheets, 75.6%, check #18); BOOKS B-40 (HE rule 92, check B-40)"
+   },
+   "zoom": {
+    "value": 100,
+    "source": "SYNTHESIS D13 (PLUGIN default; PwC suggests 85, GUIDES L-75)"
+   },
+   "freeze": {
+    "value": null,
+    "source": "PLUGIN"
+   }
+  },
+  "inputs": {
+   "size": {
+    "value": "spaced",
+    "source": "MAX; SYNTHESIS D18; judge plan approval seq 1 advice 5"
+   },
+   "gridlines": {
+    "value": false,
+    "source": "SYNTHESIS D13; SURVEY F (check #18); BOOKS B-40"
+   },
+   "zoom": {
+    "value": 100,
+    "source": "SYNTHESIS D13"
+   },
+   "freeze": {
+    "value": "D4",
+    "source": "PLUGIN layout (design 6.3); FAST 2.03-05 (master check in the frozen area)"
+   }
+  },
+  "raw": {
+   "size": {
+    "value": "dense",
+    "source": "MAX; SYNTHESIS D18 (raw sheets are always dense)"
+   },
+   "gridlines": {
+    "value": false,
+    "source": "SYNTHESIS D13; SURVEY F (check #18); BOOKS B-40"
+   },
+   "zoom": {
+    "value": 100,
+    "source": "SYNTHESIS D13"
+   },
+   "freeze": {
+    "value": "A2",
+    "source": "PLUGIN (header row frozen); SYNTHESIS D13 (raw sheets at A2)"
+   }
+  },
+  "helpers": {
+   "size": {
+    "value": "dense",
+    "source": "MAX (a wide grid of helper columns)"
+   },
+   "gridlines": {
+    "value": false,
+    "source": "SYNTHESIS D13; SURVEY F (check #18); BOOKS B-40"
+   },
+   "zoom": {
+    "value": 100,
+    "source": "SYNTHESIS D13"
+   },
+   "freeze": {
+    "value": "C2",
+    "source": "PLUGIN (header row, row and in_raw columns frozen)"
+   }
+  },
+  "calc": {
+   "size": {
+    "value": "dense",
+    "source": "MAX (wide grids); judge plan approval seq 1 advice 5"
+   },
+   "gridlines": {
+    "value": false,
+    "source": "SYNTHESIS D13; SURVEY F (check #18); BOOKS B-40"
+   },
+   "zoom": {
+    "value": 100,
+    "source": "SYNTHESIS D13"
+   },
+   "freeze": {
+    "value": "D4",
+    "source": "PLUGIN layout (design 6.3); FAST 2.03-05"
+   }
+  },
+  "output": {
+   "size": {
+    "value": "spaced",
+    "source": "MAX (summaries); judge plan approval seq 1 advice 5"
+   },
+   "gridlines": {
+    "value": false,
+    "source": "SYNTHESIS D13; SURVEY F (check #18); BOOKS B-40"
+   },
+   "zoom": {
+    "value": 100,
+    "source": "SYNTHESIS D13"
+   },
+   "freeze": {
+    "value": "D4",
+    "source": "PLUGIN layout (design 6.3); FAST 2.03-05"
+   }
+  },
+  "checks": {
+   "size": {
+    "value": "spaced",
+    "source": "MAX"
+   },
+   "gridlines": {
+    "value": false,
+    "source": "SYNTHESIS D13; SURVEY F (check #18); BOOKS B-40"
+   },
+   "zoom": {
+    "value": 100,
+    "source": "SYNTHESIS D13"
+   },
+   "freeze": {
+    "value": "D5",
+    "source": "PLUGIN layout (design 9.1: header row 4)"
+   }
+  },
+  "notes": {
+   "size": {
+    "value": "spaced",
+    "source": "MAX (notes); judge plan approval seq 1 advice 5"
+   },
+   "gridlines": {
+    "value": false,
+    "source": "SYNTHESIS D13; SURVEY F (check #18); BOOKS B-40"
+   },
+   "zoom": {
+    "value": 100,
+    "source": "SYNTHESIS D13"
+   },
+   "freeze": {
+    "value": null,
+    "source": "PLUGIN"
+   }
+  }
+ },
+ "colors": {
+  "text": {
+   "value": "000000",
+   "source": "SYNTHESIS D8; SURVEY C and F (82.0% of 273,804 formula cells black, check #11); R2 section 5 (109,820 of 123,561 calculation cells black or automatic, check #13)"
+  },
+  "col_header_fill": {
+   "value": "D9D9D9",
+   "source": "MAX (light grey column headers); the hex D9D9D9 is the PLUGIN's pick within Max's description, as in SYNTHESIS D18 (SURVEY F and R2 section 5 both propose D9D9D9); for Max to confirm"
+  },
+  "row_header_fill": {
+   "value": "F2F2F2",
+   "source": "MAX (row headers a lighter grey than the column headers); hex F2F2F2 from SURVEY F, the lighter of SURVEY F2F2F2 and R2 EEEEEE (SYNTHESIS D18); for Max to confirm"
+  },
+  "input_fill": {
+   "value": "FFF2CC",
+   "source": "GUIDES C-1 and C-4 (Max's own files mark inputs on a fill: 'Blue font on amber fill', '파란 숫자와 옅은 노란색 셀'; C-1 read again by M2 from the copy in build/foreign, Cover B7, and FFF2CC is the fill on its Assumptions C23:E23); SURVEY pass 2 (FFF2CC on 13.4% of 1,516 typed numbers in Max's prior work; the figure is read in check #10); ICAEW (a fill and/or border, not font colour alone; check C2.2); SYNTHESIS D16 option B"
+  },
+  "rule_line": {
+   "value": "808080",
+   "source": "SYNTHESIS D8 (thin 808080 rules, builder default); GUIDES L-69 (grey rather than black borders; not re-checked)"
+  },
+  "note_text": {
+   "value": "595959",
+   "source": "SYNTHESIS D8 (regular 595959 notes; section 3 row 21); R2 section 5 (dark grey notes, a proposal)"
+  },
+  "fail_text": {
+   "value": "FF0000",
+   "source": "PLUGIN: the [Red] colour of the check number format, used only for failing checks (design 9.5); SYNTHESIS D8 (FF0000 for failing checks)"
+  },
+  "input_blue": {
+   "value": "0000FF",
+   "source": "SYNTHESIS D16 option A; SURVEY F (Kaplan: 0000FF on 86.4% of 2,374 typed numbers, check #7; CFI: 3271D2 on 62.8% and 0000FF on 24.4% of 9,063, check #8); GUIDES L-50 (CFI p.83, check L-50)"
+  },
+  "link_green": {
+   "value": "008000",
+   "source": "SYNTHESIS D17 option; SURVEY pass 2 (Max's prior work: 008000 on 38.9% of 522 pure links, check #12); GUIDES L-50 (green for links to other sheets, check L-50); GUIDES C-1 (Max's legend: 'Green font' = cross-sheet link)"
+  },
+  "export_red": {
+   "value": "FF0000",
+   "source": "FAST 1.01-06 (red font for exports, check C1.9)"
+  }
+ },
+ "number_formats": {
+  "amount": {
+   "value": "#,##0_);(#,##0);\"-\"_)",
+   "source": "SYNTHESIS D9; GUIDES L-64 (negatives in brackets, zero as a dash, no red for negatives: PwC p.13, CFI p.81, check L-64); BOOKS B-44 (check B-44); SURVEY F"
+  },
+  "amount1": {
+   "value": "#,##0.0_);(#,##0.0);\"-\"_)",
+   "source": "SYNTHESIS D9 (amount_1dp: Kaplan's one-decimal format, SURVEY B)"
+  },
+  "amount2": {
+   "value": "#,##0.00_);(#,##0.00);\"-\"_)",
+   "source": "BOOKS B-44 (HE: two decimals as a general rule, check B-44)"
+  },
+  "rate": {
+   "value": "0.0%",
+   "source": "SYNTHESIS D9; SURVEY F; R2 section 5; BOOKS B-44 (percent cells in percent format)"
+  },
+  "rate2": {
+   "value": "0.00%",
+   "source": "PLUGIN"
+  },
+  "factor": {
+   "value": "0.0000",
+   "source": "SYNTHESIS D9; FAST 3.01-08 (format numbers to show what they are; not re-checked)"
+  },
+  "count": {
+   "value": "#,##0",
+   "source": "SYNTHESIS D9 (builder default); R2 section 5 (a zero stays visible for counts)"
+  },
+  "integer": {
+   "value": "0",
+   "source": "PLUGIN"
+  },
+  "date": {
+   "value": "yyyy-mm-dd",
+   "source": "SYNTHESIS D9; R2 section 5"
+  },
+  "datetime": {
+   "value": "yyyy-mm-dd hh:mm:ss",
+   "source": "PLUGIN"
+  },
+  "date_or_empty": {
+   "value": "yyyy-mm-dd;;",
+   "source": "PLUGIN (r5 verdict J-1: an empty date shows as an empty cell, not 1900-01-00)"
+  },
+  "datetime_or_empty": {
+   "value": "yyyy-mm-dd hh:mm:ss;;",
+   "source": "PLUGIN (r5 verdict J-1: an empty date shows as an empty cell, not 1900-01-00)"
+  },
+  "month": {
+   "value": "yyyy-mm",
+   "source": "SYNTHESIS D9 (period headers yyyy-mm, builder default)"
+  },
+  "text": {
+   "value": "@",
+   "source": "SYNTHESIS D9; R2 section 5 (identifiers with leading zeros stay text)"
+  },
+  "flag": {
+   "value": "0",
+   "source": "SYNTHESIS D9 (0/1 flags and exception counts, so a zero stays visible); R2 section 5"
+  },
+  "check": {
+   "value": "[Red]\"FAIL\";[Red]\"FAIL\";\"OK\"",
+   "source": "PLUGIN (design 9.5): 0 shows OK, 1 shows FAIL in red; MAX (minimal colour: no fill, no conditional format)"
+  },
+  "alert": {
+   "value": "[Red]\"ALERT\";[Red]\"ALERT\";\"OK\"",
+   "source": "PLUGIN (v4, J-1): the Result cell of an alert row: 0 shows OK, 1 shows ALERT in red; an alert is not a failure and is not part of the master check; MAX (minimal colour: no fill, no conditional format)"
+  },
+  "general": {
+   "value": "General",
+   "source": "PLUGIN (Excel's default format); SYNTHESIS D9 (labels and notes)"
+  }
+ },
+ "contract_type_formats": {
+  "text": {
+   "value": "text",
+   "source": "PLUGIN; SYNTHESIS D9 (IDs as @)"
+  },
+  "integer": {
+   "value": "count",
+   "source": "PLUGIN (integrator, render review: whole-number KRW amounts proposed as integer showed 145754000 under format 0); SYNTHESIS D9 (count #,##0)"
+  },
+  "number": {
+   "value": "amount",
+   "source": "PLUGIN; SYNTHESIS D9"
+  },
+  "date": {
+   "value": "date",
+   "source": "PLUGIN; SYNTHESIS D9"
+  },
+  "datetime": {
+   "value": "datetime",
+   "source": "PLUGIN"
+  },
+  "boolean": {
+   "value": "general",
+   "source": "PLUGIN"
+  }
+ },
+ "cell_types": {
+  "input": {
+   "meaning": {
+    "value": "a typed value a user may change (FAST Appendix B: a cell without cell references)",
+    "source": "FAST"
+   },
+   "font_color": {
+    "value": "text",
+    "source": "PLUGIN default (design D7, 10.3); alternatives: input_blue_font (SYNTHESIS D16 option A, its recommended default) and input_blue_on_fill (SYNTHESIS D16 option B); for Max to decide"
+   },
+   "bold": {
+    "value": false,
+    "source": "R2 section 5 (24 of 26 input specimens regular, check #12); SYNTHESIS D8"
+   },
+   "italic": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "fill": {
+    "value": "input_fill",
+    "source": "GUIDES C-1, C-4 (Max's own files mark inputs on a light yellow or amber fill); ICAEW (check C2.2); SYNTHESIS D16 option B; see colors.input_fill"
+   },
+   "border": {
+    "value": null,
+    "source": "SYNTHESIS D8 (none, builder default); R2 section 5 (15 of 26 input specimens without borders)"
+   },
+   "number_format": {
+    "value": "item",
+    "source": "PLUGIN (the item's format); SYNTHESIS D9 (by unit)"
+   },
+   "align": {
+    "value": "right",
+    "source": "SYNTHESIS D8; GUIDES L-67 (right-aligned figures; not re-checked)"
+   },
+   "wrap": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "locked": {
+    "value": false,
+    "source": "GUIDES L-60 (lock everything except inputs; not re-checked); SYNTHESIS D13 (no sheet protection by default)"
+   },
+   "size": {
+    "value": "sheet",
+    "source": "MAX"
+   }
+  },
+  "calc": {
+   "meaning": {
+    "value": "a formula that calculates",
+    "source": "FAST"
+   },
+   "font_color": {
+    "value": "text",
+    "source": "SYNTHESIS D8; SURVEY F (82.0% black, check #11)"
+   },
+   "bold": {
+    "value": false,
+    "source": "SYNTHESIS D8; SURVEY C (88.8% of 273,804 formulas not bold)"
+   },
+   "italic": {
+    "value": false,
+    "source": "SURVEY C"
+   },
+   "fill": {
+    "value": null,
+    "source": "SYNTHESIS D8; SURVEY F (79.0% unfilled, check #11)"
+   },
+   "border": {
+    "value": null,
+    "source": "SYNTHESIS D8; SURVEY C (52.3% no border)"
+   },
+   "number_format": {
+    "value": "item",
+    "source": "PLUGIN; SYNTHESIS D9"
+   },
+   "align": {
+    "value": "right",
+    "source": "SYNTHESIS D8; GUIDES L-67 (not re-checked)"
+   },
+   "wrap": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "locked": {
+    "value": true,
+    "source": "GUIDES L-60 (not re-checked)"
+   },
+   "size": {
+    "value": "sheet",
+    "source": "MAX"
+   }
+  },
+  "link": {
+   "meaning": {
+    "value": "a pure reference to a cell on the same sheet (FAST Appendix B: a link has no functions or operators)",
+    "source": "FAST"
+   },
+   "font_color": {
+    "value": "text",
+    "source": "SYNTHESIS D17; SURVEY F (75.8% of 86,899 pure links black, check #11)"
+   },
+   "bold": {
+    "value": false,
+    "source": "SURVEY C"
+   },
+   "italic": {
+    "value": false,
+    "source": "SURVEY C"
+   },
+   "fill": {
+    "value": null,
+    "source": "SYNTHESIS D8; SURVEY F (82.5% unfilled, check #11)"
+   },
+   "border": {
+    "value": null,
+    "source": "SURVEY C"
+   },
+   "number_format": {
+    "value": "item",
+    "source": "PLUGIN"
+   },
+   "align": {
+    "value": "right",
+    "source": "SYNTHESIS D8; GUIDES L-67 (not re-checked)"
+   },
+   "wrap": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "locked": {
+    "value": true,
+    "source": "GUIDES L-60 (not re-checked)"
+   },
+   "size": {
+    "value": "sheet",
+    "source": "MAX"
+   }
+  },
+  "import": {
+   "meaning": {
+    "value": "a pure reference to a cell on another sheet (FAST 1.01-06 import)",
+    "source": "FAST"
+   },
+   "font_color": {
+    "value": "text",
+    "source": "SYNTHESIS D17 (black by default, as calculations; green is the named override links_green; FAST blue is fast_import_export)"
+   },
+   "bold": {
+    "value": false,
+    "source": "SURVEY C"
+   },
+   "italic": {
+    "value": false,
+    "source": "SURVEY C"
+   },
+   "fill": {
+    "value": null,
+    "source": "SYNTHESIS D8; SURVEY F"
+   },
+   "border": {
+    "value": null,
+    "source": "SURVEY C"
+   },
+   "number_format": {
+    "value": "item",
+    "source": "PLUGIN"
+   },
+   "align": {
+    "value": "right",
+    "source": "SYNTHESIS D8; GUIDES L-67 (not re-checked)"
+   },
+   "wrap": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "locked": {
+    "value": true,
+    "source": "GUIDES L-60 (not re-checked)"
+   },
+   "size": {
+    "value": "sheet",
+    "source": "MAX"
+   }
+  },
+  "export": {
+   "meaning": {
+    "value": "a calculation read by another sheet (FAST 1.01-06 export)",
+    "source": "FAST"
+   },
+   "font_color": {
+    "value": "text",
+    "source": "PLUGIN (looks like calc; FAST red is the named override fast_import_export)"
+   },
+   "bold": {
+    "value": false,
+    "source": "SURVEY C"
+   },
+   "italic": {
+    "value": false,
+    "source": "SURVEY C"
+   },
+   "fill": {
+    "value": null,
+    "source": "SYNTHESIS D8; SURVEY F"
+   },
+   "border": {
+    "value": null,
+    "source": "SURVEY C"
+   },
+   "number_format": {
+    "value": "item",
+    "source": "PLUGIN"
+   },
+   "align": {
+    "value": "right",
+    "source": "SYNTHESIS D8; GUIDES L-67 (not re-checked)"
+   },
+   "wrap": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "locked": {
+    "value": true,
+    "source": "GUIDES L-60 (not re-checked)"
+   },
+   "size": {
+    "value": "sheet",
+    "source": "MAX"
+   }
+  },
+  "check": {
+   "meaning": {
+    "value": "a check result: 0 when the check passes, 1 when it fails",
+    "source": "GUIDES L-38 (check L-38)"
+   },
+   "font_color": {
+    "value": "text",
+    "source": "PLUGIN (red only through the check number format, design 9.5)"
+   },
+   "bold": {
+    "value": false,
+    "source": "SURVEY E (99.1% of check formulas not bold; not re-checked)"
+   },
+   "italic": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "fill": {
+    "value": null,
+    "source": "MAX (minimal colour); SYNTHESIS D8 (63.2% of check displays unfilled, SURVEY E)"
+   },
+   "border": {
+    "value": null,
+    "source": "PLUGIN"
+   },
+   "number_format": {
+    "value": "check",
+    "source": "PLUGIN (design 9.5)"
+   },
+   "align": {
+    "value": "center",
+    "source": "SYNTHESIS D8 (builder default)"
+   },
+   "wrap": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "locked": {
+    "value": true,
+    "source": "GUIDES L-60 (not re-checked)"
+   },
+   "size": {
+    "value": "sheet",
+    "source": "MAX"
+   }
+  },
+  "alert": {
+   "meaning": {
+    "value": "the Result cell of an alert row: 0 when the alert is not raised, 1 when it is raised",
+    "source": "PLUGIN (v4, J-1)"
+   },
+   "font_color": {
+    "value": "text",
+    "source": "PLUGIN (red only through the check number format, design 9.5)"
+   },
+   "bold": {
+    "value": false,
+    "source": "SURVEY E (99.1% of check formulas not bold; not re-checked)"
+   },
+   "italic": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "fill": {
+    "value": null,
+    "source": "MAX (minimal colour); SYNTHESIS D8 (63.2% of check displays unfilled, SURVEY E)"
+   },
+   "border": {
+    "value": null,
+    "source": "PLUGIN"
+   },
+   "number_format": {
+    "value": "alert",
+    "source": "PLUGIN (v4, J-1): shows ALERT or OK, never FAIL"
+   },
+   "align": {
+    "value": "center",
+    "source": "SYNTHESIS D8 (builder default)"
+   },
+   "wrap": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "locked": {
+    "value": true,
+    "source": "GUIDES L-60 (not re-checked)"
+   },
+   "size": {
+    "value": "sheet",
+    "source": "MAX"
+   }
+  },
+  "master_check": {
+   "meaning": {
+    "value": "the master check on the checks sheet and its links on every block sheet",
+    "source": "FAST 2.03-05; BOOKS B-34 (one master check shown on every sheet, check B-34)"
+   },
+   "font_color": {
+    "value": "text",
+    "source": "PLUGIN (red only through the check number format)"
+   },
+   "bold": {
+    "value": true,
+    "source": "SYNTHESIS D8 (check status bold, builder default)"
+   },
+   "italic": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "fill": {
+    "value": null,
+    "source": "MAX (minimal colour)"
+   },
+   "border": {
+    "value": null,
+    "source": "PLUGIN"
+   },
+   "number_format": {
+    "value": "check",
+    "source": "PLUGIN (design 9.5)"
+   },
+   "align": {
+    "value": "center",
+    "source": "SYNTHESIS D8 (builder default)"
+   },
+   "wrap": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "locked": {
+    "value": true,
+    "source": "GUIDES L-60 (not re-checked)"
+   },
+   "size": {
+    "value": "sheet",
+    "source": "MAX"
+   }
+  },
+  "note": {
+   "meaning": {
+    "value": "explanation or source text in a visible column (FAST 2.04-02)",
+    "source": "FAST"
+   },
+   "font_color": {
+    "value": "note_text",
+    "source": "SYNTHESIS D8 (595959); R2 section 5"
+   },
+   "bold": {
+    "value": false,
+    "source": "SYNTHESIS D8; SURVEY C (88.0% of note-like text not bold; not re-checked)"
+   },
+   "italic": {
+    "value": false,
+    "source": "SYNTHESIS D8 (regular, section 3 row 21); R2 section 5"
+   },
+   "fill": {
+    "value": null,
+    "source": "SYNTHESIS D8; SURVEY C (82.8% of 4,240 note-like cells unfilled; not re-checked)"
+   },
+   "border": {
+    "value": null,
+    "source": "PLUGIN"
+   },
+   "number_format": {
+    "value": "general",
+    "source": "PLUGIN; SYNTHESIS D8"
+   },
+   "align": {
+    "value": "left",
+    "source": "SYNTHESIS D8"
+   },
+   "wrap": {
+    "value": true,
+    "source": "SYNTHESIS D8 (left, wrap)"
+   },
+   "locked": {
+    "value": true,
+    "source": "GUIDES L-60 (not re-checked)"
+   },
+   "size": {
+    "value": "sheet",
+    "source": "MAX"
+   }
+  },
+  "col_header": {
+   "meaning": {
+    "value": "a column header (also the header row of a raw sheet)",
+    "source": "MAX"
+   },
+   "font_color": {
+    "value": "text",
+    "source": "SYNTHESIS D8 (000000, builder default)"
+   },
+   "bold": {
+    "value": true,
+    "source": "SYNTHESIS D8; SURVEY F (70.0% of 6,573 header cells bold, check #14)"
+   },
+   "italic": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "fill": {
+    "value": "col_header_fill",
+    "source": "MAX (light grey); SYNTHESIS D8, D18"
+   },
+   "border": {
+    "value": {
+     "bottom": {
+      "style": "thin",
+      "color": "rule_line"
+     }
+    },
+    "source": "SYNTHESIS D8 (thin bottom 808080, builder default); R2 section 5 (thin grey bottom rule)"
+   },
+   "number_format": {
+    "value": "item",
+    "source": "PLUGIN (General for text; period headers keep the column's date format, SYNTHESIS D9)"
+   },
+   "align": {
+    "value": "center",
+    "source": "SYNTHESIS D8 (builder default)"
+   },
+   "wrap": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "locked": {
+    "value": true,
+    "source": "GUIDES L-60 (not re-checked)"
+   },
+   "size": {
+    "value": "sheet",
+    "source": "MAX"
+   }
+  },
+  "row_header": {
+   "meaning": {
+    "value": "the label of a row of values",
+    "source": "MAX"
+   },
+   "font_color": {
+    "value": "text",
+    "source": "SYNTHESIS D8; SURVEY C (65.0% black)"
+   },
+   "bold": {
+    "value": false,
+    "source": "SYNTHESIS D8; SURVEY F (81.1% of 26,038 row-header cells not bold, check #15)"
+   },
+   "italic": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "fill": {
+    "value": "row_header_fill",
+    "source": "MAX (a lighter grey than the column headers); SYNTHESIS D8, D18"
+   },
+   "border": {
+    "value": null,
+    "source": "SYNTHESIS D8 (builder default)"
+   },
+   "number_format": {
+    "value": "general",
+    "source": "PLUGIN; SYNTHESIS D8"
+   },
+   "align": {
+    "value": "left",
+    "source": "SYNTHESIS D8"
+   },
+   "wrap": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "locked": {
+    "value": true,
+    "source": "GUIDES L-60 (not re-checked)"
+   },
+   "size": {
+    "value": "sheet",
+    "source": "MAX"
+   }
+  },
+  "unit": {
+   "meaning": {
+    "value": "the unit of a row (FAST 3.05 units designator)",
+    "source": "FAST"
+   },
+   "font_color": {
+    "value": "text",
+    "source": "PLUGIN"
+   },
+   "bold": {
+    "value": false,
+    "source": "SYNTHESIS D8"
+   },
+   "italic": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "fill": {
+    "value": "row_header_fill",
+    "source": "PLUGIN (design 10.2: keeps the row-header band continuous); SYNTHESIS D18 leaves the unit column unfilled, kept as the named override unit_unfilled; for Max to decide"
+   },
+   "border": {
+    "value": null,
+    "source": "PLUGIN"
+   },
+   "number_format": {
+    "value": "general",
+    "source": "PLUGIN"
+   },
+   "align": {
+    "value": "center",
+    "source": "SYNTHESIS D8 (builder default)"
+   },
+   "wrap": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "locked": {
+    "value": true,
+    "source": "GUIDES L-60 (not re-checked)"
+   },
+   "size": {
+    "value": "sheet",
+    "source": "MAX"
+   }
+  },
+  "raw": {
+   "meaning": {
+    "value": "a landed raw value (never typed or edited)",
+    "source": "MAX (spec 1.2: data loaded on sheets as raw files; spec 2.2 P2)"
+   },
+   "font_color": {
+    "value": "text",
+    "source": "SYNTHESIS D8; SURVEY C (raw-sheet cells automatic 59.4% or 000000 40.4%, check #20)"
+   },
+   "bold": {
+    "value": false,
+    "source": "SYNTHESIS D8"
+   },
+   "italic": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "fill": {
+    "value": null,
+    "source": "SYNTHESIS D8; SURVEY C (87.5% of 26,344 raw-sheet cells unfilled, check #20); BOOKS B-50 (PFM: no input colouring for databases; not re-checked)"
+   },
+   "border": {
+    "value": null,
+    "source": "SYNTHESIS D8; ICAEW (minimise formatting in data tables; not re-checked)"
+   },
+   "number_format": {
+    "value": "item",
+    "source": "PLUGIN (from the contract type); SYNTHESIS D9 (contract format)"
+   },
+   "align": {
+    "value": "type",
+    "source": "SYNTHESIS D8 (numbers right, text left)"
+   },
+   "wrap": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "locked": {
+    "value": true,
+    "source": "GUIDES L-60 (not re-checked)"
+   },
+   "size": {
+    "value": "sheet",
+    "source": "MAX (8 on raw sheets)"
+   }
+  },
+  "title": {
+   "meaning": {
+    "value": "the sheet title in B1",
+    "source": "BOOKS B-41 (IFM: sheet title in A1, check B-41 partly confirmed)"
+   },
+   "font_color": {
+    "value": "text",
+    "source": "SYNTHESIS D8; SURVEY C (52.1% black; not re-checked)"
+   },
+   "bold": {
+    "value": true,
+    "source": "SYNTHESIS D8; SURVEY C (68.0% of 997 title cells bold; not re-checked)"
+   },
+   "italic": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "fill": {
+    "value": null,
+    "source": "SYNTHESIS D8; SURVEY C (66.1% unfilled; not re-checked); MAX (minimal colour)"
+   },
+   "border": {
+    "value": null,
+    "source": "SYNTHESIS D8; SURVEY C (75.0% no border; not re-checked)"
+   },
+   "number_format": {
+    "value": "general",
+    "source": "PLUGIN"
+   },
+   "align": {
+    "value": "left",
+    "source": "SYNTHESIS D8"
+   },
+   "wrap": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "locked": {
+    "value": true,
+    "source": "GUIDES L-60 (not re-checked)"
+   },
+   "size": {
+    "value": "spaced",
+    "source": "MAX (8 or 9 only); SYNTHESIS D8 (the title is 9 on every sheet; section 3 row 20)"
+   }
+  },
+  "heading": {
+   "meaning": {
+    "value": "a block title (a section label inside a sheet)",
+    "source": "PLUGIN"
+   },
+   "font_color": {
+    "value": "text",
+    "source": "SYNTHESIS D8"
+   },
+   "bold": {
+    "value": true,
+    "source": "SYNTHESIS D8 (section labels bold, builder default; R2 section 5)"
+   },
+   "italic": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "fill": {
+    "value": null,
+    "source": "MAX (minimal colour)"
+   },
+   "border": {
+    "value": null,
+    "source": "PLUGIN"
+   },
+   "number_format": {
+    "value": "general",
+    "source": "PLUGIN"
+   },
+   "align": {
+    "value": "left",
+    "source": "SYNTHESIS D8"
+   },
+   "wrap": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "locked": {
+    "value": true,
+    "source": "GUIDES L-60 (not re-checked)"
+   },
+   "size": {
+    "value": "sheet",
+    "source": "MAX"
+   }
+  },
+  "total": {
+   "meaning": {
+    "value": "a block's display total (FAST 3.01-04); checks, and links from other blocks, may read it",
+    "source": "FAST; PLUGIN (v4, A-aera-18: references/fast-standard-rules.md row 3.01-04)"
+   },
+   "font_color": {
+    "value": "text",
+    "source": "SYNTHESIS D8; SURVEY C (72.0% black; not re-checked)"
+   },
+   "bold": {
+    "value": true,
+    "source": "SYNTHESIS D8; SURVEY C (53.0% of 8,758 total-row formulas bold; not re-checked); GUIDES L-68 (not re-checked)"
+   },
+   "italic": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "fill": {
+    "value": null,
+    "source": "SYNTHESIS D8; SURVEY C (95.6% unfilled; not re-checked)"
+   },
+   "border": {
+    "value": {
+     "top": {
+      "style": "thin",
+      "color": "text"
+     }
+    },
+    "source": "GUIDES L-68 (top border, so rows can be inserted above; not re-checked); PLUGIN (black rule, design 10.2); SYNTHESIS D8 draws it in 808080, kept as the named override total_grey_rule"
+   },
+   "number_format": {
+    "value": "item",
+    "source": "PLUGIN; SYNTHESIS D9"
+   },
+   "align": {
+    "value": "right",
+    "source": "SYNTHESIS D8; GUIDES L-67 (not re-checked)"
+   },
+   "wrap": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "locked": {
+    "value": true,
+    "source": "GUIDES L-60 (not re-checked)"
+   },
+   "size": {
+    "value": "sheet",
+    "source": "MAX"
+   }
+  },
+  "output": {
+   "meaning": {
+    "value": "a key result (a block item or measure marked key: true)",
+    "source": "PLUGIN"
+   },
+   "font_color": {
+    "value": "text",
+    "source": "SYNTHESIS D8; R2 section 5"
+   },
+   "bold": {
+    "value": true,
+    "source": "SYNTHESIS D8 (key outputs bold, builder default); R2 section 5 (bold decision outputs)"
+   },
+   "italic": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "fill": {
+    "value": null,
+    "source": "MAX (minimal colour); SYNTHESIS D8"
+   },
+   "border": {
+    "value": null,
+    "source": "PLUGIN"
+   },
+   "number_format": {
+    "value": "item",
+    "source": "PLUGIN"
+   },
+   "align": {
+    "value": "right",
+    "source": "SYNTHESIS D8; GUIDES L-67 (not re-checked)"
+   },
+   "wrap": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "locked": {
+    "value": true,
+    "source": "GUIDES L-60 (not re-checked)"
+   },
+   "size": {
+    "value": "sheet",
+    "source": "MAX"
+   }
+  },
+  "label": {
+   "meaning": {
+    "value": "free text outside a grid (captions on the cover, the 'Master check' label)",
+    "source": "PLUGIN"
+   },
+   "font_color": {
+    "value": "text",
+    "source": "PLUGIN"
+   },
+   "bold": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "italic": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "fill": {
+    "value": null,
+    "source": "MAX (minimal colour)"
+   },
+   "border": {
+    "value": null,
+    "source": "PLUGIN"
+   },
+   "number_format": {
+    "value": "general",
+    "source": "PLUGIN"
+   },
+   "align": {
+    "value": "left",
+    "source": "PLUGIN"
+   },
+   "wrap": {
+    "value": false,
+    "source": "PLUGIN"
+   },
+   "locked": {
+    "value": true,
+    "source": "GUIDES L-60 (not re-checked)"
+   },
+   "size": {
+    "value": "sheet",
+    "source": "MAX"
+   }
+  }
+ },
+ "rules": {
+  "depth_limit": {
+   "value": 2,
+   "source": "MAX (spec 1.2: 'less than 3 nested functions at most'); BOOKS B-17 (Rees PFM p113: two embedded logical steps, check B-17); FAST 3.03-01 gives no number (check C1.4)"
+  },
+  "length_limit": {
+   "value": 100,
+   "source": "PLUGIN's own number (design D6): FAST 3.03-01 gives no character count (check C1.4); R2 section 1 sample P95 59 and P99 92 characters (check r2 #8); SMART: half the formula bar (check r2 #3)"
+  },
+  "allowed_literals": {
+   "value": [
+    0,
+    1
+   ],
+   "source": "PLUGIN (stricter than FAST 3.04-01 and PwC p.16, which allow 1, 0, -1 and occasionally 12 and 4, check L-14; IFM p163 accepts 0 and 1, check B-11)"
+  },
+  "check_tolerance": {
+   "value": 0.001,
+   "source": "PLUGIN: R2 section 2 finds no universal tolerance; Fairhurst's 1-dollar tolerance is an example (check B-32)"
+  },
+  "helper_spare_rows": {
+   "value": 0,
+   "source": "PLUGIN (design 7.2; v2 A-aera-6): a value above 0 is refused by build, because a helper row below the last raw row reads empty raw cells as 0"
+  },
+  "formula_key_check_max_rows": {
+   "value": 5000,
+   "source": "PLUGIN: the per-row key check SUMPRODUCT(--EXACT(K$2:Kr,Kr)) grows with the square of the row count"
+  },
+  "dense_fill_ratio": {
+   "value": 0.6,
+   "source": "SYNTHESIS D18 (builder default): a sheet the plugin did not build is dense, so size 8, when at least this share of its used block holds a value (MAX: 'a brick wall of data then 8')"
+  },
+  "dense_min_cells": {
+   "value": 500,
+   "source": "SYNTHESIS D18 (builder default): and its used block holds at least this many cells; otherwise size 9 (MAX: 'some white spaces then 9')"
+  },
+  "sparse_sheet_cells": {
+   "value": 100,
+   "source": "PLUGIN's own number (r4 verdict A-aera-15, reduced scope): build notes a calculation sheet that takes size 8 from its role and holds fewer populated cells than this (I-SPARSE-SHEET, information); choosing the size from measured density stays a decision for Max (SYNTHESIS D18). Measured on the v4 shipped models: calculation sheets hold 40 (starter, font_size 9 set), 98, 165, 223, 259 and 289 populated cells"
+  }
+ },
+ "named_overrides": {
+  "input_blue_font": {
+   "meaning": "inputs in blue font without a fill (the research synthesis's recommended default, SYNTHESIS D16 option A)",
+   "source": "SYNTHESIS D16 option A (fewest colours, MAX); SURVEY F (Kaplan 0000FF on 86.4%, check #7; CFI 3271D2 or 0000FF on 87.2%, check #8); GUIDES L-50 (CFI p.83, check L-50)",
+   "set": {
+    "cell_types": {
+     "input": {
+      "font_color": {
+       "value": "input_blue",
+       "source": "SYNTHESIS D16 option A; SURVEY F; GUIDES L-50"
+      },
+      "fill": {
+       "value": null,
+       "source": "SYNTHESIS D16 option A; MAX (minimal colour)"
+      }
+     }
+    }
+   }
+  },
+  "input_blue_on_fill": {
+   "meaning": "inputs in blue font on the light yellow fill (the look of Max's own files)",
+   "source": "SYNTHESIS D16 option B; GUIDES C-1 and C-4 (Max's own files: blue numbers on amber or light yellow cells); BOOKS section B (IFM p209 blue on yellow, FMD p51 blue on beige, check SecB rows); PLATFORMS C3.2 (Wall Street Prep: blue text on a yellow background, check C3.2)",
+   "set": {
+    "cell_types": {
+     "input": {
+      "font_color": {
+       "value": "input_blue",
+       "source": "SYNTHESIS D16 option B; GUIDES C-1, C-4"
+      }
+     }
+    }
+   }
+  },
+  "links_green": {
+   "meaning": "references to other sheets in green font",
+   "source": "SYNTHESIS D17 option; SURVEY pass 2 (Max's prior work, check #12); GUIDES L-50 (CFI p.83, check L-50); GUIDES C-1 (Max's legend: green font = cross-sheet link)",
+   "set": {
+    "cell_types": {
+     "import": {
+      "font_color": {
+       "value": "link_green",
+       "source": "SYNTHESIS D17; SURVEY pass 2; GUIDES L-50"
+      }
+     }
+    }
+   }
+  },
+  "fast_import_export": {
+   "meaning": "FAST 1.01-06 in part: importing cells in blue font; exports in red font only in a workbook with no manifest, where theme gives a calculation that another sheet reads the export type (section 6); build gives no cell the export type, so in a built model the override colours the importing cells only and the cells they read stay black",
+   "source": "FAST 1.01-06 (check C1.9); SYNTHESIS D17 does not use it by default, because blue marks inputs in input_blue_font and red marks failing checks",
+   "set": {
+    "cell_types": {
+     "import": {
+      "font_color": {
+       "value": "input_blue",
+       "source": "FAST 1.01-06"
+      }
+     },
+     "export": {
+      "font_color": {
+       "value": "export_red",
+       "source": "FAST 1.01-06"
+      }
+     }
+    }
+   }
+  },
+  "unit_unfilled": {
+   "meaning": "the unit column without the row-header grey (grey on row labels only)",
+   "source": "SYNTHESIS D18 (Max named grey for column and row headers only; unit and key columns unfilled adds the least grey, MAX minimal colour)",
+   "set": {
+    "cell_types": {
+     "unit": {
+      "fill": {
+       "value": null,
+       "source": "SYNTHESIS D18"
+      }
+     }
+    }
+   }
+  },
+  "total_grey_rule": {
+   "meaning": "the top rule of total rows in grey 808080 instead of black",
+   "source": "SYNTHESIS D8 (total: thin top 808080); GUIDES L-69 (grey rather than black borders; not re-checked)",
+   "set": {
+    "cell_types": {
+     "total": {
+      "border": {
+       "value": {
+        "top": {
+         "style": "thin",
+         "color": "rule_line"
+        }
+       },
+       "source": "SYNTHESIS D8"
+      }
+     }
+    }
+   }
+  }
+ }
+}

@@ -1,0 +1,166 @@
+{
+ "rotm_contract": 1,
+ "table": "gl_actuals",
+ "raw_sheet": "raw_gl_actuals",
+ "excel_table": "tbl_raw_gl_actuals",
+ "purpose": "Expense postings for the budget-versus-actual model",
+ "source": {
+  "connector": "power_query",
+  "system": "BigQuery",
+  "object": "proj.gl.journal_lines",
+  "from": "proj.gl.journal_lines j",
+  "where": "j.account BETWEEN '6100' AND '6499' AND j.posting_date BETWEEN '2026-01-01' AND '2026-06-30'"
+ },
+ "grain": "one row per ledger posting",
+ "key": [
+  "entry_id"
+ ],
+ "columns": [
+  {
+   "name": "entry_id",
+   "type": "text",
+   "unit": null,
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "j.entry_id",
+   "observed": {
+    "sample_rows": 419,
+    "nulls": 0,
+    "distinct": 419,
+    "examples": [
+     "JE00001",
+     "JE00002",
+     "JE00003"
+    ]
+   },
+   "description": "journal entry line id"
+  },
+  {
+   "name": "posting_date",
+   "type": "date",
+   "unit": "date",
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "j.posting_date",
+   "observed": {
+    "sample_rows": 419,
+    "nulls": 0,
+    "distinct": 156,
+    "examples": [
+     "2026-01-11",
+     "2026-01-06",
+     "2026-01-04"
+    ],
+    "min": "2026-01-02",
+    "max": "2026-06-28"
+   },
+   "description": "posting date"
+  },
+  {
+   "name": "cost_centre",
+   "type": "text",
+   "unit": null,
+   "null_rule": "never",
+   "allowed": [
+    "CC100",
+    "CC200",
+    "CC300",
+    "CC400"
+   ],
+   "source_expression": "j.cost_centre",
+   "observed": {
+    "sample_rows": 419,
+    "nulls": 0,
+    "distinct": 4,
+    "examples": [
+     "CC100",
+     "CC200",
+     "CC300"
+    ]
+   },
+   "description": "cost centre code"
+  },
+  {
+   "name": "account",
+   "type": "text",
+   "unit": null,
+   "null_rule": "never",
+   "allowed": [
+    "6100",
+    "6200",
+    "6300",
+    "6400"
+   ],
+   "source_expression": "CAST(j.account AS STRING)",
+   "observed": {
+    "sample_rows": 419,
+    "nulls": 0,
+    "distinct": 4,
+    "examples": [
+     "6400",
+     "6300",
+     "6100"
+    ]
+   },
+   "description": "expense account code, kept as text"
+  },
+  {
+   "name": "amount",
+   "type": "number",
+   "unit": "KRW",
+   "null_rule": "never",
+   "allowed": null,
+   "source_expression": "j.debit_krw - j.credit_krw",
+   "observed": {
+    "sample_rows": 419,
+    "nulls": 0,
+    "distinct": 405,
+    "examples": [
+     "167900",
+     "366600",
+     "653800"
+    ],
+    "min": -554900.0,
+    "max": 1322400.0,
+    "sum": 171636600.0
+   },
+   "description": "debit minus credit in KRW; reversals are negative"
+  }
+ ],
+ "expect": {
+  "rows": {
+   "min": 1,
+   "max": 100000
+  },
+  "totals": [
+   {
+    "column": "amount",
+    "value": 171636600,
+    "tolerance": 0,
+    "note": "source-side control total given with --total"
+   }
+  ]
+ },
+ "refresh": {
+  "frequency": null,
+  "capacity_rows": null,
+  "allow_empty": false
+ },
+ "notes": [
+  "key candidates in the sample (unique and never null): entry_id"
+ ],
+ "proposed_at": "2026-11-25T03:09:13+09:00",
+ "proposed_by": "rotm.py contract propose",
+ "description": "proposed from the sample gl_actuals.csv (419 rows, 5 columns)",
+ "agreement": {
+  "status": "agreed",
+  "contract_sha256": "876d191e002f95cbea3a42e438822a7c4f8dd453dcdc9b1781bcbf6eff2ed650",
+  "reply": "agreed: example agreement shipped with this template; no user gave it. A model made from this folder asks its user again.",
+  "by": "template (plugin author)",
+  "at": "2026-11-25T03:09:14+09:00",
+  "channel": "example",
+  "source_file": null,
+  "recorded_by": "rotm.py contract agree",
+  "shown_sha256": "876d191e002f95cbea3a42e438822a7c4f8dd453dcdc9b1781bcbf6eff2ed650"
+ }
+}
