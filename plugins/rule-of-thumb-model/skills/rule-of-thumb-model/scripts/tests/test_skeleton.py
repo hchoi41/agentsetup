@@ -72,7 +72,7 @@ def test_usage_lists_every_subcommand() -> None:
 
 
 def test_version_and_unknown_subcommand() -> None:
-    assert run_cli("--version").stdout.strip() == "rule-of-thumb-model 0.1.0"
+    assert run_cli("--version").stdout.strip() == "rule-of-thumb-model 0.9.0"
     proc = run_cli("buidl")
     assert proc.returncode == 2
     assert "did you mean 'build'" in proc.stderr
@@ -156,7 +156,7 @@ def test_command_skills_are_user_only(name: str) -> None:
 def test_plugin_manifest() -> None:
     data = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
     assert data["name"] == "rule-of-thumb-model"
-    assert data["version"] == "0.1.0"
+    assert data["version"] == "0.9.0"
     assert data["description"]
 
 

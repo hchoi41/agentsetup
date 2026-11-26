@@ -281,7 +281,7 @@ def test_run_command_returns_code_or_zero() -> None:
 
 def test_common_imports_under_isolated_mode() -> None:
     code = (f"import sys; sys.path.insert(0, {str(SCRIPTS)!r}); from lib import common; "
-            "sys.exit(0 if common.VERSION == '0.1.0' else 1)")
+            "sys.exit(0 if common.VERSION == '0.9.0' else 1)")
     assert subprocess.run([sys.executable, "-I", "-B", "-c", code], timeout=60).returncode == 0
 
 

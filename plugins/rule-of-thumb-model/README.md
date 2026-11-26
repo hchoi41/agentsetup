@@ -4,7 +4,7 @@ A Claude Code plugin for spreadsheet models in Excel and Google Sheets that sit 
 Power Query in Excel, Connected Sheets in Google Sheets). It holds one skill of the same name, eleven commands, four
 hooks and a library of model templates.
 
-Version 0.1.0, built 2026-11-25.
+Version 0.9.0, built 2026-11-26.
 
 ## What it does
 

@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable
 
 TOOL = "rule-of-thumb-model"
-VERSION = "0.1.0"
+VERSION = "0.9.0"
 
 # Exit codes shared by every subcommand (design section 3.2).
 EXIT_OK = 0
