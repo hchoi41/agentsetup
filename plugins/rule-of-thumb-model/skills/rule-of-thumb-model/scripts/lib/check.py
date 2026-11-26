@@ -48,6 +48,31 @@ refresh path that did not run accepts nothing: raw/, the controls files and the 
 entry without the field gets a note. v6 (r5 verdict C-sol-6): after a refresh that ran, I-HIDDEN-DECIMALS
 (information) for a number column whose values hold more decimals than its number format shows. v6 (r5 verdict
 A-aera-5): a logical value in a text column is D-TYPE and is tagged in the digest (LOGICAL_TAG).
+v7 (r6 verdict [A-aera-2, C-sol-5]): the read-back of the query formula also runs for --accept-refresh given without
+--refresh, when Excel is available; a difference is X-QUERY-CHANGED (an error) and no table is accepted in that run
+(raw/<t>.csv, raw/<t>.controls.json and the manifest stay byte for byte). Without Excel the acceptance notes that
+the query was not compared; for a raw entry without query_formula_sha256 it prints the note of v6.
+v7 (r6 verdict A-aera-8, X-SHEETS-ONLY): before Excel starts, the workbook's formulas are searched for the functions
+only Google Sheets has (functions.sheets_only_names()). When it holds one, check starts no Excel job (no refresh, no
+recalculation, no save): X-SHEETS-ONLY (information) names each function with its count and first cell, the run
+ends as when Excel is missing ("audited, not recalculated: functions only Google Sheets has (X-SHEETS-ONLY)"; exit 3
+when nothing else fails), and --refresh or --accept-refresh accepts nothing.
+v8 (r7 verdict A-aera-1): at an acceptance, when the manifest's landed digest differs from its workbook_digest
+(raw/<t>.csv was landed after rotm.py last wrote rows into the workbook, for example with land --force), no changed
+rows are accepted, whatever the sheet holds: R-CHANGED says that raw/<t>.csv was landed after the workbook was last
+written, and raw/<t>.csv, raw/<t>.controls.json and the manifest stay byte for byte. This covers the case R-NEWER
+covered at an acceptance; a check without --accept-refresh keeps the R-NEWER text. A manifest without
+workbook_digest behaves as in v7 (R-NO-WBDIGEST).
+v8 (r7 verdict [A-aera-5, A-aera-6] part 1, V-INPUT-RANGE): each scalar input whose specification declares "valid"
+(min and max, or list) is read from the saved workbook (after the recalculation, or as saved when Excel did not
+run); a saved value outside it is an error naming the cell, the value, the range and the input's note (spec.
+valid_problem gives the range texts of build's own check). No row is added to the checks sheet.
+v9 (r8 verdict [A-aera-2, C-sol-1]): The control total used for a table and column is, in this order: --control
+given in this run; else the total accepted for this snapshot in raw/<t>.controls.json under the agreement in force;
+else the agreed contract's total. A total accepted under an earlier agreement (the contract was agreed again since,
+for example with another total) is not used: check prints a note that names it, and when the rows do not meet the
+contract's total, D-TOTAL names both totals. Give --control with the source's current total; it is recorded under
+the agreement in force (check --accept-refresh stores agreement.contract_sha256 in the entry; lib.controls).
 
 Exit codes: 0 everything passed after recalculation; 1 an error finding (or, with --strict, a warning);
 2 refused; 3 nothing failed but the workbook was not recalculated ("audited but not recalculated"); 5 Excel busy.
@@ -75,7 +100,7 @@ import os
 import re
 import shutil
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace as _replace
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
@@ -124,13 +149,28 @@ RULES: dict[str, tuple[str, str]] = {
                         "formula Excel rejects)"),
     "D-CRITERIA": ("warning", "a label and another value of its criteria range are the same for Excel's criteria "
                               "matching, so SUMIFS and the other criteria functions add both under the one label "
-                              "(v4, A-aera-1; lib.criteria)"),
-    "X-QUERY-CHANGED": ("warning", "--refresh: the formula of a query rotm.py attached differs in the workbook from "
-                                   "the one recorded at the attach, or cannot be read; no table was refreshed and "
-                                   "nothing was accepted (an error with --accept-refresh; v6, r5 verdict A-aera-2)"),
+                              "(v4, A-aera-1; lib.criteria); or a label that is also a value of its criteria range "
+                              "and that Excel's criteria matching does not match with itself (for example the "
+                              "texts TRUE and FALSE, a label from a cell that starts with =, < or >, or a label "
+                              "that holds ~* or ~?), so the function leaves out the rows with this label (v8, "
+                              "C-sol-1; v9, A-aera-1 and C-sol-2; reason self_mismatch)"),
+    "X-QUERY-CHANGED": ("warning", "--refresh or --accept-refresh (with Excel): the formula of a query rotm.py "
+                                   "attached differs in the workbook from the one recorded at the attach, or cannot "
+                                   "be read; no table was refreshed and nothing was accepted (an error with "
+                                   "--accept-refresh; v6, r5 verdict A-aera-2; v7, r6 verdict A-aera-2: also for "
+                                   "--accept-refresh without --refresh; v9, r8 verdict C-sol-3: also a query that a "
+                                   "query attached by hand reads, recorded by build as query_reads, that differs, is "
+                                   "missing or cannot be read)"),
+    "X-SHEETS-ONLY": ("info", "the workbook holds a function only Google Sheets has (references/functions.md: Excel "
+                              "no, Sheets yes); Excel cannot calculate it, so check did not open the workbook in "
+                              "Excel and did not recalculate it (exit 3 when nothing else fails; v7, r6 verdict "
+                              "A-aera-8)"),
     "I-HIDDEN-DECIMALS": ("info", "a number column of a raw table holds values with more decimals than its number "
                                   "format shows; the values are stored and calculated in full (v6, r5 verdict "
                                   "C-sol-6; the exit code does not change)"),
+    "V-INPUT-RANGE": ("error", "a scalar input's saved value lies outside the valid range or the list of valid values "
+                               "its specification declares (\"valid\"); no row of the checks sheet tests it (v8, r7 "
+                               "verdict A-aera-5)"),
     "X-EXTEND": ("error", "extend changed something outside the new helper rows; the workbook was restored"),
     "H-EXTENDED": ("info", "extend copied the last helper row down (one line per helper sheet)"),
     "H-CLEARED": ("info", "extend cleared the helper rows below the raw sheet's last row (one line per helper sheet)"),
@@ -1191,17 +1231,18 @@ def _changed_query_files(root: Path, raw_entries: dict[str, dict[str, Any]],
 
 
 def _formula_hash_notes(root: Path, raw_entries: dict[str, dict[str, Any]],
-                        qtables: dict[str, str | None] | None = None) -> list[str]:
+                        qtables: dict[str, str | None] | None = None, option: str = "--refresh") -> list[str]:
     """Notes for `check --refresh` (v6, r5 verdict A-aera-2): a raw table loaded by a query rotm.py attached whose
     manifest entry records no query_formula_sha256 (attached before v6, or the formula was not read back): the
-    workbook's query is not compared. A query attached by hand without the field keeps the note of _stale_queries."""
+    workbook's query is not compared. A query attached by hand without the field keeps the note of _stale_queries.
+    v7 (r6 verdict A-aera-2): `option` "--accept-refresh" for an acceptance given without --refresh."""
     notes: list[str] = []
     qtables = qtables or {}
     model = root.as_posix()
     for t, entry in raw_entries.items():
         if entry.get("landing") != "power_query" or entry.get("query_formula_sha256") or _hand_attached(entry, qtables):
             continue
-        notes.append(f"--refresh: raw_{t}'s manifest records no hash of the query formula the workbook holds "
+        notes.append(f"{option}: raw_{t}'s manifest records no hash of the query formula the workbook holds "
                      "(attached before v6), so the workbook's query was not compared with the attached text; "
                      f"{_rotm()} land \"{model}\" --table {t} --power-query attaches it again and records the hash")
     return notes
@@ -1211,9 +1252,12 @@ def _formula_tables(raw_entries: dict[str, dict[str, Any]], qtables: dict[str, s
                     no_table: Sequence[str] = ()) -> list[str]:
     """The raw tables whose query formula check --refresh compares (v6, r5 verdict A-aera-2): the manifest entry
     records query_formula_sha256 (written when rotm.py attached the query or carried a query attached by hand over a
-    rebuild) and the workbook holds a live query table at A1 of the raw sheet (query_tables)."""
+    rebuild) and the workbook holds a live query table at A1 of the raw sheet (query_tables). v9 (r8 verdict
+    C-sol-3): also an entry that records query_reads (the queries a query attached by hand reads, carried over by
+    build), so that each of them is compared."""
     return [t for t, e in raw_entries.items()
-            if e.get("query_formula_sha256") and (e.get("name") or "") in qtables and t not in no_table]
+            if (e.get("query_formula_sha256") or e.get("query_reads")) and (e.get("name") or "") in qtables
+            and t not in no_table]
 
 
 def _query_formula_findings(root: Path, wb: Path, raw_entries: dict[str, dict[str, Any]],
@@ -1223,7 +1267,14 @@ def _query_formula_findings(root: Path, wb: Path, raw_entries: dict[str, dict[st
     query bound to the table at A1 of its raw sheet, read from `wb` through Excel (lib.excel.inventory, read-only),
     hashed with land.query_formula_sha256 and compared with the manifest's query_formula_sha256. A different hash,
     or a formula Excel does not give, is a warning (an error with --accept-refresh). Raises common.ExcelBusy when the
-    Excel lock is not free; an inventory that fails counts as a formula that cannot be read."""
+    Excel lock is not free; an inventory that fails counts as a formula that cannot be read.
+
+    v9 (r8 verdict C-sol-3): with Excel, check --refresh and check --accept-refresh also compare each query that a
+    query attached by hand reads (the connection-only queries build carried over, recorded in the manifest as
+    query_reads) with the hash build recorded: a changed, missing or unreadable one is X-QUERY-CHANGED and names that
+    query; the table is not refreshed, nothing is accepted, and raw/<t>.csv, raw/<t>.controls.json and the manifest
+    stay byte for byte. A query read whose formula build could not read back (formula_sha256 null) is not compared
+    (a note says so)."""
     from . import excel as xl
     from .land import query_formula_sha256
     try:
@@ -1242,6 +1293,9 @@ def _query_formula_findings(root: Path, wb: Path, raw_entries: dict[str, dict[st
     for t in tables:
         entry = raw_entries[t]
         sheet = entry.get("name") or f"raw_{t}"
+        out += _query_read_findings(entry, t, sheet, formulas, bool(inv), model, accept_refresh)
+        if not entry.get("query_formula_sha256"):
+            continue                                     # v9: only its query_reads are compared
         qname = qtables.get(sheet)
         if not qname:
             # else the connection name of the query table at A1 of the sheet, without 'Query - '
@@ -1277,6 +1331,163 @@ def _query_formula_findings(root: Path, wb: Path, raw_entries: dict[str, dict[st
                                   sheet=sheet, cell="A1",
                                   data={"table": t, "query": qname, "recorded": recorded, "workbook": now}))
     return out
+
+
+def _query_read_findings(entry: dict[str, Any], t: str, sheet: str, formulas: dict[str, Any], inventory_read: bool,
+                         model: str, accept_refresh: bool) -> list[common.Finding]:
+    """X-QUERY-CHANGED for the queries a query attached by hand reads (v9, r8 verdict C-sol-3): each item of the raw
+    entry's query_reads ({"name", "formula_sha256", "file"}) whose formula in the workbook (`formulas`, from
+    lib.excel.inventory; `inventory_read` False when the inventory failed) differs from the recorded hash, is missing
+    from the workbook, or cannot be read. A warning; an error with --accept-refresh."""
+    from .land import query_formula_sha256
+    out: list[common.Finding] = []
+    q = entry.get("query_name") or "(name not found)"
+    for item in entry.get("query_reads") or []:
+        if not isinstance(item, dict) or not item.get("name"):
+            continue
+        dep = str(item["name"])
+        recorded = str(item.get("formula_sha256") or "").lower()
+        if not recorded:
+            continue                                     # not read back at the build: not compared (build's note)
+        text = formulas.get(dep)
+        now = None
+        if not inventory_read or (dep in formulas and (not isinstance(text, str) or not text.strip())):
+            how = "cannot be read"
+        elif dep not in formulas:
+            how = "is missing from the workbook"
+        else:
+            now = query_formula_sha256(text)
+            if now == recorded:
+                continue
+            how = (f"differs in the workbook from the formula build recorded (manifest query_reads "
+                   f"sha256:{recorded[:12]}..., the workbook now sha256:{now[:12]}...)")
+        file = item.get("file") or f"queries/{dep}.hand.pq.m"
+        out.append(common.Finding(
+            "X-QUERY-CHANGED", "error" if accept_refresh else "warning",
+            f"{sheet}: the query {dep}, which the query {q} attached by hand reads, {how}; the table was not "
+            "refreshed and nothing was accepted",
+            f"review the change of {dep} with the user; to keep it, rebuild ({_rotm()} build \"{model}\" --force), "
+            f"which records it, then refresh and accept; to undo it, put back its M text from {file}",
+            sheet=sheet, cell="A1",
+            data={"table": t, "query": dep, "read_by": q, "recorded": recorded, "workbook": now}))
+    return out
+
+
+def _not_compared_notes(root: Path, raw_entries: dict[str, dict[str, Any]], tables: Sequence[str],
+                        why_not: str) -> list[str]:
+    """v7 (r6 verdict A-aera-2): notes for check --accept-refresh given without --refresh when Excel did not read
+    the query formula back (Excel missing, --no-excel): one per table whose formula the run would have compared
+    (_formula_tables)."""
+    model = root.as_posix()
+    out = []
+    for t in tables:
+        sheet = raw_entries[t].get("name") or f"raw_{t}"
+        out.append(f"--accept-refresh: the query of {sheet} was not read back from the workbook and compared with the "
+                   f"query rotm.py attached, because {why_not}; a query changed outside rotm.py (for example in "
+                   f"Excel's Power Query editor) is not found in this run; with Excel, {_rotm()} check \"{model}\" "
+                   "--refresh --strict reads it back and compares it, and loads the rows from the source again")
+    return out
+
+
+# ----------------------------------------------------------------------------- functions only Google Sheets has
+
+SHEETS_ONLY_REASON = "functions only Google Sheets has (X-SHEETS-ONLY)"
+_TEXT_LITERAL_RE = re.compile(r'"(?:[^"]|"")*"?')
+
+
+def _sheets_only_pattern() -> re.Pattern[str]:
+    """A call of a function only Google Sheets has: its name (any case, also after the prefixes _xlfn., _xlws. or
+    _xludf. that a file may store), then an opening bracket."""
+    from . import functions
+    names = sorted(functions.sheets_only_names(), key=len, reverse=True)
+    return re.compile(r"(?<![A-Za-z0-9_.])(?:_xlfn\.|_xlws\.|_xludf\.)*(" + "|".join(re.escape(n) for n in names)
+                      + r")\s*\(", re.I)
+
+
+def _called_sheets_only(text: str, wanted: set[str], pattern: re.Pattern[str]) -> list[str]:
+    """The functions of `wanted` that the formula `text` calls (lib.formula's analysis; a name inside a text
+    literal is not a call)."""
+    from . import formula, functions
+    if not pattern.search(_TEXT_LITERAL_RE.sub('""', text)):
+        return []
+    called = []
+    for name in formula.analyze(text).functions:
+        n = functions.normalize_name(re.sub(r"^_XLUDF\.", "", name, flags=re.I))
+        if n in wanted and n not in called:
+            called.append(n)
+    return called
+
+
+def sheets_only_cells(workbook: str | Path) -> dict[str, dict[str, Any]]:
+    """v7 (r6 verdict A-aera-8): the functions only Google Sheets has (functions.sheets_only_names(): Excel "no",
+    Sheets "yes") that the workbook's cell formulas call, by name in the catalogue's order: {"count": formula cells,
+    "first": "<sheet>!<cell>"} (sheets in workbook order, then row by row). The worksheet parts are first searched
+    as bytes for such a name followed by a bracket; only when one is found are the formulas read (openpyxl,
+    read-only, formulas as text) and analysed with lib.formula. Never writes."""
+    import warnings
+    import zipfile
+
+    import openpyxl
+    from . import functions
+    wanted = set(functions.sheets_only_names())
+    pattern = _sheets_only_pattern()
+    path = Path(common.native_path(workbook))
+    try:
+        with zipfile.ZipFile(path) as z:
+            parts = [n for n in z.namelist() if n.startswith("xl/worksheets/") and n.endswith(".xml")]
+            raw_pattern = re.compile(pattern.pattern.encode("ascii"), re.I)
+            if parts and not any(raw_pattern.search(z.read(n)) for n in parts):
+                return {}
+    except (OSError, zipfile.BadZipFile, KeyError):
+        pass                                     # openpyxl reads it below, or the file cannot be read at all
+    found: dict[str, dict[str, Any]] = {}
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        try:
+            book = openpyxl.load_workbook(path, read_only=True, data_only=False, keep_links=False)
+        except Exception:  # noqa: BLE001 - an unreadable workbook is reported by the steps that read it
+            return {}
+        try:
+            for ws in book.worksheets:
+                try:
+                    ws.reset_dimensions()
+                except AttributeError:
+                    pass
+                for row in ws.iter_rows():
+                    for c in row:
+                        v = getattr(c, "value", None)
+                        if isinstance(v, str):
+                            if getattr(c, "data_type", None) != "f" or not v.startswith("="):
+                                continue
+                            text = v
+                        elif v is not None and getattr(v, "text", None) is not None:      # ArrayFormula
+                            text = "=" + str(v.text).lstrip("=")
+                        else:
+                            continue
+                        for n in _called_sheets_only(text, wanted, pattern):
+                            entry = found.setdefault(n, {"count": 0, "first": f"{common.quote_sheet(ws.title)}!"
+                                                                              f"{c.coordinate}"})
+                            entry["count"] += 1
+        finally:
+            book.close()
+    order = functions.sheets_only_names()
+    return {n: found[n] for n in sorted(found, key=order.index)}
+
+
+def sheets_only_finding(found: dict[str, dict[str, Any]]) -> common.Finding:
+    """X-SHEETS-ONLY (information, v7 r6 verdict A-aera-8) for the result of sheets_only_cells()."""
+    from . import functions
+    parts = [f"{n} ({_n(v['count'])} cell(s), first {v['first']})" for n, v in found.items()]
+    instead = "; ".join(f"for {n} {functions.replacement(n) or 'a formula without it'}" for n in found)
+    first = next(iter(found.values()))["first"]
+    sheet, cell = common.parse_ref(first)
+    return common.Finding(
+        "X-SHEETS-ONLY", "info",
+        "the workbook holds functions only Google Sheets has: " + "; ".join(parts) + "; Excel cannot calculate them, "
+        "so the workbook was not opened in Excel and not recalculated",
+        f"use the replacement references/functions.md names ({instead}) to verify the model in Excel; otherwise "
+        "report 'audited, not recalculated: functions only Google Sheets has'",
+        sheet=sheet, cell=cell, data={"functions": {n: dict(v) for n, v in found.items()}})
 
 
 def check_model(target: str | Path, *, strict: bool = False, excel: bool = True, refresh: bool = False,
@@ -1319,6 +1530,19 @@ def check_model(target: str | Path, *, strict: bool = False, excel: bool = True,
                 report.error("CT-STATE", f"the contract of '{t}' carries the 'example' agreement of a shipped "
                              "example or template; outside the plugin it counts as not agreed", cmd)
     ctl = _controls_by_table(controls, contracts, tables)
+    if accept_refresh:
+        # v9 (r8 verdict A-aera-4): before Excel starts and before anything is recorded, --control is accepted only
+        # for a column whose control total the contract names (a control total is part of the agreement)
+        from . import land as land_mod
+        for t, cols in ctl.items():
+            if contracts.get(t) is None:
+                continue
+            for col, value in cols.items():
+                item = next((str(x).strip() for x in control_texts or []
+                             if str(x).strip().startswith(f"{t}.{col}=")),
+                            f"{t}.{col}={value[0] if isinstance(value, (tuple, list)) else value}")
+                land_mod.refuse_uncontracted_control(item, t, col, contracts[t], model=root.as_posix(),
+                                                     done="recorded")
     given_by_table: dict[str, list[str]] = {}
     for text in (control_texts if control_texts is not None
                  else [f"{k}={v[0] if isinstance(v, (tuple, list)) else v}" for k, v in (controls or {}).items()]):
@@ -1380,7 +1604,20 @@ def check_model(target: str | Path, *, strict: bool = False, excel: bool = True,
                      "the raw sheets are static snapshots and nothing was refreshed",
                      f"land new rows ({_rotm()} land \"{root.as_posix()}\" --table <t> --csv <file> --force) and "
                      f"rebuild, or attach a query ({_rotm()} land \"{root.as_posix()}\" --table <t> --power-query)")
-    if not excel:
+    # v7 (r6 verdict [A-aera-2, C-sol-5]): an acceptance given without --refresh compares the query formula too
+    standalone_accept = accept_refresh and not refresh
+    compare = _formula_tables(raw_entries, qtables, no_table) if (refresh or accept_refresh) and has_query else []
+    query_changed = compared = False
+    if standalone_accept:
+        for note in _formula_hash_notes(root, raw_entries, qtables, option="--accept-refresh"):
+            report.note(note)
+    # v7 (r6 verdict A-aera-8, X-SHEETS-ONLY): before Excel starts, the functions only Google Sheets has; with any,
+    # no Excel job runs (no refresh, no recalculation, no save) and the run ends as when Excel is missing
+    sheets_only = sheets_only_cells(wb)
+    if sheets_only:
+        report.add(sheets_only_finding(sheets_only))
+        why_not = SHEETS_ONLY_REASON
+    elif not excel:
         why_not = "--no-excel was given"
     else:
         from . import excel as xl
@@ -1393,15 +1630,15 @@ def check_model(target: str | Path, *, strict: bool = False, excel: bool = True,
             # entry records query_formula_sha256 and the sheet holds a live query table) is read through Excel and
             # compared; on a difference (X-QUERY-CHANGED) no table is refreshed and nothing is accepted. The Excel
             # lock is held over the read and the main job, so no other job runs on the workbook between them.
-            compare = _formula_tables(raw_entries, qtables, no_table) if refresh and has_query else []
-            query_changed = False
+            # v7 (r6 verdict A-aera-2): also for --accept-refresh without --refresh (`compare` above).
             res = None
             with (xl.excel_lock() if compare else contextlib.nullcontext()):
                 if compare:
                     found = _query_formula_findings(root, wb, raw_entries, qtables, compare, accept_refresh)
                     report.extend(found)
+                    compared = True
                     query_changed = bool(found)
-                    if query_changed:
+                    if query_changed and refresh:
                         why_not = ("a query the workbook holds differs from the query rotm.py attached, or its "
                                    "formula could not be read (X-QUERY-CHANGED)")
                 if refresh and has_query and not query_changed:
@@ -1457,13 +1694,27 @@ def check_model(target: str | Path, *, strict: bool = False, excel: bool = True,
     # refresh failed, no query), no table is accepted and raw/, the controls files and the manifest stay as they are
     refresh_missed = refresh and not refreshed
     if refresh_missed:
-        reason = "the workbook has no query" if not has_query else (why_not or "the refresh did not run")
+        reason = (why_not if sheets_only else "the workbook has no query" if not has_query
+                  else (why_not or "the refresh did not run"))
         report.note(f"no table was accepted: --refresh was asked for and no refresh ran ({reason}); raw/, the "
                     "controls files and the manifest were not changed")
+    # v7: an acceptance without --refresh accepts nothing when the query formula differs (X-QUERY-CHANGED) or the
+    # workbook was not opened in Excel because of a function only Google Sheets has (X-SHEETS-ONLY)
+    accept_blocked = standalone_accept and (query_changed or bool(sheets_only))
+    if accept_blocked:
+        reason = ("the workbook holds functions only Google Sheets has (X-SHEETS-ONLY), so it was not opened in "
+                  "Excel" if sheets_only else "a query the workbook holds differs from the query rotm.py attached, "
+                  "or its formula could not be read (X-QUERY-CHANGED)")
+        report.note(f"no table was accepted: {reason}; raw/, the controls files and the manifest were not changed")
+    elif standalone_accept and compare and not compared:
+        # without Excel (missing, or --no-excel) the query formula was not read back
+        for note in _not_compared_notes(root, raw_entries, compare, why_not or "Excel did not run"):
+            report.note(note)
     if not_opened:
         values, any_cached = {}, False           # X-OPEN: the check cells were not read
     elif not recalculated:
-        report.note(f"audited but not recalculated: {why_not}. Raw sheets, contracts and coverage were checked by "
+        lead = "audited, not recalculated" if sheets_only else "audited but not recalculated"
+        report.note(f"{lead}: {why_not}. Raw sheets, contracts and coverage were checked by "
                     "code; the check cells were not recalculated, so their values are not verified")
         values, any_cached = _cached_values(wb, read_refs) if read_refs else ({}, False)
         if not any_cached:
@@ -1473,7 +1724,23 @@ def check_model(target: str | Path, *, strict: bool = False, excel: bool = True,
         any_cached = True
     total_refs = [_expected_ref(c["result"]) for c in check_entries
                   if any(c["id"].startswith(f"{t}_total_") for t in tables)]
-    facts = _read_facts(wb, man, formula_refs=total_refs)
+    # v8 (r7 verdict [A-aera-5, A-aera-6] part 1, V-INPUT-RANGE): the scalar inputs that declare "valid"
+    spec_data, spec_note = read_spec_data(root, man)
+    range_refs = [ref for _id, _item, ref in input_range_refs(spec_data, man)]
+    facts = _read_facts(wb, man, formula_refs=total_refs + range_refs)
+    if spec_note and man.get("inputs"):
+        report.note(spec_note)
+    if range_refs:
+        # the saved values: after a completed recalculation the values Excel saved, else the file as it is
+        saved = _cached_values(wb, range_refs)[0]
+
+        def read_saved(ref: str) -> tuple[bool, Any]:
+            if ref not in saved or (saved[ref] is None and ref in facts.formulas):
+                return False, None               # a missing sheet, or a formula typed in with no saved value
+            return True, saved[ref]
+
+        spec_file = (root / str(man.get("spec") or "model.spec.json")).as_posix()
+        report.extend(input_range_findings(spec_data, man, read_saved, f"{_rotm()} build \"{spec_file}\" --force"))
     # the input cells the total checks link (inputs!D9): their stored values are compared with the control used
     links = {_pure_link(facts.formulas.get(ref, "")) for ref in total_refs}
     input_refs = sorted(_quoted_ref(x) for x in links if x)
@@ -1482,9 +1749,10 @@ def check_model(target: str | Path, *, strict: bool = False, excel: bool = True,
     tables_data: dict[str, dict[str, Any]] = {}
     for t, entry in raw_entries.items():
         tables_data[t] = _check_table(report, model, t, entry, contracts.get(t), states.get(t, "missing"), facts,
-                                      ctl.get(t, {}), accept_refresh and not refresh_missed, values, details,
-                                      results, recalculated, package, given_by_table.get(t, []), qtables=qtables,
-                                      input_values=input_values, may_write=not refresh_missed and t not in no_table,
+                                      ctl.get(t, {}), accept_refresh and not refresh_missed and not accept_blocked,
+                                      values, details, results, recalculated, package, given_by_table.get(t, []),
+                                      qtables=qtables, input_values=input_values,
+                                      may_write=not refresh_missed and not accept_blocked and t not in no_table,
                                       version_blocked=t in versioned)
     if refreshed:
         # v6 (r5 verdict C-sol-6, I-HIDDEN-DECIMALS): refreshed values with more decimals than the column's number
@@ -1572,23 +1840,108 @@ def check_model(target: str | Path, *, strict: bool = False, excel: bool = True,
     return report
 
 
-def _accepted_totals(root: Path, table: str, digest: str) -> dict[str, dict[str, Any]] | None:
-    """The control totals accepted for the snapshot with this digest (raw/<table>.controls.json, lib.controls),
-    by column; None when the snapshot has no record."""
+# ----------------------------------------------------------------------------- V-INPUT-RANGE (v8)
+
+INPUT_RANGE_FIX = ("change the input's value in model.spec.json and rebuild ({rebuild}); a value typed or pasted "
+                   "into the inputs sheet is not kept by a rebuild")
+
+
+def read_spec_data(root: Path, man: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
+    """The model's specification as JSON (the file the manifest names), and a note when it cannot be read."""
+    path = Path(root) / str(man.get("spec") or "model.spec.json")
+    try:
+        data = common.read_json(path)
+    except (OSError, ValueError) as exc:
+        return None, (f"V-INPUT-RANGE: the specification {path.name} was not read ({type(exc).__name__}), so the "
+                      "saved inputs were not compared with their valid ranges")
+    return (data if isinstance(data, dict) else None), None
+
+
+def input_range_refs(spec_data: dict[str, Any] | None, man: dict[str, Any]) -> list[tuple[str, dict[str, Any], str]]:
+    """(input id, specification item, single-cell reference) of each scalar input of the specification that
+    declares "valid" and whose cell the manifest records (manifest["inputs"])."""
+    refs = man.get("inputs") or {}
+    out: list[tuple[str, dict[str, Any], str]] = []
+    sheets = (spec_data or {}).get("sheets")
+    for s in sheets if isinstance(sheets, list) else []:
+        if not isinstance(s, dict) or s.get("type") != "inputs":
+            continue
+        for item in s.get("items") or []:
+            if not isinstance(item, dict) or item.get("kind") not in (None, "scalar"):
+                continue
+            ref = refs.get(item.get("id"))
+            if not isinstance(item.get("valid"), dict) or not isinstance(ref, str) or ":" in ref:
+                continue
+            out.append((str(item["id"]), item, ref))
+    return out
+
+
+def _saved_value_text(v: Any) -> str:
+    import datetime as dt
+
+    from . import spec as spec_mod
+    if v is None:
+        return "no value (the cell is empty)"
+    if isinstance(v, dt.datetime):
+        return v.date().isoformat() if v.time() == dt.time(0) else v.isoformat(sep=" ")
+    if isinstance(v, dt.date):
+        return v.isoformat()
+    if isinstance(v, bool):
+        return "TRUE" if v else "FALSE"
+    return spec_mod._value_text(v)
+
+
+def input_range_findings(spec_data: dict[str, Any] | None, man: dict[str, Any], read: Any,
+                         rebuild: str) -> list[common.Finding]:
+    """V-INPUT-RANGE (v8, r7 verdict [A-aera-5, A-aera-6] part 1), for check and for audit with a manifest: each
+    scalar input that declares "valid" (input_range_refs), whose saved value lies outside it (spec.valid_problem).
+    `read(ref)` gives (True, saved value; None for an empty cell) or (False, None) when the cell cannot be read (a
+    missing sheet, a formula without a saved value): such a cell is left out. The message carries the input's note
+    when it has one (a fixed input says why it is fixed)."""
+    from . import spec as spec_mod
+    found: list[common.Finding] = []
+    for iid, item, ref in input_range_refs(spec_data, man):
+        ok, value = read(ref)
+        if not ok:
+            continue
+        problem = spec_mod.valid_problem(item["valid"], value)
+        if problem is None:
+            continue
+        sheet, cell = common.parse_ref(ref)
+        cell = cell.replace("$", "")
+        where = f"{common.quote_sheet(sheet)}!{cell}" if sheet else cell
+        note = item.get("note")
+        message = (f"input '{iid}' ({item.get('label', iid)}) at {where} holds {_saved_value_text(value)}, {problem}"
+                   + (f"; the input's note says: {note}" if note else ""))
+        found.append(common.Finding("V-INPUT-RANGE", "error", message, INPUT_RANGE_FIX.format(rebuild=rebuild),
+                                    sheet=sheet, cell=cell,
+                                    data={"input": iid, "valid": dict(item["valid"]),
+                                          "value": value if value is None or isinstance(value, (int, float, str))
+                                          else _saved_value_text(value)}))
+    return found
+
+
+def _accepted_totals(root: Path, table: str, digest: str, contract: dict[str, Any] | None
+                     ) -> tuple[dict[str, dict[str, Any]] | None, dict[str, Any] | None]:
+    """(totals, stale entry): the control totals accepted for the snapshot with this digest
+    (raw/<table>.controls.json, lib.controls) under the agreement in force of `contract`, by column, or None; the
+    stale entry is the one recorded for this digest under an earlier agreement (v9, r8 verdict [A-aera-2, C-sol-1]),
+    or None."""
     from . import controls as controls_mod
-    found = controls_mod.totals_for(root, table, digest)
+    found, stale = controls_mod.lookup(root, table, digest, contract)
     if found is None:
-        return None
-    return {str(x["column"]): dict(x) for x in found}
+        return None, stale
+    return {str(x["column"]): dict(x) for x in found}, None
 
 
 def _record_accepted_totals(report: common.Report, root: Path, table: str, digest: str, rows: int,
                             contract: dict[str, Any] | None, ctl: dict[str, Any], given: Sequence[str]) -> None:
     """Record the control totals an accepted snapshot was checked against (v2, A-aera-7): each contract total
-    column with the value used (--control of this run, else the total already recorded for this snapshot, which an
-    earlier --control gave, else the agreed contract's) and the contract's tolerance, and each other --control
-    column. v3 (C-sol-1): a value read from the workbook (the inputs sheet) is never recorded. The contract is not
-    changed. Nothing is recorded when the snapshot was checked against no total."""
+    column with the value used (--control of this run, else the total already recorded for this snapshot under the
+    agreement in force, which an earlier --control gave, else the agreed contract's) and the contract's tolerance.
+    v9 (r8 verdict A-aera-4): only contract total columns are recorded (check --accept-refresh refuses --control for
+    any other column before Excel starts). v3 (C-sol-1): a value read from the workbook (the inputs sheet) is never
+    recorded. The contract is not changed. Nothing is recorded when the snapshot was checked against no total."""
     tol_of = {x["column"]: float(x.get("tolerance", 0) or 0)
               for x in ((contract or {}).get("expect") or {}).get("totals") or []}
     used: list[dict[str, Any]] = []
@@ -1599,17 +1952,16 @@ def _record_accepted_totals(report: common.Report, root: Path, table: str, diges
             used.append({"column": col, "value": value, "tolerance": tol_of[col] if tol is None else tol})
         else:
             used.append({"column": col, "value": float(x["value"]), "tolerance": tol_of[col]})
-    for col, v in ctl.items():
-        if col not in tol_of:
-            value, tol = _control_value(v)
-            used.append({"column": col, "value": value, "tolerance": 0.0 if tol is None else tol})
     if not used:
         return
     from . import controls as controls_mod
-    controls_mod.record_acceptance(root, table, digest=digest, rows=rows, totals=used, given=list(given))
+    # v9 (r8 verdict [A-aera-2, C-sol-1] (1)): recorded under the agreement in force (agreement.contract_sha256)
+    controls_mod.record_acceptance(root, table, digest=digest, rows=rows, totals=used, given=list(given),
+                                   contract_sha256=controls_mod.agreement_hash(contract))
     report.note(f"raw/{table}.controls.json: the snapshot's control totals recorded ("
                 + ", ".join(f"{u['column']} {_n(u['value'])}" for u in used)
-                + "); rotm.py build and check use them for this snapshot; the contract is unchanged")
+                + "); rotm.py build and check use them for this snapshot under the agreement in force; the contract "
+                  "is unchanged")
 
 
 def _check_table(report: common.Report, model: _Model, t: str, entry: dict[str, Any],
@@ -1651,7 +2003,11 @@ def _check_table(report: common.Report, model: _Model, t: str, entry: dict[str, 
     # Control totals (v3, A-aera-4, C-sol-1): --control of this run; else the totals accepted for this exact sheet
     # digest (raw/<t>.controls.json, lib.controls); else the agreed contract's. The inputs sheet is never the
     # control: its control cell is compared with the control used (D-CONTROL-INPUT).
-    ctl, sources = _control_totals(root, t, digest, contract, controls)
+    ctl, sources, stale = _control_totals(root, t, digest, contract, controls)
+    if stale is not None:
+        # v9 (r8 verdict [A-aera-2, C-sol-1] (3)): an entry accepted under an earlier agreement is not used
+        from . import controls as controls_mod
+        report.note(controls_mod.stale_note(t, stale, contract, given=list(controls)))
     control_inputs = _control_inputs(t, contract, ctl, sources, results, facts, values, details, recalculated,
                                      input_values or {})
     info["control_inputs"] = control_inputs
@@ -1660,6 +2016,8 @@ def _check_table(report: common.Report, model: _Model, t: str, entry: dict[str, 
         findings = check_raw(SheetRows(t, hdr, rows), contract, controls=ctl, sheet=sheet, control_sources=sources)
         flagged = {f.data.get("column") for f in stored_findings}
         findings = [f for f in findings if not (f.rule == "D-TYPE" and f.data.get("column") in flagged)]
+        if stale is not None:
+            findings = [_stale_total(f, t, stale, root, claimed) for f in findings]
     else:
         expected_cols = list(entry.get("columns") or [])
         if expected_cols and hdr != expected_cols:
@@ -1695,6 +2053,14 @@ def _check_table(report: common.Report, model: _Model, t: str, entry: dict[str, 
                  f"landed after that; nothing was accepted and {snap_rel} was not changed")
     newer_fix = (f"refresh the query ({_rotm()} check \"{root.as_posix()}\" --refresh) or rebuild from the snapshot "
                  f"({rebuild})")
+    # v8 (r7 verdict A-aera-1): raw/<t>.csv was landed after rotm.py last wrote rows into the workbook (the landed
+    # digest differs from the workbook digest): an acceptance accepts no changed rows, whatever the sheet holds
+    landed_after_write = bool(recorded) and wb_digest is not None and wb_digest != recorded
+    landed_msg = (f"{sheet}: {snap_rel} was landed after the workbook was last written (the manifest's landed digest "
+                  "differs from its workbook digest), so no changed rows are accepted; nothing was accepted, and "
+                  f"{snap_rel}, raw/{t}.controls.json and the manifest were not changed")
+    landed_fix = (f"rebuild from the landed snapshot ({rebuild}), then refresh ({_rotm()} check \"{root.as_posix()}\" "
+                  "--refresh --strict) and accept (--accept-refresh)")
     if recorded and digest == recorded:
         report.note(f"{sheet}: {_n(len(rows))} data rows, unchanged since landing (digest equals the manifest)")
         if may_write and wb_digest != digest:
@@ -1751,6 +2117,9 @@ def _check_table(report: common.Report, model: _Model, t: str, entry: dict[str, 
             elif state != "agreed":
                 report.error("R-CHANGED", what + f"; not accepted, because the contract of '{t}' is not agreed",
                              "get the contract agreed first (see CT-STATE)", sheet=sheet)
+            elif landed_after_write:
+                # v8 (r7 verdict A-aera-1): also covers the case R-NEWER named (the sheet equals workbook_digest)
+                report.error("R-CHANGED", landed_msg, landed_fix, sheet=sheet)
             elif data_errors:
                 report.error("R-CHANGED", what + f"; not accepted: the new rows break the contract "
                              f"({len(data_errors)} error findings above)",
@@ -1760,8 +2129,6 @@ def _check_table(report: common.Report, model: _Model, t: str, entry: dict[str, 
                 report.error("R-CHANGED", f"the manifest records no workbook digest for {sheet} (built before v3), so "
                              "a refresh cannot be told from a later landing; nothing was accepted",
                              f"rebuild once ({rebuild}); build records the digest", sheet=sheet)
-            elif newer:
-                report.error("R-CHANGED", newer_msg, newer_fix, sheet=sheet)
             else:
                 _write_snapshot(snap, header, rows, types)
                 written_digest = manifest_mod.csv_digest(snap, types)[0]
@@ -2034,22 +2401,42 @@ def _key_separator(root: Path, t: str, sheet: str, header: Sequence[str], rows: 
 
 
 def _control_totals(root: Path, t: str, digest: str, contract: dict[str, Any] | None,
-                    controls: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str]]:
-    """(controls for check_raw, source of each): --control of this run; else the total recorded in
-    raw/<t>.controls.json for this exact digest; else (not in the result) the agreed contract's total."""
+                    controls: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str], dict[str, Any] | None]:
+    """(controls for check_raw, source of each, stale entry): the order of lib.controls (ORDER): --control of this
+    run; else the total recorded in raw/<t>.controls.json for this exact digest under the agreement in force; else
+    (not in the result) the agreed contract's total. v9 (r8 verdict [A-aera-2, C-sol-1]): an entry for the digest
+    accepted under an earlier agreement is not used; it is returned as the stale entry (else None)."""
     ctl = dict(controls)
     sources = {c: "--control" for c in ctl}
     if contract is None:
-        return ctl, sources
-    accepted = _accepted_totals(root, t, digest)
+        return ctl, sources, None
+    accepted, stale = _accepted_totals(root, t, digest, contract)
     for tot in (contract.get("expect") or {}).get("totals") or []:
         col = tot["column"]
         if col in ctl or accepted is None or col not in accepted:
             continue
         rec = accepted[col]
         ctl[col] = (float(rec["value"]), float(rec.get("tolerance", tot.get("tolerance", 0)) or 0))
-        sources[col] = f"raw/{t}.controls.json (accepted for this snapshot)"
-    return ctl, sources
+        sources[col] = f"raw/{t}.controls.json (accepted for this snapshot under the agreement in force)"
+    return ctl, sources, stale
+
+
+def _stale_total(f: common.Finding, t: str, stale: dict[str, Any], root: Path, query: bool) -> common.Finding:
+    """D-TOTAL against the contract's total for a column whose total in raw/<t>.controls.json was accepted under an
+    earlier agreement (v9, r8 verdict [A-aera-2, C-sol-1] (3)): the message names both totals and the fix gives the
+    way on (--control with the source's current total, recorded under the agreement in force). Other findings are
+    returned as they are."""
+    from . import controls as controls_mod
+    col = f.data.get("column") if isinstance(f.data, dict) else None
+    if f.rule != "D-TOTAL" or f.data.get("source") != "the contract" or not col:
+        return f
+    tail = controls_mod.stale_tail(stale, col)
+    if not tail:
+        return f
+    return _replace(
+        f, message=f.message + tail,
+        fix=controls_mod.stale_fix(t, col, root.as_posix(), query=query, rotm=_rotm()),
+        data=dict(f.data, stale_accepted=controls_mod.stale_value(stale, col), stale_accepted_at=stale.get("at")))
 
 
 def _quoted_ref(link: str) -> str:

@@ -28,7 +28,7 @@ Sample profile (describes the sample only; these numbers are not controls):
 | posting_date | 419 | 0 | 156 | 2026-01-02 | 2026-06-28 | - | 2026-01-11, 2026-01-06, 2026-01-04 |
 | cost_centre | 419 | 0 | 4 | - | - | - | CC100, CC200, CC300 |
 | account | 419 | 0 | 4 | - | - | - | 6400, 6300, 6100 |
-| amount | 419 | 0 | 405 | -554900 | 1322400 | 171,636,600 | 167900, 366600, 653800 |
+| amount | 419 | 0 | 405 | -554,900 | 1,322,400 | 171,636,600 | 167900, 366600, 653800 |
 
 Points to confirm:
 

@@ -26,7 +26,7 @@ Sample profile (describes the sample only; these numbers are not controls):
 | line_id | 60 | 0 | 60 | - | - | - | L0001, L0002, L0003 |
 | line_date | 60 | 0 | 43 | 2026-01-02 | 2026-03-31 | - | 2026-01-02, 2026-02-27, 2026-02-01 |
 | category | 60 | 0 | 4 | - | - | - | Staff, Supplies, Travel |
-| amount | 60 | 0 | 59 | 49000 | 1981500 | 57,514,500 | 655000, 1158000, 1938500 |
+| amount | 60 | 0 | 59 | 49,000 | 1,981,500 | 57,514,500 | 655000, 1158000, 1938500 |
 
 Points to confirm:
 

@@ -650,6 +650,16 @@ function Do-PqAttach($op, $step) {
     $step.rows = [int]$lo.ListRows.Count
 }
 
+function Do-PqAddQuery($op, $step) {
+    # v8 (r7 verdict C-sol-4): a connection-only query: the query is added (or its formula set), no table, no load
+    $queryName = [string]$op['query_name']
+    $m = [string]$op['m_text']
+    $q = $null
+    foreach ($x in $script:wb.Queries) { if ($x.Name -eq $queryName) { $q = $x } }
+    if ($null -ne $q) { $q.Formula = $m; $step.query = 'updated' } else { [void]$script:wb.Queries.Add($queryName, $m); $step.query = 'added' }
+    $step.query_name = $queryName
+}
+
 function Do-PqRefresh($op, $step) {
     $waitS = [double](Get-Opt $op 'wait_s' 300)
     $tables = New-Object System.Collections.ArrayList
@@ -731,6 +741,7 @@ function Invoke-Op($op, $step) {
         'clear' { $null = Do-Clear $op $step }
         'render' { $null = Do-Render $op $step }
         'pq_attach' { $null = Do-PqAttach $op $step }
+        'pq_add_query' { $null = Do-PqAddQuery $op $step }
         'pq_refresh' { $null = Do-PqRefresh $op $step }
         'sleep' { Start-Sleep -Seconds ([double](Get-Opt $op 'seconds' 1)) }
         default { throw ("unknown operation '" + $op['op'] + "'") }

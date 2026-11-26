@@ -1,10 +1,10 @@
 {
  "rotm_manifest": 1,
  "plugin_version": "0.1.0",
- "built_at": "2026-11-25T23:25:35+09:00",
+ "built_at": "2026-11-26T14:51:31+09:00",
  "spec": "model.spec.json",
- "spec_sha256": "7cd189f71afdb9fafd6ddb9a5c48fe59458b4352b0e14c0fc46c0ef6424ad9c5",
- "dictionary_sha256": "af368b9475cc6952edc947b1973bc099b8f2fd6b9a85781c4d62db2b9269c82e",
+ "spec_sha256": "b84e58b65ac95afbcf85198df0488da43126f7539909e316e581c18f5cee0612",
+ "dictionary_sha256": "4fdc5e5739af4964b0652d11f313f996ac67880477916c6799763e60e942e400",
  "dictionary_applied": [],
  "workbook": "model.xlsx",
  "settings": {
@@ -141,7 +141,7 @@
      "id": "revenue_k",
      "col": "H",
      "kind": "derived",
-     "formula": "=F2/inputs!$D$10",
+     "formula": "=F2/inputs!$D$11",
      "header": "revenue_k",
      "format": "amount1",
      "label": "Revenue (KRW thousand)"
@@ -295,6 +295,56 @@
        "key": true
       }
      ]
+    },
+    {
+     "id": "runrate_cell_diff",
+     "shape": "grid",
+     "body": "D45:D48",
+     "total": null,
+     "checks": [
+      "runrate_cell_ties"
+     ],
+     "title": "Run rate check: rate x months less actual, absolute",
+     "heading_row": 43,
+     "header_row": 44,
+     "labels": "B45:B48",
+     "total_row": null,
+     "total_col": null,
+     "cols_kind": "same_as",
+     "rows_kind": "same_as"
+    },
+    {
+     "id": "landed",
+     "shape": "items",
+     "body": "D52:O53",
+     "total": null,
+     "checks": [
+      "closed_months_landed"
+     ],
+     "title": "Landed sales rows per month",
+     "heading_row": 50,
+     "header_row": 51,
+     "labels": "B52:B53",
+     "total_row": null,
+     "total_col": null,
+     "cols_kind": "same_as",
+     "rows_kind": "items",
+     "items": [
+      {
+       "id": "rows",
+       "label": "Landed sales rows in the month",
+       "row": 52,
+       "first": false,
+       "key": false
+      },
+      {
+       "id": "empty",
+       "label": "Actual month with no landed row (1)",
+       "row": 53,
+       "first": false,
+       "key": false
+      }
+     ]
     }
    ]
   },
@@ -364,8 +414,8 @@
    "type": "checks",
    "font_size": 9,
    "master": "C2",
-   "results": "I5:I20",
-   "ids": "B5:B20"
+   "results": "I5:I22",
+   "ids": "B5:B22"
   },
   {
    "name": "notes",
@@ -378,15 +428,16 @@
   "last_actual": "inputs!D7",
   "actual_months": "inputs!D8",
   "forecast_months": "inputs!D9",
-  "scale": "inputs!D10",
-  "products": "inputs!D14:D17",
-  "growth": "inputs!D21:D24",
-  "budget": "inputs!D28:D31",
-  "sales_rows_min": "inputs!D35",
-  "sales_rows_max": "inputs!D36",
-  "sales_total_revenue": "inputs!D37",
-  "sales_tol_revenue": "inputs!D38",
-  "check_tolerance": "inputs!D39"
+  "closed_months_no_sales": "inputs!D10",
+  "scale": "inputs!D11",
+  "products": "inputs!D15:D18",
+  "growth": "inputs!D22:D25",
+  "budget": "inputs!D29:D32",
+  "sales_rows_min": "inputs!D36",
+  "sales_rows_max": "inputs!D37",
+  "sales_total_revenue": "inputs!D38",
+  "sales_tol_revenue": "inputs!D39",
+  "check_tolerance": "inputs!D40"
  },
  "cells": {
   "corkscrew.cum": "calc!O41",
@@ -594,10 +645,34 @@
    "label": "Full-year variance % times budget equals outlook less budget (budget not 0)",
    "severity": "error",
    "result_formula": "=--(ABS(G20)>H20)"
+  },
+  {
+   "id": "runrate_cell_ties",
+   "kind": "at_most",
+   "result": "checks!I21",
+   "auto": false,
+   "targets": [
+    "calc!D45:D48"
+   ],
+   "label": "Largest per-product difference of run rate x actual months and actuals",
+   "severity": "error",
+   "result_formula": "=--(D21>E21)"
+  },
+  {
+   "id": "closed_months_landed",
+   "kind": "equal",
+   "result": "checks!I22",
+   "auto": false,
+   "targets": [
+    "calc!D52:O53"
+   ],
+   "label": "Actual months with no landed row equal the closed months confirmed with no sales",
+   "severity": "error",
+   "result_formula": "=--(ABS(G22)>H22)"
   }
  ],
  "master_check": "checks!C2",
- "master_formula": "=--(OR(SUM(I5:I20)>0,COUNT(I5:I20)<>COUNTA(B5:B20)))",
+ "master_formula": "=--(OR(SUM(I5:I22)>0,COUNT(I5:I22)<>COUNTA(B5:B22)))",
  "master_links": [
   "cover!C2",
   "inputs!C2",
@@ -764,7 +839,7 @@
     "heading"
    ],
    [
-    "B46:B51",
+    "B46:B53",
     "label"
    ]
   ],
@@ -790,115 +865,115 @@
     "col_header"
    ],
    [
-    "B6:B10",
+    "B6:B11",
     "row_header"
    ],
    [
-    "C6:C10",
+    "C6:C11",
     "unit"
    ],
    [
-    "D6:D10",
+    "D6:D11",
     "input"
    ],
    [
-    "E6:E10",
+    "E6:E11",
     "note"
    ],
    [
-    "B12",
+    "B13",
     "heading"
    ],
    [
-    "B13:E13",
+    "B14:E14",
     "col_header"
    ],
    [
-    "B14:B17",
+    "B15:B18",
     "row_header"
    ],
    [
-    "C14:C17",
+    "C15:C18",
     "unit"
    ],
    [
-    "D14:D17",
+    "D15:D18",
     "input"
    ],
    [
-    "E14",
+    "E15",
     "note"
    ],
    [
-    "B19",
+    "B20",
     "heading"
    ],
    [
-    "B20:D20",
+    "B21:D21",
     "col_header"
    ],
    [
-    "E20",
+    "E21",
     "note"
    ],
    [
-    "B21:B24",
+    "B22:B25",
     "row_header"
    ],
    [
-    "C21:C24",
+    "C22:C25",
     "unit"
    ],
    [
-    "D21:D24",
+    "D22:D25",
     "input"
    ],
    [
-    "B26",
+    "B27",
     "heading"
    ],
    [
-    "B27:D27",
+    "B28:D28",
     "col_header"
    ],
    [
-    "E27",
+    "E28",
     "note"
    ],
    [
-    "B28:B31",
+    "B29:B32",
     "row_header"
    ],
    [
-    "C28:C31",
+    "C29:C32",
     "unit"
    ],
    [
-    "D28:D31",
+    "D29:D32",
     "input"
    ],
    [
-    "B33",
+    "B34",
     "heading"
    ],
    [
-    "B34:E34",
+    "B35:E35",
     "col_header"
    ],
    [
-    "B35:B39",
+    "B36:B40",
     "row_header"
    ],
    [
-    "C35:C39",
+    "C36:C40",
     "unit"
    ],
    [
-    "D35:D39",
+    "D36:D40",
     "input"
    ],
    [
-    "E35:E39",
+    "E36:E40",
     "note"
    ]
   ],
@@ -1066,6 +1141,46 @@
    [
     "D41:O41",
     "output"
+   ],
+   [
+    "B43",
+    "heading"
+   ],
+   [
+    "B44:D44",
+    "col_header"
+   ],
+   [
+    "B45:B48",
+    "row_header"
+   ],
+   [
+    "C45:C48",
+    "unit"
+   ],
+   [
+    "D45:D48",
+    "calc"
+   ],
+   [
+    "B50",
+    "heading"
+   ],
+   [
+    "B51:O51",
+    "col_header"
+   ],
+   [
+    "B52:B53",
+    "row_header"
+   ],
+   [
+    "C52:C53",
+    "unit"
+   ],
+   [
+    "D52:O53",
+    "calc"
    ]
   ],
   "summary": [
@@ -1132,7 +1247,7 @@
     "col_header"
    ],
    [
-    "B5:C20",
+    "B5:C22",
     "row_header"
    ],
    [
@@ -1144,11 +1259,11 @@
     "import"
    ],
    [
-    "I5:I20",
+    "I5:I22",
     "check"
    ],
    [
-    "J5:J20",
+    "J5:J22",
     "note"
    ],
    [
@@ -1218,6 +1333,22 @@
    [
     "D20:E20",
     "calc"
+   ],
+   [
+    "D21:D22",
+    "calc"
+   ],
+   [
+    "E21:E22",
+    "import"
+   ],
+   [
+    "G22",
+    "calc"
+   ],
+   [
+    "H22",
+    "import"
    ]
   ],
   "notes": [
@@ -1256,5 +1387,5 @@
   ]
  },
  "outside_checks": [],
- "formula_cells": 3080
+ "formula_cells": 3133
 }

@@ -7,7 +7,8 @@
 - Request v6_P1 R-1: references/model-spec-format.md "Argument counts" gives the fix of the five pair rules in the
   form formula.py prints it.
 - Request v6_P3 R1 and R2: the documents give the fix of X-QUERY-CHANGED for a query attached by hand and carried
-  over by build, and say that only check --refresh reads the query back.
+  over by build. v7 (r6 verdict [A-aera-2, C-sol-5]): the v6 sentence that only check --refresh reads the query
+  back is no longer true and is gone; SKILL.md states that check --accept-refresh reads it back too (with Excel).
 - Request v6_P5 R2: SKILL.md P4 states that a part in a branch of IF carries the condition (or SPLIT-GUARD).
 - Request v6_P8 R1 (the X-OPEN fix names the rebuild) is tested by the assertions added to
   test_v4_check.py::test_failed_excel_job_is_x_open, test_v4_core.py::test_x_open_finding_texts and
@@ -115,7 +116,13 @@ HAND_FIX = ("For a query attached by hand and carried over by build (query_attac
             "is different: to keep the change, rebuild")
 HAND_FIX_SHORT = ("For a query attached by hand and carried over by build (query_attach hand), the fix is different: "
                   "to keep the change, rebuild")
-READ_BACK = "The query is read back only by check --refresh"
+# v7 (r6 verdict [A-aera-2, C-sol-5]): with Excel, check --accept-refresh reads the query back also without
+# --refresh, so the v6 sentences on the read-back order are no longer true and are replaced (v7 plan 5.4, T-4,
+# T-17, T-20). The hand-query fix stays.
+V6_READ_BACK = "The query is read back only by check --refresh"
+V6_ALONE = "check --accept-refresh alone does not read the query again"
+V7_READ_BACK = ("With Excel, check --accept-refresh reads the query back and compares it too, also when it is given "
+                "without --refresh")
 
 
 def test_power_query_reference_gives_the_hand_query_fix_and_the_read_back_order() -> None:
@@ -123,22 +130,21 @@ def test_power_query_reference_gives_the_hand_query_fix_and_the_read_back_order(
     assert HAND_FIX in text
     assert ("build reads the query from the workbook, attaches it again and records its formula); to drop the "
             "change, change the query back in Excel's Power Query editor") in text
-    assert (READ_BACK + ". Run check --refresh before check --accept-refresh after any change of the source: check "
-            "--accept-refresh alone does not read the query again.") in text
+    assert V6_ALONE not in text and V6_READ_BACK not in text, "excel-power-query.md keeps the v6 read-back order"
 
 
 def test_skill_md_gives_the_hand_query_fix_and_the_read_back_order() -> None:
     text = _flat(_no_code(_read(SKILL / "SKILL.md")))
     after = text[text.index("**After a refresh**"):]
-    assert HAND_FIX_SHORT in after and READ_BACK in after
-    assert "check --accept-refresh alone does not read the query again" in after
+    assert HAND_FIX_SHORT in after and V7_READ_BACK in after
+    assert V6_ALONE not in text and V6_READ_BACK not in text
 
 
 @needs_plugin
 def test_check_skill_gives_the_hand_query_fix_and_the_read_back_order() -> None:
     text = _flat(_no_code(_read(PLUGIN / "skills" / "check" / "SKILL.md")))
-    assert HAND_FIX_SHORT in text and READ_BACK in text
-    assert "check --accept-refresh alone does not read the query again" in text
+    assert HAND_FIX_SHORT in text
+    assert V6_ALONE not in text and V6_READ_BACK not in text, "skills/check/SKILL.md keeps the v6 read-back order"
 
 
 def test_the_hand_query_fix_the_documents_give_is_the_one_check_prints() -> None:

@@ -4,7 +4,7 @@
  "version": "0.1.0",
  "command": "check",
  "target": "model.xlsx",
- "at": "2026-11-26T03:53:22+09:00",
+ "at": "2026-11-26T09:16:32+09:00",
  "strict": true,
  "exit_code": 0,
  "status": "pass",
@@ -15,7 +15,7 @@
  },
  "findings": [],
  "notes": [
-  "recalculated in Excel 16.0 and saved; Excel PID 40380 closed",
+  "recalculated in Excel 16.0 and saved; Excel PID 56460 closed",
   "raw_open_items: 240 data rows, unchanged since landing (digest equals the manifest)",
   "check open_items_rows OK (checks!I5): Rows of raw_open_items lie within the contract's range; actual 240, range 1 to 100,000",
   "check open_items_total_open_amount OK (checks!I6): Sum of raw_open_items open_amount equals the contract's control total; actual 351,130,000, expected 351,130,000, tolerance 0",
@@ -29,7 +29,7 @@
   "check aging_ties_raw OK (checks!I14): Aging grid total equals the raw open amount; actual 351,130, expected 351,130, tolerance 0.001",
   "check counts_tie_raw OK (checks!I15): Invoice count grid total equals the raw row count; actual 240, expected 240, tolerance 0.001",
   "check pct_ties OK (checks!I16): Past due % times total equals total less not-due amount (total not 0); actual 228,746, expected 228,746, tolerance 0.001",
-  "check over90_ties OK (checks!I17): Over-90 total equals the open amount of invoices in the last bucket; actual 31,009, expected 31,009, tolerance 0.001",
+  "check over90_ties OK (checks!I17): Over-90 total equals the open amount more than 90 days past due; actual 31,009, expected 31,009, tolerance 0.001",
   "master check checks!C2 = 0 (OK)",
   "checks: 13 of 13 hold"
  ],
@@ -40,9 +40,9 @@
  "data": {
   "recalculated": true,
   "refreshed": false,
-  "input_sha256": "1a611fd75c28113e89c6139f8fc62b179bba2f4f0a9c89f724123229f47f46f6",
-  "output_sha256": "61d606617e14d56722263786d9b668d070eaedcc2ce737d9528e568dfb61521b",
-  "excel_pid": 40380,
+  "input_sha256": "d6aca9204f7f9c955b6d24df9e455e0ba2ba7cd3794e39d4c8c912d669563334",
+  "output_sha256": "a03dbc2cac5cf121615f80f5e3a0c4b0d32b9138e7753ed70cc28c79807a128e",
+  "excel_pid": 56460,
   "checks": [
    {
     "id": "open_items_rows",
@@ -215,7 +215,7 @@
    {
     "id": "over90_ties",
     "kind": "equal",
-    "label": "Over-90 total equals the open amount of invoices in the last bucket",
+    "label": "Over-90 total equals the open amount more than 90 days past due",
     "severity": "error",
     "result_ref": "checks!I17",
     "result": 0,
@@ -259,7 +259,7 @@
      "helper_any_last_row": 241,
      "uncovered": 0,
      "spare": 0,
-     "last_col": "L"
+     "last_col": "N"
     }
    }
   }

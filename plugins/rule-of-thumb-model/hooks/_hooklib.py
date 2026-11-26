@@ -8,8 +8,11 @@ What it holds:
 - reading the payload Claude Code sends on stdin (design 13.2);
 - the model-folder lookup (a folder holding rotm_model.json, design D3 and 4.1);
 - a reading of Bash and PowerShell command lines: segments, the files a segment writes, the Python code it
-  runs, the paths it names (design 13.2 to 13.4);
+  runs, the paths it names (design 13.2 to 13.4); for rotm.py and formula_audit.py, the arguments each subcommand
+  defines as a model folder or a file, by the table ROTM_ARGS (v7, C-sol-1);
 - the session record in <state dir>/sessions/<session_id>.json (design 13.2);
+- whether a status or session record still holds the model folder's inputs (model_inputs, inputs_hold; v9, round
+  8 verdict C-sol-5);
 - the runner: one decision per call, and the fail-open rule (design 13.1, plan F16 d): a failure before a
   model folder is identified exits 0 with no output; after, one line on stderr and exit 1, never a traceback.
 
@@ -164,6 +167,23 @@ def signature(path: Path) -> list[int] | None:
     except OSError:
         return None
     return [st.st_mtime_ns, st.st_size]
+
+
+def model_inputs(root: Path) -> dict[str, Any] | None:
+    """The model folder's inputs now (modelfolder.inputs_fingerprint; v9, round 8 verdict C-sol-5), or None when
+    they cannot be read (then every record counts, as in v8)."""
+    try:
+        return modelfolder.inputs_fingerprint(root)
+    except Exception:  # noqa: BLE001 - an unreadable folder: the records are judged as in v8
+        return None
+
+
+def inputs_hold(rec: dict[str, Any] | None, inputs: dict[str, Any] | None) -> bool:
+    """A status or session record counts for the inputs now (v9, C-sol-5): it holds no field "inputs" (written
+    before v9), `inputs` is None (unknown), or its "inputs" show no change of a raw snapshot or an agreement."""
+    if not isinstance(rec, dict) or inputs is None:
+        return True
+    return not modelfolder.inputs_changes(rec.get("inputs"), inputs)
 
 
 # ----------------------------------------------------------------------------- command lines
@@ -427,6 +447,140 @@ def _looks_like_path(text: str) -> bool:
     if not t or len(t) > 1000 or "\n" in t or t.startswith("-") and "/" not in t and "\\" not in t:
         return False
     return t.lower().endswith(PATH_EXT) or "/" in t or "\\" in t or t in (".", "..")
+
+
+# ----------------------------------------------------------------------------- rotm.py arguments (v7, C-sol-1)
+#
+# The arguments of each subcommand as its parser defines them (scripts/rotm.py and the add_<cmd>_arguments
+# functions of scripts/lib; formula_audit.py takes the arguments of audit). The hooks run with -I and cannot import
+# those modules, so the table is written here; tests/test_v7_hooks.py compares it with the parsers. A positional
+# named in ROTM_PATH_POSITIONALS and an option in ROTM_PATH_OPTIONS name a model folder or a file: analyze resolves
+# each against the segment's working directory and adds it to the segment's paths whatever it looks like, so that
+# a bare folder name (`rotm.py build mymodel`) puts that model folder in scope, as ./mymodel and the full path do.
+
+@dataclass(frozen=True)
+class RotmArgs:
+    positionals: tuple[str, ...]            # destination names in order; each takes one word
+    values: tuple[str, ...] = ()            # options that take one value (every option string)
+    flags: tuple[str, ...] = ()             # options that take no value
+    lists: tuple[str, ...] = ()             # options that take any number of values (nargs "*")
+
+
+_OUT = ("-o", "--out")
+_AUDIT_ARGS = RotmArgs(("workbook",), ("--json", "--limit", "--max-length", "--dictionary", "--use", "--spec",
+                                       "--rules", "--raw-sheets", "--product"), ("--strict", "--quiet", "--no-record"))
+ROTM_ARGS: dict[str, RotmArgs] = {
+    "init": RotmArgs(("dir",), ("--name", "--product", "--template"), ("--force", "--list-templates")),
+    "status": RotmArgs(("dir",), ("--json",)),
+    "contract propose": RotmArgs(("dir",), ("--table", "--csv", "--columns", "--key", "--grain", "--source", "--rows",
+                                            "--purpose", "--connector", "--system", "--where", "--unit", "--type",
+                                            "--null", "--total", "--key-repeats", "--known-nulls", "--capacity",
+                                            "--max-rows", "--json"), ("--force", "--allow-empty")),
+    "contract agree": RotmArgs(("dir",), ("--table", "--reply", "--by", "--channel", "--source-file", "--json")),
+    "contract show": RotmArgs(("dir",), ("--table", "--json")),
+    "contract status": RotmArgs(("dir",), ("--json",)),
+    "contract remove": RotmArgs(("dir",), ("--table", "--json")),
+    "land": RotmArgs(("dir",), ("--table", "--csv", "--control", "--encoding", "--delimiter", "--pq-source", "--json"),
+                     ("--power-query", "--force", "--rewrite-queries", "--keep-queries", "--strict")),
+    "build": RotmArgs(("spec",), _OUT + ("--capacity", "--json"),
+                      ("--force", "--strict", "--no-power-query", "--drop-hand-queries", "--quiet")),
+    "theme": RotmArgs(("workbook",), _OUT + ("--dictionary", "--use", "--raw-sheets", "--calc-tolerance", "--json"),
+                      ("--in-place", "--number-formats", "--borders", "--views", "--align", "--no-verify", "--dry-run",
+                       "--strict", "--quiet")),
+    "audit": _AUDIT_ARGS,
+    "check": RotmArgs(("target",), ("--json", "--control"),
+                      ("--strict", "--no-excel", "--refresh", "--accept-refresh", "--quiet")),
+    "extend": RotmArgs(("target",), ("--table", "--rows", "--json"), ("--quiet",)),
+    "compat": RotmArgs(("workbook",), _OUT + ("--product", "--calc-tolerance", "--json"),
+                       ("--in-place", "--report-only", "--strict", "--quiet")),
+    "trace": RotmArgs(("workbook", "ref"), ("--depth", "--json", "--raw-sheets")),
+    "split": RotmArgs(("workbook", "ref"), _OUT + ("--limit", "--spec", "--calc-tolerance", "--json"),
+                      ("--in-place", "--cell-only", "--quiet")),
+    "lift": RotmArgs(("target",), _OUT + ("--lang", "--json"), ("--run", "--strict")),
+    "diff": RotmArgs(("old", "new"), ("--md", "--json", "--calc-tolerance"), ("--fail-on-change", "--quiet")),
+    "document": RotmArgs(("target",), _OUT + ("--json",)),
+    "recalc": RotmArgs(("workbook",), ("--out", "--json"), ("--no-save", "--quiet"), ("--read",)),
+    "render": RotmArgs(("workbook",), ("--out", "--sheets", "--max-rows", "--max-cols", "--json"), ("--quiet",)),
+    "formula": RotmArgs(("formula",), ("--limit", "--max-length", "--product", "--json", "--allow",
+                                       "--allowed-literals", "--sheet"), ("--strict",)),
+    "selftest": RotmArgs((), ("--foreign", "--json"), ("--strict", "--quick", "--no-excel", "--keep", "--quiet")),
+    "formula_audit.py": _AUDIT_ARGS,
+}
+ROTM_PATH_POSITIONALS = frozenset({"dir", "spec", "workbook", "target", "old", "new"})   # not: ref, formula
+ROTM_PATH_OPTIONS = frozenset({"-o", "--out", "--csv", "--source-file"})
+
+
+@dataclass
+class RotmCall:
+    """One rotm.py or formula_audit.py call read by the table: its table key ("" when unknown), the positionals
+    by name and the values of each option given (by the option string of the table)."""
+    command: str
+    positionals: dict[str, str] = field(default_factory=dict)
+    options: dict[str, list[str]] = field(default_factory=dict)
+
+    def paths(self) -> list[str]:
+        """The arguments that name a model folder or a file: positionals first, then the options in the order
+        given; '-' (standard input or output) and empty words are left out."""
+        out = [v for k, v in self.positionals.items() if k in ROTM_PATH_POSITIONALS]
+        out += [v for k, vals in self.options.items() if k in ROTM_PATH_OPTIONS for v in vals]
+        return [v for v in out if v.strip() and v.strip() != "-"]
+
+
+def _rotm_option(spec: RotmArgs, word: str) -> tuple[str | None, str | None]:
+    """(option string of the table, value given in the same word or None) of an option word; (None, None) for an
+    option the subcommand does not have. Understood as argparse understands them: --name=value, a unique prefix of
+    a long option, and a short option with its value attached (-oFILE)."""
+    known = spec.values + spec.flags + spec.lists + ("-h", "--help")
+    name, eq, val = word.partition("=")
+    value = val if eq else None
+    if name in known:
+        return name, value
+    if name.startswith("--"):
+        cands = [o for o in known if o.startswith(name)]
+        return (cands[0], value) if len(cands) == 1 else (None, None)
+    if len(word) > 2 and word[:2] in spec.values:
+        return word[:2], word[2:]
+    return None, None
+
+
+def rotm_call(script: str, args: list[str]) -> RotmCall:
+    """Read the arguments of one rotm.py or formula_audit.py call (the words after the script) by ROTM_ARGS."""
+    if script == "formula_audit.py":
+        key, rest = "formula_audit.py", list(args)
+    elif len(args) >= 2 and args[0] == "contract" and f"contract {args[1]}" in ROTM_ARGS:
+        key, rest = f"contract {args[1]}", list(args[2:])
+    elif args and args[0] != "contract" and args[0] in ROTM_ARGS and args[0] != "formula_audit.py":
+        key, rest = args[0], list(args[1:])
+    else:
+        return RotmCall("")
+    spec = ROTM_ARGS[key]
+    call = RotmCall(key)
+    pos: list[str] = []
+    i = 0
+    only_pos = False
+    while i < len(rest):
+        w = rest[i]
+        if not only_pos and w == "--":
+            only_pos = True
+        elif not only_pos and w.startswith("-") and len(w) > 1:
+            opt, value = _rotm_option(spec, w)
+            if opt in spec.values:
+                if value is None and i + 1 < len(rest):
+                    i += 1
+                    value = rest[i]
+                if value is not None:
+                    call.options.setdefault(opt, []).append(value)
+            elif opt in spec.lists:
+                vals = [] if value is None else [value]
+                while i + 1 < len(rest) and not (rest[i + 1].startswith("-") and len(rest[i + 1]) > 1):
+                    i += 1
+                    vals.append(rest[i])
+                call.options.setdefault(opt, []).extend(vals)
+        else:
+            pos.append(w)
+        i += 1
+    call.positionals = dict(zip(spec.positionals, pos))
+    return call
 
 
 def _python_parts(args: list[str]) -> tuple[str | None, list[str], str | None, bool]:
@@ -776,6 +930,13 @@ def analyze(command: str, cwd: Path, shell: str = "bash", depth: int = 0) -> lis
             if _looks_like_path(w):
                 p = to_path(w, here)
                 if p is not None:
+                    seg.paths.append(p)
+        # rotm.py and formula_audit.py: every argument that names a model folder or a file, whatever it looks like
+        # (v7, C-sol-1: a bare folder name)
+        if seg.rotm is not None:
+            for text in rotm_call(seg.rotm_script, seg.rotm).paths():
+                p = to_path(text, here)
+                if p is not None and p not in seg.paths:
                     seg.paths.append(p)
         if seg.code:
             seg.paths.extend(code_paths(seg.code, here))

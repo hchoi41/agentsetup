@@ -28,7 +28,7 @@ Sample profile (describes the sample only; these numbers are not controls):
 | customer | 240 | 0 | 8 | - | - | - | Arden, Granite, Elm |
 | invoice_date | 240 | 0 | 118 | 2026-01-18 | 2026-06-28 | - | 2026-04-09, 2026-03-16, 2026-06-19 |
 | due_date | 240 | 0 | 128 | 2026-02-17 | 2026-08-27 | - | 2026-05-09, 2026-05-15, 2026-08-18 |
-| open_amount | 240 | 0 | 237 | 17000 | 2995000 | 351,130,000 | 161000, 515000, 231000 |
+| open_amount | 240 | 0 | 237 | 17,000 | 2,995,000 | 351,130,000 | 161000, 515000, 231000 |
 
 Points to confirm:
 

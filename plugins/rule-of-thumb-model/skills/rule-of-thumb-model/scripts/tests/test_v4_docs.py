@@ -8,7 +8,8 @@
 - [J-3]: SKILL.md and README.md "What is and is not verified": the four v4 items of the verified list with their
   tests, Google Sheets only under "Not verified". v5 (J-3): the subsection "Runs on the final v4 files" became
   "Runs on the final v5 files", and no v3 or v4 run number is left. v6 (J-3): it became "Runs on the final v6
-  files" (test_v6_docs.py checks its contents).
+  files"; v7 (J-6): "Runs on the final v7 files"; v8 (J-2): "Runs on the final v8 files"; v9 (J-2): "Runs on the
+  final v9 files" (test_v9_docs.py checks its contents).
 - v5 ([A-aera-6, C-sol-3]): the test that documented the dead end of a changed source total is replaced by a
   document test of the new step 4 of "Models kept in Google Sheets" (land --control); test_v5_land.py tests the
   behaviour.
@@ -48,9 +49,18 @@ RUNS_V4 = "### Runs on the final v4 files"
 # v5 (J-3): the subsection that replaces it, and the line the integrator replaces with the runs on the v5 files.
 RUNS_V5 = "### Runs on the final v5 files"
 P_RUNS_V5 = "Integrator: replace this line with the runs on the final v5 files."
-# v6 (J-3): the subsection that replaces the v5 one, and its placeholder (test_v6_docs.py checks its contents).
+# v6 (J-3): the subsection that replaced the v5 one, and its placeholder.
 RUNS_V6 = "### Runs on the final v6 files"
 P_RUNS_V6 = "Integrator: replace this line with the runs on the final v6 files."
+# v7 (J-6): the subsection that replaced the v6 one, and its placeholder.
+RUNS_V7 = "### Runs on the final v7 files"
+P_RUNS_V7 = "Integrator: replace this line with the runs on the final v7 files."
+# v8 (J-2): the subsection that replaced the v7 one, and the integrator's line.
+RUNS_V8 = "### Runs on the final v8 files"
+P_RUNS_V8 = "Integrator: write here the runs made on the final v8 files (plan section 8)."
+# v9 (J-2): the subsection that replaces the v8 one, and the integrator's line (test_v9_docs.py checks its contents).
+RUNS_V9 = "### Runs on the final v9 files"
+P_RUNS_V9 = "Integrator: write here the runs made on the final v9 files (plan section 8)."
 
 # Numbers and words of the v3 runs that v4 must not carry (J-3).
 V3_RUN_TEXTS = ("2,238", "2,344", "34 minutes 39 seconds", "15:55 to 16:00", "15:17 to 15:52", "292 files",
@@ -295,16 +305,19 @@ def test_google_sheets_states_the_export_route_and_what_check_reports() -> None:
 
 @pytest.mark.parametrize("path", _verified_files(), ids=lambda p: p.name)
 def test_runs_on_the_final_v4_files_holds_the_placeholder_or_runs(path: Path) -> None:
-    """v5 and v6 (J-3): the subsection on the v4 files was replaced by the one on the v5 files, and that one by the
-    one on the v6 files, which holds the v6 placeholder or the integrator's dated runs."""
+    """v5, v6 (J-3) and v7 (J-6): the subsection on the v4 files was replaced by the one on the v5 files, that one
+    by the one on the v6 files, that one by the one on the v7 files, that one (v8, J-2) by the one on the v8 files,
+    and that one (v9, J-2) by the one on the v9 files, which holds the integrator's line or the integrator's dated
+    runs."""
     section = _verified(path)
     assert RUNS_V4 not in section and "### Runs on the final v3 files" not in section
-    assert RUNS_V5 not in section
-    assert RUNS_V6 in section
-    runs = _flat(_section(section, RUNS_V6))
-    assert P_RUNS not in runs and P_RUNS_V5 not in runs, f"{path.name}: an earlier placeholder is left"
-    assert P_RUNS_V6 in runs or re.search(r"20\d\d-\d\d-\d\d", runs), \
-        f"{path.name}: the subsection holds neither the placeholder nor a dated run"
+    assert RUNS_V5 not in section and RUNS_V6 not in section and RUNS_V7 not in section and RUNS_V8 not in section
+    assert RUNS_V9 in section
+    runs = _flat(_section(section, RUNS_V9))
+    assert P_RUNS not in runs and P_RUNS_V5 not in runs and P_RUNS_V6 not in runs and P_RUNS_V7 not in runs \
+        and P_RUNS_V8 not in runs, f"{path.name}: an earlier placeholder is left"
+    assert P_RUNS_V9 in runs or re.search(r"20\d\d-\d\d-\d\d", runs), \
+        f"{path.name}: the subsection holds neither the integrator's line nor a dated run"
 
 
 @pytest.mark.parametrize("path", _verified_files(), ids=lambda p: p.name)
@@ -403,7 +416,7 @@ def test_alert_rows_show_alert_in_the_documents() -> None:
 def test_alert_word_in_the_check_skill_and_the_template_library() -> None:
     _all(_command_skill("check"), ["ALERT", "C-ALERT"], "skills/check/SKILL.md")
     lib = _flat(_read(PLUGIN / "templates" / "README.md"))
-    assert "24 of 24 hold" in lib and "23 of 23" not in lib
+    assert "26 of 26 hold" in lib and "24 of 24" not in lib     # v7 (request v7_P2 R2): two per-cell checks
 
 
 # ----------------------------------------------------------------------------- [A-aera-14, A-aera-5] split

@@ -653,7 +653,10 @@ KNOWN = Obj({"max": Int(1)}, {"note": TEXT}, desc="an agreed known exception",
 CONTRACT_COLUMN = Obj(
     {"name": COLUMN, "type": Enum(COLUMN_TYPES), "null_rule": Enum(NULL_RULES)},
     {"unit": UNIT, "allowed": Nullable(Arr(SCALAR, min_items=1)), "source_expression": Nullable(TEXT),
-     "description": TEXT, "format": FORMAT_KEY, "observed": AnyValue(), "known_nulls": KNOWN},
+     "description": TEXT, "format": FORMAT_KEY, "observed": AnyValue(), "known_nulls": KNOWN,
+     # v7 (r6 verdict C-sol-8): the sample CSV header the column was read from, trimmed (contract propose --csv);
+     # land --csv accepts a header line of these headers, each once, in any order
+     "csv_header": TEXT},
     desc="a contract column", what="a contract column")
 
 CONTRACT = Obj(
@@ -1036,7 +1039,11 @@ REPORT = Obj(
 CONTROL_TOTAL = Obj({"column": COLUMN, "value": Num(), "tolerance": Num(0)}, desc="an accepted control total",
                     what="an accepted control total")
 CONTROL_ACCEPTANCE = Obj({"digest": DIGEST, "rows": Int(0), "totals": Arr(CONTROL_TOTAL), "given": Arr(Str()),
-                          "at": Str(min_len=1)}, desc="an accepted snapshot", what="an accepted snapshot")
+                          "at": Str(min_len=1)},
+                         # v9 (r8 verdict [A-aera-2, C-sol-1]): agreement.contract_sha256 of the agreed contract in
+                         # force when the entry was recorded; an entry written before v9 has none
+                         {"contract_sha256": SHA256},
+                         desc="an accepted snapshot", what="an accepted snapshot")
 CONTROLS = Obj({"rotm_controls": Const(1, hint="write 1 (the controls format version)"), "table": TABLE,
                 "accepted": Arr(CONTROL_ACCEPTANCE)}, desc="the accepted control totals",
                what="raw/<table>.controls.json")

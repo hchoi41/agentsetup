@@ -64,7 +64,8 @@ def test_link_columns_are_not_calculation_blocks(tmp_path: Path) -> None:
     rep = run(write_wb(tmp_path / "links.xlsx", _with_links()))
     hits = blocks_of(rep)
     assert [(f.sheet, f.data["range"]) for f in hits] == [("Settlement", "B2:B6")], [f.line() for f in hits]
-    assert "inferred calculation blocks: 2; 1 read by a check cell, 1 read by none (C-BLOCK)" in rep.notes
+    assert ("inferred calculation blocks: 2; 1 read by a check cell (0 of them through a total or link cell), "
+            "1 read by none (C-BLOCK)") in rep.notes                    # v9 (A-aera-11): the count through a total
     link_notes = [n for n in rep.notes if "run(s) of links left out" in n]
     assert link_notes == ["inferred calculation blocks: 3 run(s) of links left out (each cell holds only a "
                           "reference to one cell, such as =Sheet!B2 or =B2; a link is not a calculation, so "

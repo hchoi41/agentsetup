@@ -384,7 +384,8 @@ def test_accepted_control_totals_replace_the_contracts_for_their_snapshot(root: 
     accepted = sum(float(r[5]) for r in body)
     controls.record_acceptance(root, "sales", digest=digest, rows=len(body),
                                totals=[{"column": "amount", "value": accepted, "tolerance": 0}],
-                               given=[f"sales.amount={accepted:.0f}"])
+                               given=[f"sales.amount={accepted:.0f}"],
+                               contract_sha256=c["agreement"]["contract_sha256"])    # v9: under the agreement
     contract_before = (root / "contracts" / "sales.contract.json").read_bytes()
     rep = land.land_csv(root, "sales", src)
     assert rep.exit_code == 0, [f.line() for f in rep.findings]

@@ -7,13 +7,13 @@ evidence for the conventions, not content to ship (spec 2.1).
 | Template | Raw tables | What it shows | Checks in Excel |
 | --- | --- | --- | --- |
 | `budget_vs_actual` | `gl_actuals` (ledger postings); the budget is an input grid | monthly actual against budget by cost centre, variance, variance %, year to date; the same actuals by account as an independent path | 14 of 14 hold |
-| `rolling_forecast` | `sales` (sales lines of the closed months) | 3+9 forecast: actual months, then run rate times (1 + growth) per product; a cumulative corkscrew; full-year outlook against budget | 16 of 16 hold |
+| `rolling_forecast` | `sales` (sales lines of the closed months) | 3+9 forecast: actual months, then run rate times (1 + growth) per product; a cumulative corkscrew; full-year outlook against budget | 18 of 18 hold |
 | `price_volume_mix` | `sales` (order lines of two periods) | volume, mix and price effects per product that add up to the revenue change (a bridge check) | 14 of 14 hold |
 | `ar_aging` | `open_items` (open invoices) | days past due, the bucket by MATCH on bounds then INDEX (in place of a nested-IF ladder), amount and count by customer and bucket | 13 of 13 hold |
 
 The skill's own starter template, `skills/rule-of-thumb-model/templates/starter`, is the smallest complete model
 (one raw table, one helper sheet, one grid, its checks; 9 of 9 hold). The worked example is
-`skills/rule-of-thumb-model/examples/sales_vs_target` (24 of 24 hold; alerts: 0 of 1 show a value).
+`skills/rule-of-thumb-model/examples/sales_vs_target` (26 of 26 hold; alerts: 0 of 1 show a value).
 
 ## Use a template
 

@@ -43,10 +43,17 @@ command too.
      contract agrees `known_nulls` for it), and `dup` with the exact key rule (case-sensitive, no wildcard); and the
      generated checks, `<t>_beyond` included. A table with zero rows gives 0 in `<t>_rows`, `<t>_cover`,
      `<t>_beyond` and every total, and no helper cell is compared.
-   - The control total of a raw table is the total accepted for the snapshot the script reads
-     (`raw/<t>.controls.json`, written by `check --accept-refresh --control`), else the contract's total, as build
-     writes it into the inputs sheet. After a later acceptance, run `lift` again: the script says so in a note when
-     the manifest records another snapshot.
+   - The main skill states the order of control totals (`<SKILL_DIR>/SKILL.md`, step 8). The control total used
+     for a table and column is, in this order: `--control` given in this run; else the total
+     accepted for this snapshot in `raw/<t>.controls.json` under the agreement in force; else the agreed contract's
+     total. `lift` takes no `--control`, so the script uses the total accepted for the snapshot it reads under the
+     agreement in force (`raw/<t>.controls.json`, written by `land --control` or `check --accept-refresh
+     --control`), else the agreed contract's total, as build writes it into the inputs sheet. A total accepted under
+     an earlier agreement (the contract was agreed again since, for example with another total) is not used:
+     `land`, `build`, `check` and `lift` print a note that names it, and when the rows do not meet the contract's
+     total, `L-TOTAL` (`land`) or `D-TOTAL` (`check`) names both totals. Give `--control` with the source's current
+     total; it is recorded under the agreement in force. After a later acceptance, run `lift` again: the script says
+     so in a note when the manifest records another snapshot.
    - The script reproduces the financial functions PMT, PV, FV and NPV with Excel's arguments and rules (measured
      in Excel 16 on 2026-11-25):
      - arguments: `PMT(rate,nper,pv,fv,type)`, `PV(rate,nper,pmt,fv,type)`, `FV(rate,nper,pmt,pv,type)`,
@@ -66,6 +73,10 @@ command too.
      (for example XLOOKUP with a typed not-found text inside SUM) is listed as `L-NOT-REPRODUCED` before the tie-out.
    - A specification whose expressions read each other in a cycle is refused (exit 2) when it is loaded, with the
      JSON path of each expression in the cycle.
+   - PROPER follows Excel 16 (measured on 2026-11-26 on the code points up to U+3FFFF and on 6,032 mixed texts): a
+     word is a run of Unicode letters, so `PROPER("élÈVE dupONT")` gives `Élève Dupont`, and a text with a character
+     whose case Excel gives otherwise or that was not measured (for example the Greek capital sigma U+03A3) is not
+     reproduced, which `L-NOT-REPRODUCED` reports with the step and the character.
 3. The script's own options: `--all` (prints every compared cell, one line each; without it only the cells that do
    not tie out, the first 40), `--json FILE` (one record per compared cell, as many as the tie-out counts), `--csv
    DIR` (each helper sheet and block as CSV), `--raw workbook` (read the raw sheets, for example after a Power

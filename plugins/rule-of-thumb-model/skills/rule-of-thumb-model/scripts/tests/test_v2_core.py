@@ -122,6 +122,7 @@ def test_query_without_stamp_reads_as_none_and_bad_arguments_are_refused() -> No
 # ----------------------------------------------------------------------------- A4 controls
 
 _DIGEST = "sha256:" + "1" * 64
+_H = "a" * 64                     # an agreement.contract_sha256 (v9)
 
 
 def _model(tmp_path: Path) -> Path:
@@ -138,26 +139,31 @@ def test_controls_one_entry_per_digest_and_contract_unchanged(tmp_path: Path) ->
     contract = root / "contracts" / "lines.contract.json"
     before = contract.read_bytes()
     assert controls.path(root, "lines") == root / "raw" / "lines.controls.json"
-    assert controls.totals_for(root, "lines", _DIGEST) is None
+    # v9 (r8 verdict [A-aera-2, C-sol-1]): every call states the agreement; an entry applies under it only
+    agreed = {"agreement": {"status": "agreed", "contract_sha256": _H, "at": "2026-11-25T07:00:00+09:00"}}
+    assert controls.totals_for(root, "lines", _DIGEST, agreed) is None
     totals = [{"column": "amount", "value": 1234.5, "tolerance": 0}]
     rec = controls.record_acceptance(root, "lines", digest=_DIGEST, rows=60, totals=totals,
-                                     given=["lines.amount=1234.5"], at="2026-11-25T08:00:00+09:00")
+                                     given=["lines.amount=1234.5"], at="2026-11-25T08:00:00+09:00",
+                                     contract_sha256=_H)
     first = controls.path(root, "lines").read_bytes()
     again = controls.record_acceptance(root, "lines", digest=_DIGEST, rows=60, totals=totals,
-                                       given=["lines.amount=1234.5"])
+                                       given=["lines.amount=1234.5"], contract_sha256=_H)
     assert again == rec and controls.path(root, "lines").read_bytes() == first
     data = json.loads(first)
     assert data["rotm_controls"] == 1 and data["table"] == "lines" and len(data["accepted"]) == 1
     assert schemas.validate(data, "controls") == []
-    assert controls.totals_for(root, "lines", _DIGEST) == totals
-    assert controls.totals_for(root, "lines", "sha256:" + "2" * 64) is None
+    assert controls.totals_for(root, "lines", _DIGEST, agreed) == totals
+    assert controls.totals_for(root, "lines", "sha256:" + "2" * 64, agreed) is None
     # a new value for the same snapshot replaces its record; another snapshot gets its own
     controls.record_acceptance(root, "lines", digest=_DIGEST, rows=60,
-                               totals=[{"column": "amount", "value": 99, "tolerance": 0}], given=["lines.amount=99"])
-    controls.record_acceptance(root, "lines", digest="sha256:" + "2" * 64, rows=61, totals=totals, given=[])
+                               totals=[{"column": "amount", "value": 99, "tolerance": 0}], given=["lines.amount=99"],
+                               contract_sha256=_H)
+    controls.record_acceptance(root, "lines", digest="sha256:" + "2" * 64, rows=61, totals=totals, given=[],
+                               contract_sha256=_H)
     data = json.loads(controls.path(root, "lines").read_text(encoding="utf-8"))
     assert [e["digest"] for e in data["accepted"]] == [_DIGEST, "sha256:" + "2" * 64]
-    assert controls.totals_for(root, "lines", _DIGEST)[0]["value"] == 99
+    assert controls.totals_for(root, "lines", _DIGEST, agreed)[0]["value"] == 99
     assert contract.read_bytes() == before
     assert sorted(p.name for p in (root / "contracts").iterdir()) == ["lines.contract.json"]
 
@@ -169,11 +175,11 @@ def test_controls_invalid_file_is_a_refusal_naming_it(tmp_path: Path) -> None:
     p.parent.mkdir(parents=True)
     p.write_text('{"rotm_controls": 1, "table": "lines", "accepted": [{"digest": "abc"}]}', encoding="utf-8")
     with pytest.raises(common.Refusal) as exc:
-        controls.totals_for(root, "lines", _DIGEST)
+        controls.totals_for(root, "lines", _DIGEST, None)
     assert "lines.controls.json" in exc.value.line()
     p.write_text("{not json", encoding="utf-8")
     with pytest.raises(common.Refusal, match="lines.controls.json"):
-        controls.record_acceptance(root, "lines", digest=_DIGEST, rows=1, totals=[], given=[])
+        controls.record_acceptance(root, "lines", digest=_DIGEST, rows=1, totals=[], given=[], contract_sha256=None)
 
 
 def test_controls_schema_cases() -> None:

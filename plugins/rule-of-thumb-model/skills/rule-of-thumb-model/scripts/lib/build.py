@@ -24,8 +24,18 @@ Layout (written down in references/model-spec-format.md):
   F maximum, G difference, H tolerance, I result, J what it checks), then the alerts, then the checks that only
   rotm.py check runs. Columns D to H are as wide as the widest value they show (v3, J-1), at least 12.
 - Warnings of v3: W-SELF-CHECK (a specification check whose two sides are the same, A-aera-19).
+- v7 (round 6 verdict): W-CHECK-GUARD (warning: a specification check expression that holds IFERROR or IFNA),
+  I-SHEETS-ONLY (information, product sheets: a function only Google Sheets has), I-TEXT-WIDTH (information: a
+  label, unit or header text wider than the room its cell has, TEXT_ROOM_FACTOR); a rebuild of a workbook with a
+  live query that rotm.py attached keeps <stem>.bak_<time>.xlsx and <stem>.manifest.bak_<time>.json until every
+  such query is attached again (KeptCopies).
 - The manifest's raw entries record contract_sha256 (the agreed contract built from) and workbook_digest (the
   rows build wrote) (v3, A-aera-1, A-aera-4).
+- v9 (r8 verdict [A-aera-2, C-sol-1]): The control total used for a table and column is, in this order: --control
+  given in this run (check and land only); else the total accepted for this snapshot in raw/<t>.controls.json under
+  the agreement in force; else the agreed contract's total. A total accepted under an earlier agreement is not
+  used: build prints a note that names it, writes the contract's total into the control cell of the inputs sheet,
+  and that cell's source text names the total that is not used.
 """
 from __future__ import annotations
 
@@ -61,6 +71,10 @@ ROW_MARK = "1048575"      # the row number in a helper column's formula template
 DATE_FORMATS = ("date", "month", "datetime")
 # v5 (J-2): the Difference cell of a check whose values are dates: whole days (count), or days with their fraction
 CHECK_DIFF_FORMAT = {"date": "count", "month": "count", "datetime": "amount2"}
+# v8 (r7 verdict A-aera-5, A-aera-6 part 2): the rounding functions W-CHECK-ROUND reports in a check expression
+# (references/checks.md rule 3), with the newer names of CEILING and FLOOR (v8 plan 5.1)
+CHECK_ROUND_FUNCTIONS = ("ROUND", "ROUNDUP", "ROUNDDOWN", "MROUND", "INT", "TRUNC", "CEILING", "FLOOR",
+                         "CEILING.MATH", "CEILING.PRECISE", "ISO.CEILING", "FLOOR.MATH", "FLOOR.PRECISE")
 ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 GENERATED_IDS_RE = r"^[a-z][a-z0-9_]{0,23}$"
 REFUSED_ISSUES = ("F-DEPTH", "F-EXCEL-LIMIT", "F-NESTED-IF", "F-FUNC-REFUSED", "F-EXTERNAL", "F-REF-ERROR",
@@ -200,6 +214,38 @@ def _cover_lines(text: str) -> list[str]:
 def _text_width(text: str) -> int:
     """Characters as displayed: East Asian wide and full-width characters count 2."""
     return sum(2 if unicodedata.east_asian_width(ch) in "WF" else 1 for ch in str(text))
+
+
+# v7 (r6 verdict J-2, I-TEXT-WIDTH): characters of a label (counted by _text_width) that fit in one unit of Excel's
+# column width (the width of the digit 0 in the Normal font, Arial 9), by the text's font size and weight. Measured
+# in Excel 16 on the build PC (2026-11-26): six label texts of the shipped models, cut to 30 to 70 characters, in a
+# column of width 40 with a filled cell to its right, rendered (lib.excel.render_sheets); the largest length that
+# Excel shows in full, divided by 40, per text: Arial 9 1.125 to 1.275 (median 1.21), Arial 9 bold 1.1 to 1.225
+# (median 1.19), Arial 8 1.3 to 1.425 (median 1.38), Arial 8 bold 1.15 to 1.275 (median 1.2). The medians, rounded
+# down to a multiple of 0.05.
+TEXT_ROOM_FACTOR = {(9, False): 1.2, (9, True): 1.15, (8, False): 1.35, (8, True): 1.2}
+EXCEL_DEFAULT_WIDTH = 8.43       # the width Excel gives a column without one
+
+
+def text_room_factor(size: Any, bold: bool) -> float:
+    """TEXT_ROOM_FACTOR for a font size in points (the nearest of 8 and 9) and weight."""
+    try:
+        s = 8 if float(size) < 8.5 else 9
+    except (TypeError, ValueError):
+        s = 9
+    return TEXT_ROOM_FACTOR[(s, bool(bold))]
+
+
+def _column_width(ws: Any, col: int) -> float:
+    """The width a column of an openpyxl sheet has in Excel (EXCEL_DEFAULT_WIDTH when build set none)."""
+    dim = ws.column_dimensions.get(_L(col))
+    if dim is not None and dim.width and dim.customWidth:
+        return float(dim.width)
+    return EXCEL_DEFAULT_WIDTH
+
+
+def _width_text(w: float) -> str:
+    return f"{w:.1f}".rstrip("0").rstrip(".")
 
 
 def _is_iso_date(value: Any) -> bool:
@@ -414,6 +460,17 @@ class _Compiler:
         self.formula_cells = 0          # formula cells written
         self._issue_seen: dict[tuple[str, str], common.Finding] = {}
         self._problem_seen: set[tuple[str, str]] = set()
+        # v7 (r6 verdict J-2, I-TEXT-WIDTH): (sheet, row, col, text, JSON path, cell type) of each label, unit or
+        # header text of the specification that put() wrote
+        self.texts: list[tuple[str, int, int, str, str, str]] = []
+        # v7 (r6 verdict A-aera-8, I-SHEETS-ONLY): with product sheets, the functions only Google Sheets has
+        # (functions.info(f).excel "no" and .sheets "yes") and, per function, its formula cells and the first one
+        self._sheets_only: frozenset[str] | None = None
+        self.sheets_only_cells: dict[str, dict[str, Any]] = {}
+        if spec.product == "sheets":
+            from . import functions
+            self._sheets_only = frozenset(n for n in functions.names() if functions.info(n) is not None
+                                          and functions.info(n).excel == "no" and functions.info(n).sheets == "yes")
 
     # ------------------------------------------------------------------ problems and findings
     def problem(self, path: str, message: str, fix: str = "") -> None:
@@ -481,6 +538,8 @@ class _Compiler:
         for s in self.spec.sheets:
             self._finish_sheet(s)
         self._sparse_sheet_notes()
+        self._sheets_only_notes()
+        self._text_width_notes()
         wb.active = 0
         wb.calculation.fullCalcOnLoad = True      # Excel computes every formula when the file is opened
         wb.calculation.calcMode = "auto"
@@ -575,22 +634,27 @@ class _Compiler:
                             "key")
         return None
 
-    def _accepted_totals(self, table: str) -> dict[str, dict[str, Any]] | None:
-        """The control totals accepted for the landed snapshot of `table` (raw/<table>.controls.json, written by
-        check --accept-refresh --control; lib.controls), by column; None when the snapshot has no record (it is
-        the one first landed, so the contract's totals apply)."""
+    def _accepted_totals(self, table: str) -> tuple[dict[str, dict[str, Any]] | None, dict[str, Any] | None]:
+        """(totals, stale entry): the control totals accepted for the landed snapshot of `table`
+        (raw/<table>.controls.json, written by check --accept-refresh --control or land --control; lib.controls)
+        under the agreement in force of the table's contract, by column, or None (the contract's totals apply). v9
+        (r8 verdict [A-aera-2, C-sol-1]): an entry for the snapshot accepted under an earlier agreement is not used;
+        it is returned as the stale entry, and the build report gets the note of lib.controls.stale_note."""
         snap = self.snapshots.get(table)
         if snap is None or not getattr(snap, "digest", None):
-            return None
+            return None, None
         from . import controls
+        contract = self.spec.contracts.get(table)
         try:
-            found = controls.totals_for(self.spec.root, table, snap.digest)
+            found, stale = controls.lookup(self.spec.root, table, snap.digest, contract)
         except common.Refusal as exc:
             self.problem(f"raw/{table}.controls.json", exc.message, exc.fix or "")
-            return None
+            return None, None
+        if stale is not None:
+            self.report.note(controls.stale_note(table, stale, contract))
         if found is None:
-            return None
-        return {str(t["column"]): dict(t) for t in found}
+            return None, stale
+        return {str(t["column"]): dict(t) for t in found}, None
 
     def raw_format(self, table: str, col: dict[str, Any]) -> str:
         """The format key build gives raw column `col` of `table` (recorded in the manifest as "formats")."""
@@ -664,7 +728,7 @@ class _Compiler:
                     entries.append((f"{table}_rows_max", f"{table}: most rows", rows["max"], "rows",
                                     src + ".rows.max", "count"))
             cols = {c["name"]: c for c in contract["columns"]}
-            accepted = self._accepted_totals(table)
+            accepted, stale = self._accepted_totals(table)
             for t in expect.get("totals", []):
                 col = cols.get(t["column"], {})
                 unit = col.get("unit") or ""
@@ -678,6 +742,14 @@ class _Compiler:
                     tsrc = (f"raw/{table}.controls.json, recorded for this snapshot by rotm.py check "
                             f"--accept-refresh or rotm.py land --control (the contract's agreed total: "
                             f"{_num_text(t['value'])})")
+                elif stale is not None:
+                    from . import controls as controls_mod
+                    old = controls_mod.stale_value(stale, t["column"])
+                    if old is not None:
+                        # v9 (r8 verdict [A-aera-2, C-sol-1] (5)): the contract's total is used; the source text
+                        # names the total accepted under an earlier agreement that is not used
+                        tsrc += (f" (the total {_num_text(old)} accepted for this snapshot at {stale.get('at')} "
+                                 "under an earlier agreement is not used)")
                 entries.append((f"{table}_total_{t['column']}", f"{table}: control total of {t['column']}",
                                 value, unit, tsrc, tfmt))
                 entries.append((f"{table}_tol_{t['column']}", f"{table}: tolerance of that total",
@@ -1373,12 +1445,18 @@ class _Compiler:
 
     # ------------------------------------------------------------------ writing cells
     def put(self, sheet: str, row: int, col: int, value: Any, ctype: str, fmt: str | None = None,
-            width: float | None = None) -> Any:
+            width: float | None = None, path: str | None = None) -> Any:
+        """Write one cell. `path` (v7, I-TEXT-WIDTH): the JSON path of a specification text written here; the text
+        is compared with the room its cell has after the widths are set (_text_width_notes)."""
         ws = self.ws[sheet]
         cell = ws.cell(row=row, column=col)
         _store(cell, value)
         if isinstance(value, _F):
             self.formula_cells += 1
+            if self._sheets_only is not None:
+                self._count_sheets_only(value, sheet, row, col, 1)
+        elif path and isinstance(value, str) and value.strip():
+            self.texts.append((sheet, row, col, value, path, ctype))
         self.styler.apply(cell, ctype, self.sizes[sheet], fmt)
         self.types[sheet][(row, col)] = ctype
         self.used_types.add(ctype)
@@ -1421,7 +1499,8 @@ class _Compiler:
 
     def _sheet_head(self, s: Any, title: str) -> None:
         name = s.name
-        self.put(name, TITLE_ROW, LABEL_COL, title, "title", "general", width=12)
+        tpath = f"{s.path}.title" if s.data.get("title") else ("title" if s.type == "cover" else None)
+        self.put(name, TITLE_ROW, LABEL_COL, title, "title", "general", width=12, path=tpath)
         self.put(name, MASTER_ROW, LABEL_COL, "Master check", "label", "general")
         checks = self.L["names"]["checks"]
         if s.type == "checks":
@@ -1442,7 +1521,9 @@ class _Compiler:
         self._sheet_head(s, self._sheet_title(s))
         for blk in self.input_blocks:
             kind = blk["kind"]
-            self.put(name, blk["heading"], LABEL_COL, blk["title"], "heading", "general", width=8)
+            ipath = self.L["inputs"][blk["item"]["id"]]["path"] if kind in ("list", "grid") else None
+            self.put(name, blk["heading"], LABEL_COL, blk["title"], "heading", "general", width=8,
+                     path=f"{ipath}.label" if ipath else None)
             h = blk["header"]
             nc = self.notes_col[name]
             if kind in ("scalars", "controls"):
@@ -1466,7 +1547,7 @@ class _Compiler:
                     value = _header_value(v, fmt) if it.get("type") != "text" else v
                     f = fmt or ("date" if isinstance(value, _dt.datetime) else "general")
                     self.put(name, r, LABEL_COL, str(k + 1), "row_header", "general", width=4)
-                    self.put(name, r, UNIT_COL, it.get("unit") or "", "unit", "general")
+                    self.put(name, r, UNIT_COL, it.get("unit") or "", "unit", "general", path=f"{ipath}.unit")
                     cell = self.put(name, r, FIRST_VALUE_COL, value, "input", f)
                     if _is_text_input(it):
                         _store_text(cell, v)             # v5 (A-aera-17): a declared text input stays text
@@ -1477,19 +1558,20 @@ class _Compiler:
                 it = blk["item"]
                 rows_fmt = it["rows"].get("format")
                 cols_fmt = it["cols"].get("format")
-                self.put(name, h, LABEL_COL, it["rows"].get("label", ""), "col_header", "general")
+                self.put(name, h, LABEL_COL, it["rows"].get("label", ""), "col_header", "general",
+                         path=f"{ipath}.rows.label")
                 self.put(name, h, UNIT_COL, "Unit", "col_header", "general")
                 for j, v in enumerate(it["cols"]["values"]):
                     value = _header_value(v, cols_fmt)
                     f = cols_fmt or ("month" if isinstance(value, _dt.datetime) else "general")
-                    self.put(name, h, FIRST_VALUE_COL + j, value, "col_header", f)
+                    self.put(name, h, FIRST_VALUE_COL + j, value, "col_header", f, path=f"{ipath}.cols.values[{j}]")
                 fmt = it.get("format") or DEFAULT_FORMAT_BY_INPUT_TYPE.get(it.get("type", ""), "general")
                 for i, rv in enumerate(it["rows"]["values"]):
                     r = blk["first"] + i
                     value = _header_value(rv, rows_fmt)
                     f = rows_fmt or ("date" if isinstance(value, _dt.datetime) else "general")
-                    self.put(name, r, LABEL_COL, value, "row_header", f)
-                    self.put(name, r, UNIT_COL, it.get("unit") or "", "unit", "general")
+                    self.put(name, r, LABEL_COL, value, "row_header", f, path=f"{ipath}.rows.values[{i}]")
+                    self.put(name, r, UNIT_COL, it.get("unit") or "", "unit", "general", path=f"{ipath}.unit")
                     for j, v in enumerate(it["values"][i]):
                         cell = self.put(name, r, FIRST_VALUE_COL + j, v, "input", fmt)
                         if _is_text_input(it) and v is not None:
@@ -1525,8 +1607,10 @@ class _Compiler:
             fmt = DEFAULT_FORMAT_BY_INPUT_TYPE.get(typ or "", None) or (
                 "general" if isinstance(value, (int, float)) and not isinstance(value, bool) else
                 "general")
-        self.put(sheet, r, LABEL_COL, it.get("label", it["id"]), "row_header", "general")
-        self.put(sheet, r, UNIT_COL, it.get("unit") or "", "unit", "general")
+        ipath = None if generated else (self.L["inputs"].get(it["id"]) or {}).get("path")
+        self.put(sheet, r, LABEL_COL, it.get("label", it["id"]), "row_header", "general",
+                 path=f"{ipath}.label" if ipath and it.get("label") else None)
+        self.put(sheet, r, UNIT_COL, it.get("unit") or "", "unit", "general", path=f"{ipath}.unit" if ipath else None)
         cell = self.put(sheet, r, FIRST_VALUE_COL, value, "input", fmt)
         if not generated and _is_text_input(it):
             # v5 (A-aera-16, A-aera-17): a declared text input is a text cell whatever it looks like (#N/A, =x, 0012)
@@ -1724,6 +1808,8 @@ class _Compiler:
             return
         for ci, tmpl, fmt in templates:
             first = ws.cell(row=HELPER_FIRST_ROW, column=ci, value=tmpl.replace(ROW_MARK, str(HELPER_FIRST_ROW)))
+            if self._sheets_only is not None:
+                self._count_sheets_only(first.value, s.name, HELPER_FIRST_ROW, ci, last_row - HELPER_FIRST_ROW + 1)
             self.styler.apply(first, "calc", size, fmt)
             if fmt == "text":
                 # Text helper columns read left-aligned, as on the raw sheet; right-aligned text next to a number
@@ -1790,18 +1876,57 @@ class _Compiler:
                     f = self.gen(f"EOMONTH({_L(FIRST_VALUE_COL + k - 1)}{hr},1)", where)
                 out.append((f, fmt or "month"))
             return out
-        # same_as: links to the other block's headers
+        # same_as: links to the other block's headers; v8 (r7 verdict J-1): each header takes the number format of
+        # the header it links to (_label_formats)
         o = self.L["blocks"][dim["target"]]
-        ofmt = None
-        if o["cols_dim"].get("node"):
-            ofmt = o["cols_dim"]["node"].get("format")
-        if o["cols_dim"]["kind"] == "timeline":
-            ofmt = ofmt or "month"
+        fmts = self._label_formats(b, "cols")
         for k in range(dim["n"]):
             f = self.gen(_prefix(o["sheet"], name) + f"{_L(o['first_col'] + k)}{o['header_row']}",
                          f"{name}!{_L(FIRST_VALUE_COL + k)}{hr}")
-            out.append((f, fmt or ofmt or "general"))
+            out.append((f, fmts[k]))
         return out
+
+    def _label_formats(self, b: dict[str, Any], axis: str, seen: tuple[str, ...] = ()) -> list[str]:
+        """The number-format key each row label (axis "rows", column B) or value column header (axis "cols") of
+        block b holds, as _dim_labels, _dim_headers and _write_block write it (v8, r7 verdict J-1):
+        - rows: a list input (rule HDR-FORMAT: the block rows' format, else the list item's, else date for an ISO
+          date, else general); values and items rows keep the row_header type's General.
+        - cols: values (the node's format, else month for a date, else general); a list input (as rows, month for an
+          ISO date); a timeline (the node's format, else month); measures and the single Value column: general.
+        - same_as: a format on the same_as node itself; else the format of the label or header it links to, the
+          chain of same_as followed to its end. A linked text format gives what v7 gave (rows: general; cols: the
+          linked block's node format, month for a timeline, else general): a link shows a text label the same in
+          either format, and the shipped models keep their label formats."""
+        dim = b[f"{axis}_dim"]
+        n = int(dim["n"])
+        node = dim.get("node") or {}
+        fmt = node.get("format")
+        kind = dim["kind"]
+        if axis == "rows" and (b["shape"] == "items" or kind == "values"):
+            return ["general"] * n
+        if axis == "cols" and (b["shape"] == "measures" or kind == "value"):
+            return ["general"] * n
+        if kind == "values":
+            return [fmt or ("month" if isinstance(_header_value(v, fmt), _dt.datetime) else "general")
+                    for v in node["values"]]
+        if kind == "in":
+            e = self.L["inputs"][node["in"]]
+            first = (e["item"].get("values") or [None])[0]
+            date_key = "date" if axis == "rows" else "month"
+            return [fmt or e["item"].get("format") or (date_key if _is_iso_date(first) else "general")] * n
+        if kind == "timeline":
+            return [fmt or "month"] * n
+        o = self.L["blocks"].get(dim.get("target"))
+        if o is None or o["id"] in seen + (b["id"],):
+            return [fmt or "general"] * n
+        linked = self._label_formats(o, axis, seen + (b["id"],))
+        if axis == "rows":
+            v7 = "general"
+        else:
+            v7 = (o["cols_dim"].get("node") or {}).get("format") or (
+                "month" if o["cols_dim"]["kind"] == "timeline" else "general")
+        out = [fmt or (v7 if k == "text" else k) for k in linked[:n]]
+        return out + [fmt or "general"] * (n - len(out))
 
     def _dim_labels(self, b: dict[str, Any]) -> list[tuple[Any, str]]:
         """(value or formula, format key) for each body row label of block b."""
@@ -1828,12 +1953,14 @@ class _Compiler:
                              f"{name}!B{b['first_row'] + k}")
                 out.append((f, fmt or lf or ("date" if _is_iso_date(first) else "general")))
             return out
+        # same_as: links to the other block's labels; v8 (r7 verdict J-1): each label takes the number format of the
+        # label it links to (_label_formats); _write_block gives the row header cell that format
         o = self.L["blocks"][dim["target"]]
-        ofmt = (o["rows_dim"].get("node") or {}).get("format")
+        fmts = self._label_formats(b, "rows")
         for k in range(dim["n"]):
             f = self.gen(_prefix(o["sheet"], name) + f"${_L(LABEL_COL)}{o['first_row'] + k}",
                          f"{name}!B{b['first_row'] + k}")
-            out.append((f, fmt or ofmt or "general"))
+            out.append((f, fmts[k]))
         return out
 
     def _write_block(self, b: dict[str, Any]) -> None:
@@ -1842,35 +1969,46 @@ class _Compiler:
         shape = b["shape"]
         path = b["path"]
         title = block.get("title") or block["id"].replace("_", " ").capitalize()
-        self.put(name, b["heading_row"], LABEL_COL, title, "heading", "general", width=8)
+        self.put(name, b["heading_row"], LABEL_COL, title, "heading", "general", width=8,
+                 path=f"{path}.title" if block.get("title") else None)
         hr = b["header_row"]
         rows_label = ""
         node = block.get("rows") or {}
         if isinstance(node, dict):
             rows_label = node.get("label", "")
-        self.put(name, hr, LABEL_COL, rows_label or ("Item" if shape == "items" else ""), "col_header", "general")
+        self.put(name, hr, LABEL_COL, rows_label or ("Item" if shape == "items" else ""), "col_header", "general",
+                 path=f"{path}.rows.label" if rows_label else None)
         self.put(name, hr, UNIT_COL, "Unit", "col_header", "general")
         headers = self._dim_headers(b)
+        cols_node = block.get("cols") if isinstance(block.get("cols"), dict) else {}
         for k, (v, f) in enumerate(headers):
-            self.put(name, hr, FIRST_VALUE_COL + k, v, "col_header", f)
+            hpath = (f"{path}.measures[{k}].label" if shape == "measures"
+                     else f"{path}.cols.values[{k}]" if "values" in cols_node else None)
+            self.put(name, hr, FIRST_VALUE_COL + k, v, "col_header", f, path=hpath)
         if b["total_col"]:
             self.put(name, hr, b["total_col"], "Total", "col_header", "general")
         if b["unit_row"]:
             self.put(name, b["unit_row"], LABEL_COL, "", "row_header", "general")
             self.put(name, b["unit_row"], UNIT_COL, "", "unit", "general")
             for k, m in enumerate(block["measures"]):
-                self.put(name, b["unit_row"], FIRST_VALUE_COL + k, m.get("unit") or "", "unit", "general")
+                self.put(name, b["unit_row"], FIRST_VALUE_COL + k, m.get("unit") or "", "unit", "general",
+                         path=f"{path}.measures[{k}].unit")
         labels = self._dim_labels(b)
+        rows_node = block.get("rows") if isinstance(block.get("rows"), dict) else {}
         block_fmt = block.get("format")
         block_unit = block.get("unit") or ""
         notes_col = self.notes_col.get(name) if b["notes_col"] else None
         if notes_col and (block.get("note") or block.get("source")):
             self._note(name, b["heading_row"], notes_col, self._source_text(block))
-        rows_from_list = b["rows_dim"]["kind"] == "in" and shape != "items"
+        # v8 (r7 verdict J-1): a row label linked with same_as shows the format of the label it links to, as a label
+        # taken from a list does
+        rows_from_list = b["rows_dim"]["kind"] in ("in", "same_as") and shape != "items"
         for i in range(b["n_rows"]):
             r = b["first_row"] + i
             lab, lfmt = labels[i]
-            cell = self.put(name, r, LABEL_COL, lab, "row_header", lfmt)
+            lpath = (f"{path}.items[{i}].label" if shape == "items"
+                     else f"{path}.rows.values[{i}]" if "values" in rows_node else None)
+            cell = self.put(name, r, LABEL_COL, lab, "row_header", lfmt, path=lpath)
             if rows_from_list:
                 # rule HDR-FORMAT (v3, J-2): a row header that shows an item of an input list shows it in the list's
                 # number format (a date list: the date format). The row_header cell type's own format is General,
@@ -1878,7 +2016,8 @@ class _Compiler:
                 cell.number_format = self.d.number_format(lfmt or "general")
             if shape == "items":
                 it = block["items"][i]
-                self.put(name, r, UNIT_COL, it.get("unit") or block_unit, "unit", "general")
+                self.put(name, r, UNIT_COL, it.get("unit") or block_unit, "unit", "general",
+                         path=f"{path}.items[{i}].unit" if it.get("unit") else f"{path}.unit")
                 fmt = it.get("format") or block_fmt or "amount"
                 ctype = "output" if it.get("key") else "calc"
                 ipath = f"{path}.items[{i}]"
@@ -1894,7 +2033,7 @@ class _Compiler:
                 if it.get("note") and notes_col:
                     self._note(name, r, notes_col, it["note"])
             elif shape == "measures":
-                self.put(name, r, UNIT_COL, block_unit, "unit", "general")
+                self.put(name, r, UNIT_COL, block_unit, "unit", "general", path=f"{path}.unit")
                 for j, m in enumerate(block["measures"]):
                     c = FIRST_VALUE_COL + j
                     fmt = m.get("format") or block_fmt or "amount"
@@ -1905,7 +2044,7 @@ class _Compiler:
                     if f is not None:
                         self.put(name, r, c, f, self._ctype(f, ctype, name), fmt)
             else:
-                self.put(name, r, UNIT_COL, block_unit, "unit", "general")
+                self.put(name, r, UNIT_COL, block_unit, "unit", "general", path=f"{path}.unit")
                 fmt = block_fmt or "amount"
                 ctype = "output" if block.get("key") else "calc"
                 for j in range(b["n_cols"]):
@@ -1922,7 +2061,7 @@ class _Compiler:
         tr = b["total_row"]
         if tr:
             self.put(name, tr, LABEL_COL, "Total", "row_header", "general")
-            self.put(name, tr, UNIT_COL, block_unit, "unit", "general")
+            self.put(name, tr, UNIT_COL, block_unit, "unit", "general", path=f"{path}.unit")
             r1, r2 = b["first_row"], b["last_row"]
             if shape == "grid":
                 fmt = block_fmt or "amount"
@@ -1979,7 +2118,8 @@ class _Compiler:
         r = e["row"]
         kind = e["kind"]
         self.put(name, r, CHK["id"], e["id"], "row_header", "general")
-        self.put(name, r, CHK["label"], e["label"], "row_header", "general", width=min(70.0, _text_width(e["label"]) + 2))
+        self.put(name, r, CHK["label"], e["label"], "row_header", "general", width=min(70.0, _text_width(e["label"]) + 2),
+                 path=None if e["auto"] else f"{e['path']}.label")
         fields: dict[str, str | None] = {}
         if e["auto"]:
             for key, col in (("actual", CHK["actual"]), ("expected", CHK["expected"]), ("min", CHK["expected"]),
@@ -2033,6 +2173,8 @@ class _Compiler:
         D, E, F, G, H = (_L(CHK[k]) for k in ("actual", "expected", "max", "diff", "tol"))
         if not e["auto"]:
             self._self_check_warning(e, fields, r)
+            self._check_guard_warning(e, fields, r, place)
+            self._check_round_warning(e, fields, r, place)
         if kind == "equal":
             self.put(name, r, CHK["diff"], self.gen(f"{D}{r}-{E}{r}", f"{name}!{G}{r}"), "calc", dfmt, width=width)
             result = f"--(ABS({G}{r})>{H}{r})"
@@ -2099,6 +2241,86 @@ class _Compiler:
             "can never fail", "point one side at an independent total: a raw column total, a control total or "
             "another block's total", sheet=host, cell=f"{_L(CHK['actual'])}{row}",
             data={"check": e["id"], "actual": show_a, "expected": show_b, "path": e.get("path")})
+
+    def _check_guard_warning(self, e: dict[str, Any], fields: dict[str, str | None], row: int,
+                             place: dict[str, int]) -> None:
+        """W-CHECK-GUARD (v7, r6 verdict A-aera-4, A-aera-13; references/checks.md rule 4): an expression of a
+        specification check (actual, expected; min and max of a range check; bound of an at_most check; the single
+        expression of a zero check is its actual) whose compiled formula holds a call of IFERROR or IFNA. Such a
+        call turns an error in an operand into a value, so the check can pass while the model shows an error or a
+        wrong number. Generated checks are not tested (build writes them without either function)."""
+        host = self.L["names"]["checks"]
+        for key, f in fields.items():
+            if key == "tolerance" or not f:
+                continue
+            try:
+                a = self.formula.analyze(str(f))
+            except Exception:  # noqa: BLE001 - a formula the analyser cannot read was refused or reported already
+                continue
+            found = [n for n in ("IFERROR", "IFNA") if n in a.functions]
+            if not found:
+                continue
+            path = f"{e['path']}.{key}"
+            self.report.warning(
+                "W-CHECK-GUARD", f"check {e['id']}: its {key} expression holds {' and '.join(found)} ({path}); "
+                "references/checks.md rule 4: an error in an operand must show in the check's result",
+                "remove IFERROR or IFNA from the check; for a division that can be by zero, take the zero case on "
+                "the other side, for example --(<denominator><>0)*<numerator>", sheet=host,
+                cell=f"{_L(place[key])}{row}", data={"check": e["id"], "field": key, "functions": found, "path": path})
+
+    def _check_round_warning(self, e: dict[str, Any], fields: dict[str, str | None], row: int,
+                             place: dict[str, int]) -> None:
+        """W-CHECK-ROUND (v8, r7 verdict A-aera-5, A-aera-6 part 2; references/checks.md rule 3): an expression of a
+        specification check (the same fields as W-CHECK-GUARD) whose compiled formula holds a call of a rounding
+        function of CHECK_ROUND_FUNCTIONS, read from lib.formula's tokens (a name inside quotes is not a call). A
+        rounded operand can hide a difference larger than the tolerance. One finding per check, field and
+        function. Generated checks are not tested."""
+        host = self.L["names"]["checks"]
+        for key, f in fields.items():
+            if key == "tolerance" or not f:
+                continue
+            try:
+                a = self.formula.analyze(str(f))
+            except Exception:  # noqa: BLE001 - a formula the analyser cannot read was refused or reported already
+                continue
+            path = f"{e['path']}.{key}"
+            for fn in [n for n in CHECK_ROUND_FUNCTIONS if n in a.functions]:
+                self.report.warning(
+                    "W-CHECK-ROUND", f"check {e['id']}: its {key} expression holds {fn} ({path}); "
+                    "references/checks.md rule 3: a check compares the unrounded difference with the tolerance",
+                    f"remove {fn} from the check and compare the unrounded values with the tolerance; when a business "
+                    "rule needs rounded values, round them in a block and tie that block to an independent total",
+                    sheet=host, cell=f"{_L(place[key])}{row}",
+                    data={"check": e["id"], "field": key, "function": fn, "path": path})
+
+    def _count_sheets_only(self, formula_text: str, sheet: str, row: int, col: int, cells: int) -> None:
+        """I-SHEETS-ONLY (v7, r6 verdict A-aera-8 part 1): count the formula cells (here `cells` cells from
+        sheet!<col><row> down) that call a function only Google Sheets has, per function, and keep the first."""
+        text = str(formula_text)
+        up = text.upper()
+        if not self._sheets_only or not any(n in up for n in self._sheets_only):
+            return
+        try:
+            a = self.formula.analyze(text if text.startswith("=") else "=" + text)
+        except Exception:  # noqa: BLE001 - a formula the analyser cannot read was refused or reported already
+            return
+        for name in a.functions:
+            if name in self._sheets_only:
+                rec = self.sheets_only_cells.setdefault(name, {"count": 0, "first": (sheet, f"{_L(col)}{row}")})
+                rec["count"] += cells
+
+    def _sheets_only_notes(self) -> None:
+        """One I-SHEETS-ONLY (information) per function only Google Sheets has in the written formulas (product
+        sheets; the profiles both and excel refuse such functions). Excel cannot calculate them."""
+        from . import functions
+        for name, rec in self.sheets_only_cells.items():
+            sheet, cell = rec["first"]
+            alt = functions.replacement(name) or "the alternative references/functions.md names"
+            self.report.info(
+                "I-SHEETS-ONLY", f"{name} is a function only Google Sheets has: {rec['count']:,} formula cell(s), first "
+                f"{sheet}!{cell}; Excel cannot calculate it, so rotm.py check does not recalculate this workbook",
+                f"use {alt} if the model is to be checked in Excel", sheet=sheet, cell=cell,
+                data={"function": name, "count": rec["count"], "first": f"{sheet}!{cell}", "replacement": alt})
 
     def _check_targets(self, e: dict[str, Any]) -> list[str]:
         from . import spec as specmod
@@ -2213,7 +2435,7 @@ class _Compiler:
             # review, integrator): write it as lines of at most COVER_LINE characters, one row each.
             for line in _cover_lines(self.spec.data["purpose"]):
                 r += 1
-                self.put(name, r, LABEL_COL, line, "label", "general", width=10)
+                self.put(name, r, LABEL_COL, line, "label", "general", width=10, path="purpose")
             r += 2
         self.put(name, r, LABEL_COL, "Contents", "heading", "general", width=8)
         r += 1
@@ -2269,10 +2491,10 @@ class _Compiler:
         if lim:
             r += 2
             self.put(name, r, LABEL_COL, "Limitations", "heading", "general", width=8)
-            for text in lim:
+            for li, text in enumerate(lim):
                 for line in _cover_lines(text):
                     r += 1
-                    self.put(name, r, LABEL_COL, line, "label", "general", width=10)
+                    self.put(name, r, LABEL_COL, line, "label", "general", width=10, path=f"limitations[{li}]")
 
     # ------------------------------------------------------------------ sheet view, widths, manifest
     def _finish_sheet(self, s: Any) -> None:
@@ -2343,6 +2565,51 @@ class _Compiler:
                 "(Max, spec 1.2)", f"if the sheet has white space, write \"font_size\": 9 in its entry of "
                 f"model.spec.json ({s.path}); size 8 is for dense sheets", sheet=s.name,
                 data={"sheet": s.name, "populated_cells": n, "limit": limit, "path": s.path})
+
+    def _text_width_notes(self) -> None:
+        """I-TEXT-WIDTH (v7, r6 verdict J-2, J-3, J-4 part 1; information, the strict exit code is unchanged): a
+        label, unit or header text of the specification (the cells put() registered with a JSON path) that is
+        wider than the room its cell has, so Excel cuts it off on the sheet. The room is the final width of the
+        cell's column in Excel's width unit times TEXT_ROOM_FACTOR for the cell's font size and weight; a
+        left-aligned text that does not wrap may run on over the empty cells to its right, up to the sheet's last
+        used column (the render shows no column beyond it), so their widths are added. A wrapped text (the note
+        cell type) is not cut: it takes more lines. One note per JSON path and text."""
+        seen: set[tuple[str, str]] = set()
+        for sheet, row, col, text, path, _ctype in self.texts:
+            if (path, text) in seen:
+                continue
+            ws = self.ws[sheet]
+            cell = ws._cells.get((row, col))
+            if cell is None or not isinstance(cell.value, str):
+                continue
+            al = cell.alignment
+            if al is not None and al.wrap_text:
+                continue
+            factor = text_room_factor(cell.font.sz if cell.font is not None else None,
+                                      bool(cell.font is not None and cell.font.b))
+            own = _column_width(ws, col)
+            total, free = own, 0
+            if (al.horizontal if al is not None else None) in (None, "general", "left"):
+                for c2 in range(col + 1, ws.max_column + 1):
+                    other = ws._cells.get((row, c2))
+                    if other is not None and other.value not in (None, ""):
+                        break
+                    total += _column_width(ws, c2)
+                    free += 1
+            room = int(math.floor(total * factor + 1e-9))
+            n = _text_width(text)
+            if n <= room:
+                continue
+            seen.add((path, text))
+            shown = text[:40] + ("..." if len(text) > 40 else "")
+            more = f", and {free} free cell(s) to its right" if free else ""
+            ref = f"{_L(col)}{row}"
+            self.report.info(
+                "I-TEXT-WIDTH", f"{path}: the text '{shown}' is {n} characters long; its cell {sheet}!{ref} has room "
+                f"for about {room} characters (column width {_width_text(own)}{more}), so it is cut off on the sheet",
+                f"shorten it to at most {room} characters, or move the detail into a note", sheet=sheet, cell=ref,
+                data={"path": path, "length": n, "room": room, "column_width": own, "free_cells": free,
+                      "factor": factor})
 
     def _cell_type_ranges(self, sheet: str) -> list[list[str]]:
         cells = self.types.get(sheet, {})
@@ -2628,12 +2895,34 @@ def _hand_name(h: dict[str, Any]) -> str:
     return h.get("query_name") or "(name not found)"
 
 
-def _hand_refusal(hand: dict[str, dict[str, Any]], reasons: dict[str, str], *, no_power_query: bool = False
-                  ) -> common.Refusal:
-    """B-REFUSED for raw sheets loaded by a query attached by hand that build cannot carry over (v4 plan 5.1)."""
-    lines = [f"{hand[t]['sheet']} is loaded by the query {_hand_name(hand[t])} attached by hand, and {why}; nothing "
-             "was written" for t, why in reasons.items()]
+HAND_REBUILD_SECTION = "What a rebuild does to a query attached by hand"   # references/excel-power-query.md
+
+
+def _hand_refusal(hand: dict[str, dict[str, Any]], reasons: dict[str, str], *, no_power_query: bool = False,
+                  excel_ran: bool = False, via: dict[str, str] | None = None) -> common.Refusal:
+    """B-REFUSED for raw sheets loaded by a query attached by hand that build cannot carry over (v4 plan 5.1).
+
+    v8 (r7 verdict C-sol-4): `via` maps a table to the query its hand query reads through which the carry-over
+    fails; its line reads "..., which reads the query <dep>, and <why>". `excel_ran`: Excel ran in this build (the
+    workbook was read, or a job of it ran); the fix then gives only --drop-hand-queries and says that the present
+    workbook is kept until then, and not to run the build on a PC with Excel. Without Excel the v7 fix.
+    v9 (r8 verdict C-sol-7): a reason that is a _Collision (queries/<dep>.hand.pq.m would be the file of another
+    query; the names are equal without regard to case) reads "..., which reads the query <dep>; <why>", and the fix
+    starts with renaming one of the two queries in Excel."""
+    via = via or {}
+    lines = [f"{hand[t]['sheet']} is loaded by the query {_hand_name(hand[t])} attached by hand, "
+             + (f"which reads the query {via[t]}; " if t in via and isinstance(why, _Collision) else
+                f"which reads the query {via[t]}, and " if t in via else "and ") + f"{why}; nothing was written"
+             for t, why in reasons.items()]
     sheets = ", ".join(hand[t]["sheet"] for t in reasons)
+    # v9 (r8 verdict C-sol-7): a file collision is resolved by renaming one of the two queries
+    rename = ("rename one of the two queries in Excel (Data > Queries & Connections), or "
+              if any(isinstance(why, _Collision) for why in reasons.values()) else "")
+    if excel_ran and not no_power_query:
+        fix = (f"{rename}pass --drop-hand-queries to rebuild {sheets} as a static table (the query is removed and must "
+               f"be attached by hand again, references/excel-power-query.md \"{HAND_REBUILD_SECTION}\"); until then "
+               "the present workbook is kept as it is")
+        return common.Refusal(lines[0], fix=fix, details=lines[1:])
     way = ("build without --no-power-query on a PC with Excel" if no_power_query else "run the build on a PC with Excel")
     fix = (f"{way} (build reads the query from the workbook and attaches it again), or pass --drop-hand-queries to "
            f"rebuild {sheets} as a static table (the query is removed and must be attached by hand again, "
@@ -2641,10 +2930,235 @@ def _hand_refusal(hand: dict[str, dict[str, Any]], reasons: dict[str, str], *, n
     return common.Refusal(lines[0], fix=fix, details=lines[1:])
 
 
-def _read_hand_queries(target: Path, hand: dict[str, dict[str, Any]]) -> None:
+# v8 (r7 verdict C-sol-4): the queries a query attached by hand reads by name ---------------------------------------
+
+_M_WORKBOOK = "Excel.CurrentWorkbook"          # reads the tables and named ranges of the workbook itself
+_M_BINDS_AFTER = ("let", ",", "[")              # a name followed by '=' after one of these is bound, not read
+_WIN_RESERVED = {"CON", "PRN", "AUX", "NUL", *(f"COM{k}" for k in range(1, 10)), *(f"LPT{k}" for k in range(1, 10))}
+
+
+def m_names(text: str) -> tuple[list[str], set[str]]:
+    """(the names an M text reads, in the order they first appear; the names it binds) (v8, r7 verdict C-sol-4).
+    A name is a plain identifier (letters, digits, '_' and '.', as in Excel.CurrentWorkbook) or a quoted identifier
+    #"<name>". Text in quotes ("..." with "" for a quote) and comments (// to the end of the line, /* ... */) are
+    skipped, so a name inside quotes is not read. A field name in brackets ([amount], [Order Date], [#"a b"]) is
+    not a name the text reads. A name followed by '=' (not '=>') right after let, ',' or '[' is a name the text
+    binds (a step of its let, a field of a record): it is not counted as read, and a read of a bound name is the
+    local step, not a query."""
+    reads: list[str] = []
+    binds: set[str] = set()
+    tokens: list[tuple[str, str]] = []                  # (kind, text): name, punct, word (keywords and numbers)
+    i, n = 0, len(text)
+    while i < n:
+        ch = text[i]
+        if ch == '"':
+            i += 1
+            while i < n:
+                if text[i] == '"':
+                    if i + 1 < n and text[i + 1] == '"':
+                        i += 2
+                        continue
+                    i += 1
+                    break
+                i += 1
+            tokens.append(("text", ""))
+            continue
+        if text.startswith("//", i):
+            j = text.find("\n", i)
+            i = n if j < 0 else j + 1
+            continue
+        if text.startswith("/*", i):
+            j = text.find("*/", i + 2)
+            i = n if j < 0 else j + 2
+            continue
+        if text.startswith('#"', i):
+            j, buf = i + 2, []
+            while j < n:
+                if text[j] == '"':
+                    if j + 1 < n and text[j + 1] == '"':
+                        buf.append('"')
+                        j += 2
+                        continue
+                    j += 1
+                    break
+                buf.append(text[j])
+                j += 1
+            tokens.append(("name", "".join(buf)))
+            i = j
+            continue
+        if ch == "#" or ch.isdigit():
+            j = i + 1
+            while j < n and (text[j].isalnum() or text[j] in "_."):
+                j += 1
+            tokens.append(("word", text[i:j]))
+            i = j
+            continue
+        if ch.isalpha() or ch == "_":
+            j = i + 1
+            while j < n and (text[j].isalnum() or text[j] in "_."):
+                j += 1
+            word = text[i:j].rstrip(".")
+            tokens.append(("name", word))
+            i += len(word)
+            continue
+        if ch == "[":
+            # a field name in brackets: everything up to the closing bracket is one name, or names joined by spaces
+            j = text.find("]", i + 1)
+            inner = text[i + 1:j] if j > 0 else ""
+            if j > 0 and inner.strip() and not re.search(r'[=,\[\(\{"]', inner.replace('#"', "")):
+                i = j + 1
+                tokens.append(("field", inner.strip()))
+                continue
+            if j > 0 and re.fullmatch(r'\s*#"(?:[^"]|"")*"\s*', inner):
+                i = j + 1
+                tokens.append(("field", inner.strip()))
+                continue
+        if not ch.isspace():
+            tokens.append(("punct", "=>" if text.startswith("=>", i) else ch))
+            i += 2 if text.startswith("=>", i) else 1
+            continue
+        i += 1
+    for k, (kind, word) in enumerate(tokens):
+        if kind != "name":
+            continue
+        prev = tokens[k - 1][1] if k > 0 else ""
+        nxt = tokens[k + 1] if k + 1 < len(tokens) else ("", "")
+        if prev in _M_BINDS_AFTER and nxt == ("punct", "="):
+            binds.add(word)
+    for kind, word in tokens:
+        if kind == "name" and word not in binds and word not in reads:
+            reads.append(word)
+    return reads, binds
+
+
+def _m_reads_workbook(text: str) -> bool:
+    return _M_WORKBOOK in m_names(text)[0]
+
+
+class _Collision(str):
+    """A reason of _dep_file_problem (v9, r8 verdict C-sol-7): the file queries/<name>.hand.pq.m would be the file of
+    another query (the names are equal without regard to case, as Windows compares file names)."""
+
+
+def _dep_file_problem(name: str, tables: Iterable[str], *,
+                      hand: dict[str, dict[str, Any]] | None = None) -> str | None:
+    """Why a query's M text cannot be kept as queries/<name>.hand.pq.m, or None. v9 (r8 verdict C-sol-7): `tables`
+    are the raw table names of the specification; a name equal to one of them without regard to case is a
+    _Collision: queries/<name>.hand.pq.m would be the file of that table's query attached by hand (named from
+    `hand`, table -> {"query_name"}, when that table is loaded by one)."""
+    bad = sorted({c for c in name if c in '<>:"/\\|?*' or ord(c) < 32})
+    if bad:
+        return f"a file name cannot hold the character {bad[0]!r}"
+    if name != name.rstrip(" ."):
+        return "a file name cannot end with a dot or a space"
+    if name.split(".")[0].upper() in _WIN_RESERVED:
+        return f"Windows reserves the name {name.split('.')[0].upper()}"
+    for t in tables:
+        if name.casefold() == str(t).casefold():
+            q2 = ((hand or {}).get(str(t)) or {}).get("query_name")
+            owner = (f"the query {q2} attached by hand of the raw table {t}" if q2 else
+                     f"a query attached by hand of the raw table {t}")
+            return _Collision(f"{HAND_QUERY_FILE.format(table=name)} would be the file of {owner} (the names are "
+                              "equal without regard to case)")
+    return None
+
+
+def _dep_dep_collisions(hand: dict[str, dict[str, Any]]) -> tuple[dict[str, str], dict[str, str]]:
+    """(via, reasons) of B-REFUSED for queries read by queries attached by hand whose files queries/<name>.hand.pq.m
+    would be one file: two names equal without regard to case (v9, r8 verdict C-sol-7). The same name read by two
+    hand queries is one query and one file, not a collision."""
+    seen: dict[str, tuple[str, str]] = {}            # casefold -> (name, table whose hand query reads it)
+    via: dict[str, str] = {}
+    reasons: dict[str, str] = {}
+    for t, h in hand.items():
+        for d in h.get("reads") or []:
+            key = d.casefold()
+            if key in seen and seen[key][0] != d and t not in reasons:
+                d2, t2 = seen[key]
+                reader = (f"which {_hand_name(h)} also reads" if t2 == t else
+                          f"which the query {_hand_name(hand[t2])} attached by hand reads")
+                via[t] = d
+                reasons[t] = _Collision(f"{HAND_QUERY_FILE.format(table=d)} would be the file of the query {d2}, "
+                                        f"{reader} (the names are equal without regard to case)")
+            seen.setdefault(key, (d, t))
+    return via, reasons
+
+
+def _chain_text(chain: list[str], end: str) -> str:
+    """'a reads the query b, which reads the query c' + end."""
+    text = chain[0]
+    for k, x in enumerate(chain[1:]):
+        text += (" reads the query " if k == 0 else ", which reads the query ") + x
+    return text + end
+
+
+def hand_query_reads(name: str, formulas: dict[str, Any], *, workbook: str = "the workbook",
+                     tables: Iterable[str] = (),
+                     hand: dict[str, dict[str, Any]] | None = None) -> tuple[list[str], tuple[str, str] | None]:
+    """The queries the query `name` reads by name, directly or through others, each after the queries it reads
+    (v8, r7 verdict C-sol-4), from `formulas` (query name -> M text, as excel.inventory gives them). Returns (the
+    names in that order, None), or ([], (the query `name` reads directly through which it fails, why)) when one of
+    them cannot be made again: it reads the workbook (Excel.CurrentWorkbook), its M text was not given, the queries
+    read each other in a cycle, or its text cannot be kept as queries/<dep>.hand.pq.m. v9 (r8 verdict C-sol-7): a
+    query whose file would be the file of a raw table's query attached by hand (`tables`, the names equal without
+    regard to case; `hand` names that query) gives (that query, a _Collision)."""
+    names = set(formulas)
+    tables = list(tables)
+    order: list[str] = []
+    done: set[str] = set()
+
+    def reads_of(q: str) -> list[str]:
+        text = formulas.get(q)
+        return [x for x in m_names(text)[0] if x in names and x != q] if isinstance(text, str) else []
+
+    def visit(stack: list[str]) -> tuple[str, str] | None:
+        for d in reads_of(stack[-1]):
+            chain = stack[1:] + [d]
+            if d in stack:
+                return chain[0], _chain_text(chain, ": the queries read each other in a cycle")
+            if d in done:
+                continue
+            text = formulas.get(d)
+            if not isinstance(text, str) or not text.strip():
+                return chain[0], _chain_text(chain, (" has" if len(chain) == 1 else ", which has")
+                                             + f" no M text that could be read from {workbook}")
+            if _m_reads_workbook(text):
+                return chain[0], _chain_text(chain, (" reads" if len(chain) == 1 else ", which reads")
+                                             + f" an Excel table of the workbook ({_M_WORKBOOK})")
+            why = _dep_file_problem(d, tables, hand=hand)
+            if isinstance(why, _Collision):
+                return d, why
+            if why:
+                return chain[0], _chain_text(chain, (" cannot" if len(chain) == 1 else ", which cannot")
+                                             + f" be kept as {HAND_QUERY_FILE.format(table=d)} ({why})")
+            bad = visit(stack + [d])
+            if bad:
+                return bad
+            done.add(d)
+            order.append(d)
+        return None
+
+    bad = visit([name])
+    return ([], bad) if bad else (order, None)
+
+
+def _read_hand_queries(target: Path, hand: dict[str, dict[str, Any]], *, tables: Iterable[str] = ()) -> None:
     """Read each hand query's M text and the name of its query table from the existing workbook through Excel
     (lib.excel.inventory, opened read-only); fills "m_text" and "table_name". Raises the B-REFUSED refusal when
-    Excel is not available or a text cannot be read; common.ExcelBusy when the Excel lock is not free."""
+    Excel is not available or a text cannot be read; common.ExcelBusy when the Excel lock is not free.
+
+    v8 (r7 verdict C-sol-4): also fills "reads" (the workbook queries the hand query reads by name, directly or
+    through others, each after the queries it reads; hand_query_reads) and "read_texts" (name -> M text). A query it
+    reads that cannot be made again (it reads the workbook, its text was not given, a cycle, a name that
+    queries/<name>.hand.pq.m cannot hold or that is the file of a raw table of `tables`) is named in the B-REFUSED
+    refusal, before anything is written.
+
+    v9 (r8 verdict C-sol-7): the raw table names `tables` are kept as `raw_tables` (v8 assigned the loop's list of
+    query tables to `tables`, so they never reached _dep_file_problem). A query read whose file
+    queries/<name>.hand.pq.m would be the file of a raw table's query attached by hand, or of another query read
+    (the names equal without regard to case), is refused (B-REFUSED, exit 2) naming both queries, before anything is
+    written; no file name is changed."""
+    raw_tables = [str(x) for x in tables]
     from . import excel
     status = excel.excel_status()
     if not status.available:
@@ -2655,7 +3169,7 @@ def _read_hand_queries(target: Path, hand: dict[str, dict[str, Any]]) -> None:
         raise
     except excel.ExcelJobFailed as exc:
         raise _hand_refusal(hand, {t: f"its M text could not be read from {target.name} ({_short(exc.message)})"
-                                   for t in hand}) from None
+                                   for t in hand}, excel_ran=True) from None
     except common.EnvUnavailable as exc:
         raise _hand_refusal(hand, {t: f"Excel is not available ({_short(exc.message)})" for t in hand}) from None
     formulas: dict[str, Any] = {}
@@ -2665,19 +3179,32 @@ def _read_hand_queries(target: Path, hand: dict[str, dict[str, Any]]) -> None:
     sheets = {str(s.get("name")): s for s in inv.get("sheets") or [] if isinstance(s, dict)}
     missing: dict[str, str] = {}
     for t, h in hand.items():
-        tables = [x for x in (sheets.get(h["old_sheet"]) or {}).get("tables") or []
-                  if isinstance(x, dict) and x.get("query")
-                  and re.match(r"^A1(:|$)", str(x.get("range") or "").replace("$", "").upper())]
-        h["table_name"] = str(tables[0]["name"]) if tables else f"tbl_raw_{t}"
-        if not h.get("query_name") and tables and tables[0].get("connection"):
-            h["query_name"] = re.sub(r"^Query - ", "", str(tables[0]["connection"])).strip() or None
+        at_a1 = [x for x in (sheets.get(h["old_sheet"]) or {}).get("tables") or []
+                 if isinstance(x, dict) and x.get("query")
+                 and re.match(r"^A1(:|$)", str(x.get("range") or "").replace("$", "").upper())]
+        h["table_name"] = str(at_a1[0]["name"]) if at_a1 else f"tbl_raw_{t}"
+        if not h.get("query_name") and at_a1 and at_a1[0].get("connection"):
+            h["query_name"] = re.sub(r"^Query - ", "", str(at_a1[0]["connection"])).strip() or None
         text = formulas.get(h.get("query_name") or "")
         if not isinstance(text, str) or not text.strip():
             missing[t] = f"its M text could not be read from {target.name}"
         else:
             h["m_text"] = text
     if missing:
-        raise _hand_refusal(hand, missing)
+        raise _hand_refusal(hand, missing, excel_ran=True)
+    refused: dict[str, str] = {}
+    via: dict[str, str] = {}
+    for t, h in hand.items():
+        reads, bad = hand_query_reads(h["query_name"], formulas, workbook=target.name, tables=raw_tables, hand=hand)
+        if bad:
+            via[t], refused[t] = bad
+            continue
+        h["reads"] = reads
+        h["read_texts"] = {q: formulas[q] for q in reads}
+    if not refused:
+        via, refused = _dep_dep_collisions(hand)
+    if refused:
+        raise _hand_refusal(hand, refused, excel_ran=True, via=via)
 
 
 def _short(text: str, n: int = 200) -> str:
@@ -2691,27 +3218,49 @@ def _attach_hand_queries(tmp: Path, hand: dict[str, dict[str, Any]], manifest: d
     table's look from it) and removed afterwards. Returns table -> the sheet digest of the loaded rows. Raises the
     B-REFUSED refusal when an attach fails; common.ExcelBusy when the Excel lock is not free. v6 (r5 verdict
     A-aera-2): after each attach the query's formula is read back from `tmp` (land.read_query_formula) and its hash
-    is put into the table's entry of `hand` as "query_formula_sha256" (None when it cannot be read)."""
+    is put into the table's entry of `hand` as "query_formula_sha256" (None when it cannot be read).
+
+    v8 (r7 verdict C-sol-4): the queries a hand query reads ("reads", _read_hand_queries) are added to `tmp` as
+    connection-only queries (lib.excel.pq_add_queries), each after the queries it reads, in the same Excel job and
+    before the hand query is attached; a query without such reads is attached as in v7.
+
+    v9 (r8 verdict C-sol-3): the formula of each query read is read back from `tmp` too (one lib.excel.inventory
+    job, _formulas_back) and put into the table's entry of `hand` as "query_reads": [{"name", "formula_sha256"
+    (land.query_formula_sha256, or None when it cannot be read), "file" (queries/<name>.hand.pq.m)}]; build records
+    it in the manifest's raw entry and check --refresh and --accept-refresh compare each one."""
     from . import excel
     from . import manifest as mf
     side = mf.write_manifest(tmp, manifest)
     digests: dict[str, Any] = {}
     try:
         for t, h in hand.items():
+            reads = list(h.get("reads") or [])
             try:
-                res = excel.pq_attach(tmp, sheet=h["sheet"], table_name=h["table_name"], query_name=h["query_name"],
-                                      m_text=h["m_text"])
+                if reads:
+                    attach = {"op": "pq_attach", "sheet": h["sheet"], "table_name": h["table_name"],
+                              "query_name": h["query_name"], "m_text": h["m_text"]}
+                    res = excel.pq_add_queries(tmp, [(q, h["read_texts"][q]) for q in reads], then=[attach])
+                else:
+                    res = excel.pq_attach(tmp, sheet=h["sheet"], table_name=h["table_name"],
+                                          query_name=h["query_name"], m_text=h["m_text"])
             except common.ExcelBusy:
                 raise
             except common.EnvUnavailable as exc:
-                raise _hand_refusal(hand, {t: f"it could not be attached again ({_short(exc.message)})"}) from None
+                raise _hand_refusal(hand, {t: f"it could not be attached again ({_short(exc.message)})"},
+                                    excel_ran=True) from None
             if not res.ok:
-                raise _hand_refusal(hand, {t: f"it could not be attached again ({_short(res.message())})"})
+                raise _hand_refusal(hand, {t: f"it could not be attached again ({_short(res.message())})"},
+                                    excel_ran=True)
             # v6 (r5 verdict A-aera-2): the formula Excel holds for the query attached again, read back from the
             # saved file; build records its hash (query_formula_sha256) and check --refresh compares it
             from . import land
             formula = land.read_query_formula(tmp, h["query_name"], job=res)
             h["query_formula_sha256"] = land.query_formula_sha256(formula) if formula is not None else None
+            if reads:
+                back = _formulas_back(tmp, reads, job=res)
+                h["query_reads"] = [{"name": q, "formula_sha256": (land.query_formula_sha256(back[q])
+                                                                   if back.get(q) is not None else None),
+                                     "file": HAND_QUERY_FILE.format(table=q)} for q in reads]
             types = (mf.raw_sheet(manifest, t) or {}).get("types") or []
             digests[t] = mf.sheet_digest(tmp, h["sheet"], types)     # (digest, rows, header)
     finally:
@@ -2720,6 +3269,26 @@ def _attach_hand_queries(tmp: Path, hand: dict[str, dict[str, Any]], manifest: d
         except OSError:
             pass
     return digests
+
+
+def _formulas_back(workbook: Path, names: Iterable[str], *, job: Any = None) -> dict[str, str | None]:
+    """The formula of each query of `names` as Excel gives it back from the saved `workbook` (one lib.excel.inventory
+    job), None for a query it does not give (v9, r8 verdict C-sol-3). `job`: the result of the attach job; a job
+    result that names no Excel process did not come from Excel, and nothing is read (the rule of
+    land.read_query_formula)."""
+    from . import excel
+    out: dict[str, str | None] = {n: None for n in names}
+    if job is not None and not getattr(job, "pid", None):
+        return out
+    try:
+        inv = excel.inventory(workbook)
+    except (common.RotmError, OSError, ValueError):
+        return out
+    for q in inv.get("query_formulas") or []:
+        if isinstance(q, dict) and q.get("name") in out:
+            f = q.get("formula")
+            out[q["name"]] = f if isinstance(f, str) and f.strip() else None
+    return out
 
 
 def _write_hand_query_file(root: Path, table: str, text: str, report: Any) -> str:
@@ -2772,6 +3341,83 @@ def _preflight_generated_queries(spec: Any, target: Path, old: dict[str, Any], h
                     "the next step when the file was edited by hand), then build again") from None
 
 
+# ----------------------------------------------------------------------------- kept copies (v7, A-aera-3, C-sol-2)
+
+@dataclass
+class KeptCopies:
+    """The copies of a workbook with a live query and of its manifest that build keeps while it rebuilds the
+    workbook (v7, r6 verdict A-aera-3, C-sol-2): <stem>.bak_<YYYYMMDD_HHMMSS>.xlsx and
+    <stem>.manifest.bak_<YYYYMMDD_HHMMSS>.json in the workbook's folder, one time stamp for both. `tables`: the raw
+    tables whose query table rotm.py attached. `also_backup`: the workbook copy is also the copy build keeps of a
+    workbook it did not write (--force), so it stays when the manifest copy is removed."""
+    workbook: Path
+    manifest: Path
+    tables: list[str]
+    also_backup: bool = False
+
+
+def live_generated_queries(target: Path, old: dict[str, Any], pq_tables: list[str],
+                           hand: dict[str, Any]) -> list[str]:
+    """The tables of `pq_tables` (the raw tables build attaches a generated query to after the rebuild) whose raw
+    sheet in the existing workbook `target` holds a query table that rotm.py attached: the old manifest's raw entry
+    records landing power_query and no query_attach hand, the table is not loaded by a query attached by hand
+    (`hand`), and check.query_tables finds a query table at A1 of that sheet (v7, A-aera-3, C-sol-2)."""
+    from . import check as checkmod
+    if not target.is_file():
+        return []
+    qtables = checkmod.query_tables(target)
+    entries = {s.get("table"): s for s in (old.get("sheets") or []) if s.get("type") == "raw"}
+    out: list[str] = []
+    for t in pq_tables:
+        e = entries.get(t) or {}
+        if t in hand or e.get("landing") != "power_query" or e.get("query_attach") == "hand":
+            continue
+        if (e.get("name") or f"raw_{t}") in qtables and t not in out:
+            out.append(t)
+    return out
+
+
+def _keep_copies(target: Path, tables: list[str]) -> KeptCopies:
+    """Copy the workbook and its manifest (byte for byte, shutil.copy2) before either is replaced. Raises the
+    B-REFUSED refusal (nothing was written) when a copy cannot be written."""
+    import shutil
+    from . import manifest as mf
+    stamp = _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    man = mf.manifest_path(target)
+    k = 0
+    while True:
+        tag = stamp if k == 0 else f"{stamp}_{k}"
+        wb_copy = target.with_name(f"{target.stem}.bak_{tag}{target.suffix}")
+        man_copy = target.with_name(f"{target.stem}.manifest.bak_{tag}.json")
+        if not wb_copy.exists() and not man_copy.exists():
+            break
+        k += 1
+    try:
+        shutil.copy2(target, wb_copy)
+        shutil.copy2(man, man_copy)
+    except OSError as exc:
+        for p in (wb_copy, man_copy):
+            try:
+                p.unlink()
+            except OSError:
+                pass
+        raise common.Refusal(f"{target.name} holds a live query on {', '.join(f'raw_{t}' for t in tables)}, and its "
+                             f"copy could not be written before the rebuild ({exc}); nothing was written",
+                             fix=f"free space in {target.parent.as_posix()} or close {target.name}, then build "
+                                 "again") from None
+    return KeptCopies(wb_copy, man_copy, list(tables))
+
+
+def _remove_copies(kept: KeptCopies, report: Any) -> None:
+    for p in ([kept.manifest] if kept.also_backup else [kept.workbook, kept.manifest]):
+        try:
+            p.unlink()
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            report.note(f"the copy {p.name} could not be removed ({exc}); remove it by hand")
+
+
 def _sync_marker_workbook(root: Path, target: Path, *, update: bool, report: Any) -> bool:
     """v4 (C-sol-9): one workbook name for a model folder. When `update` (build without -o) and `target` lies in the
     model folder, write its name into the marker's workbook field (rotm_model.json) when it differs, so audit,
@@ -2813,7 +3459,14 @@ def build(spec_path: str | Path, *, out: str | Path | None = None, force: bool =
     workbook is written to a temporary file in the target's folder, the query is attached to it again, and only
     then the target, queries/<t>.hand.pq.m and the manifest (query_attach hand, no contract hash) are written.
     Without Excel, with a text that cannot be read or an attach that fails, build refuses (exit 2) and writes
-    nothing. `drop_hand_queries` (--drop-hand-queries) rebuilds those sheets as static tables instead."""
+    nothing. `drop_hand_queries` (--drop-hand-queries) rebuilds those sheets as static tables instead. v8 (r7
+    verdict C-sol-4): the workbook queries a hand query reads by name are carried over too, as connection-only
+    queries kept in queries/<name>.hand.pq.m; one that cannot be made again is named in the refusal.
+
+    v7 (r6 verdict A-aera-3, C-sol-2): when a raw sheet of the existing workbook holds a query table that rotm.py
+    attached (live_generated_queries), the workbook and its manifest are copied to <stem>.bak_<time>.xlsx and
+    <stem>.manifest.bak_<time>.json before either is replaced (KeptCopies). When every such query is attached again
+    the copies are removed; otherwise they stay and each W-PQ-NOT-ATTACHED of the run names them."""
     from . import land as land_mod
     from . import manifest as mf
     from . import modelfolder
@@ -2863,8 +3516,20 @@ def build(spec_path: str | Path, *, out: str | Path | None = None, force: bool =
     if carry and not power_query:
         raise _hand_refusal(carry, {t: "--no-power-query was given" for t in carry}, no_power_query=True)
     if carry:
-        _read_hand_queries(target, carry)        # refuses (exit 2) before anything is written
+        _read_hand_queries(target, carry, tables=list(spec.raw))   # refuses (exit 2) before anything is written
     target.parent.mkdir(parents=True, exist_ok=True)
+    # Power Query raw sheets: build writes static values with openpyxl, then re-attaches each query (design 7.3).
+    # v4 (C-sol-1): never in place of a query attached by hand.
+    pq_tables = [s.data["table"] for s in spec.sheets if s.type == "raw" and s.data.get("landing") == "power_query"
+                 and s.data["table"] not in hand]
+    pq_tables += [t for t in kept_pq if t not in pq_tables]
+    # v7 (r6 verdict A-aera-3, C-sol-2): a workbook whose raw sheet holds a query table that rotm.py attached is
+    # copied with its manifest before either is replaced; the copies are removed when every such query is attached
+    # again, and kept (named by W-PQ-NOT-ATTACHED) when one is not. A query attached by hand keeps the v4 form: the
+    # new workbook is written to a temporary file and replaces the target only after that attach succeeded.
+    live = live_generated_queries(target, old, pq_tables, hand) if target.exists() else []
+    kept = _keep_copies(target, live) if live else None
+    replaced = False
     carried: dict[str, Any] = {}
     tmp: Path | None = None
     try:
@@ -2876,17 +3541,24 @@ def build(spec_path: str | Path, *, out: str | Path | None = None, force: bool =
             carried = _attach_hand_queries(tmp, carry, result.manifest)
         backup = None
         if target.exists() and not (common.file_sha256(target) in _known_hashes(root, target)):
-            backup = target.with_name(f"{target.stem}.bak_{_dt.datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx")
-            import shutil
-            shutil.copy2(target, backup)
+            if kept is not None:
+                backup = kept.workbook               # the same bytes: one copy serves both
+                kept.also_backup = True
+            else:
+                backup = target.with_name(f"{target.stem}.bak_{_dt.datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx")
+                import shutil
+                shutil.copy2(target, backup)
             report.note(f"the previous {target.name} was kept as {backup.name}")
         if tmp is not None:
             _replace_target(tmp, target)
         else:
             _save_atomic(result.workbook, target)
+        replaced = True
     finally:
         if tmp is not None and tmp.exists():
             tmp.unlink()
+        if kept is not None and not replaced:
+            _remove_copies(kept, report)            # nothing was replaced: the copies are not needed
     # v4 (C-sol-9): without -o the marker's workbook follows the spec's output; the commands the report prints name
     # the folder when it resolves to the file just built, else the file
     folder_resolves = _sync_marker_workbook(root, target, update=out is None, report=report)
@@ -2919,6 +3591,24 @@ def build(spec_path: str | Path, *, out: str | Path | None = None, force: bool =
             report.note(f"{h['sheet']}: the query {h['query_name']} attached by hand was carried over: its M text is "
                         f"kept in {rel} and it was attached again with the same name; it was not compared with the "
                         "agreed contract")
+            reads = list(h.get("reads") or [])
+            if reads:
+                # v8 (r7 verdict C-sol-4): the queries it reads, carried over as connection-only queries
+                files = [_write_hand_query_file(root, q, h["read_texts"][q], report) for q in reads]
+                report.note(f"{h['sheet']}: the query {h['query_name']} attached by hand reads {', '.join(reads)}; "
+                            + ("it was carried over as a connection-only query" if len(reads) == 1
+                               else "they were carried over as connection-only queries")
+                            + f" ({', '.join(files)})")
+                # v9 (r8 verdict C-sol-3): the hash of each one's formula as read back from the workbook; check
+                # --refresh and --accept-refresh compare them (X-QUERY-CHANGED names the query read)
+                recorded = {x["name"]: x for x in h.get("query_reads") or []}
+                e["query_reads"] = [{"name": q, "formula_sha256": (recorded.get(q) or {}).get("formula_sha256"),
+                                     "file": f} for q, f in zip(reads, files)]
+                for x in e["query_reads"]:
+                    if not x["formula_sha256"]:
+                        report.note(land_mod.FORMULA_NOT_READ_NOTE.format(q=x["name"]))
+            else:
+                e.pop("query_reads", None)
         else:
             e["landing"] = "static"
             for k in [k for k in e if k.startswith("query_")]:
@@ -2928,26 +3618,24 @@ def build(spec_path: str | Path, *, out: str | Path | None = None, force: bool =
                            "attach it as references/excel-power-query.md \"Attaching a query by hand\" says, then run "
                            f"rotm.py check \"{ref}\" --accept-refresh", sheet=h["sheet"])
     mf.write_manifest(target, result.manifest)
-    # Power Query raw sheets: build writes static values with openpyxl, then re-attaches each query (design 7.3).
-    # v4 (C-sol-1): never in place of a query attached by hand.
-    pq_tables = [s.data["table"] for s in spec.sheets if s.type == "raw" and s.data.get("landing") == "power_query"
-                 and s.data["table"] not in hand]
-    pq_tables += kept_pq
     attached = []
+    not_attached: dict[str, tuple[Any, str]] = {}     # table -> (its W-PQ-NOT-ATTACHED, the reason: off, excel, failed)
     if pq_tables:
         if not power_query:
             for t in pq_tables:
-                report.warning("W-PQ-NOT-ATTACHED", f"raw_{t} holds static values: --no-power-query was given",
-                               f"attach the query later with rotm.py land \"{root.as_posix()}\" --table {t} "
-                               f"--power-query{land_note}", sheet=f"raw_{t}")
+                not_attached[t] = (report.warning(
+                    "W-PQ-NOT-ATTACHED", f"raw_{t} holds static values: --no-power-query was given",
+                    f"attach the query later with rotm.py land \"{root.as_posix()}\" --table {t} "
+                    f"--power-query{land_note}", sheet=f"raw_{t}"), "off")
         else:
             from . import excel, land
             status = excel.excel_status()
             for t in pq_tables:
                 if not status.available:
-                    report.warning("W-PQ-NOT-ATTACHED", f"raw_{t} holds static values: Excel is not available "
-                                   f"({status.reason})", f"on a PC with Excel run rotm.py land \"{root.as_posix()}\" "
-                                   f"--table {t} --power-query{land_note}", sheet=f"raw_{t}")
+                    not_attached[t] = (report.warning(
+                        "W-PQ-NOT-ATTACHED", f"raw_{t} holds static values: Excel is not available ({status.reason})",
+                        f"on a PC with Excel run rotm.py land \"{root.as_posix()}\" --table {t} "
+                        f"--power-query{land_note}", sheet=f"raw_{t}"), "excel")
                     continue
                 try:
                     sub = land.attach_power_query(target, root, t)
@@ -2958,9 +3646,26 @@ def build(spec_path: str | Path, *, out: str | Path | None = None, force: bool =
                         report.note(f"raw_{t} keeps its Power Query table (attached earlier with land --power-query); "
                                     f"write \"landing\": \"power_query\" on raw_{t} in the spec to record it there")
                 except common.RotmError as exc:
-                    report.warning("W-PQ-NOT-ATTACHED", f"raw_{t} holds static values: the query was not attached "
-                                   f"({exc.line()})", f"correct queries/{t}.pq.m, then run rotm.py land "
-                                   f"\"{root.as_posix()}\" --table {t} --power-query{land_note}", sheet=f"raw_{t}")
+                    not_attached[t] = (report.warning(
+                        "W-PQ-NOT-ATTACHED", f"raw_{t} holds static values: the query was not attached "
+                        f"({exc.line()})", f"correct queries/{t}.pq.m, then run rotm.py land "
+                        f"\"{root.as_posix()}\" --table {t} --power-query{land_note}", sheet=f"raw_{t}"), "failed")
+    if kept is not None:
+        if all(t in attached for t in kept.tables):
+            _remove_copies(kept, report)             # every live query was attached again
+        else:
+            man_name = mf.manifest_path(target).name
+            for t, (fnd, why) in not_attached.items():
+                fnd.message += (f"; the earlier workbook with its live query is kept as {kept.workbook.name} and its "
+                                f"manifest as {kept.manifest.name}")
+                # v7 integrator (request v7_P8 R1): the raw-sheet guard refuses a shell copy over a workbook, so
+                # the fix says who copies the two files back
+                fnd.fix = (f"to go back, copy {kept.workbook.name} over {target.name} and {kept.manifest.name} over "
+                           f"{man_name} (the user copies them by hand: the raw-sheet guard refuses a shell command "
+                           f"that copies over a workbook); to go on, make the source reachable and run rotm.py land "
+                           f"\"{root.as_posix()}\" --table {t} --power-query{land_note}"
+                           + (" on a PC with Excel" if why == "excel" else ""))
+                fnd.data.update(kept_workbook=kept.workbook.name, kept_manifest=kept.manifest.name)
     if not modelfolder.is_model_root(root):
         report.info("I-NO-MARKER", f"{root.as_posix()} has no rotm_model.json, so the plugin's hooks do not watch it",
                     f"run rotm.py init \"{root.as_posix()}\" to make it a model folder")
@@ -2973,7 +3678,10 @@ def build(spec_path: str | Path, *, out: str | Path | None = None, force: bool =
     report.data.update({"sheets": [s.name for s in spec.sheets], "formulas": comp.formula_cells,
                         "manifest": mf.manifest_path(target).name, "power_query_attached": attached,
                         "hand_queries_carried": {t: {"query": hand[t]["query_name"],
-                                                     "file": HAND_QUERY_FILE.format(table=t)} for t in carried},
+                                                     "file": HAND_QUERY_FILE.format(table=t),
+                                                     "reads": {q: HAND_QUERY_FILE.format(table=q)
+                                                               for q in hand[t].get("reads") or []}}
+                                                 for t in carried},
                         "hand_queries_dropped": [t for t in hand if t not in carried],
                         "capacity": {t: h["capacity"] for t, h in comp.L["helpers"].items()},
                         "rows": {t: r["rows"] for t, r in comp.L["raw"].items()}})

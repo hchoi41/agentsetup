@@ -26,7 +26,9 @@ command too. Then `<SKILL_DIR>/references/google-sheets.md` (what differs) and `
 2. Replace the mechanical cases: `ROTM compat <workbook> --strict` writes `<stem>_compat.xlsx` (`--in-place`
    keeps a `.bak_` copy). It replaces only:
    - `[@Col]` and `#This Row` references by same-row A1 references (`X-STRUCTREF`);
-   - a missing `_xlfn.` prefix (`X-PREFIX`) and a known `_xludf.` function (`X-UDF`);
+   - a missing `_xlfn.` prefix (`X-PREFIX`; each function call is checked by the name it is stored with, so a
+     prefixed name inside a text in quotes, or another call of the same function that has the prefix, does not hide
+     a call without it) and a known `_xludf.` function (`X-UDF`);
    - `CONCATENATE` by `&` (`X-CONCAT`); values that change because a function name was repaired (`X-FIXED`).
    - an Excel `CONCAT` with one argument or with more than two arguments, by `&` when every argument is a single
      value (`X-CONCAT`, a warning with `--report-only`): Google Sheets' `CONCAT` takes two values, so exactly two
@@ -48,8 +50,33 @@ command too. Then `<SKILL_DIR>/references/google-sheets.md` (what differs) and `
      in Excel only`. compat reports these formulas and does not rewrite them, so `--strict` and
      `--report-only --strict` exit 1 (an error exits 1 without `--strict` too). Change the rule in Excel: Data >
      Data Validation, or Home > Conditional Formatting > Manage Rules.
+   - compat reads the formulas of defined names (workbook and sheet scope) too, following a name used inside
+     another name, and reports a function one product lacks as `X-FUNC` with the name, its scope and one cell that
+     uses it (or `no cell uses it`), for example `defined name ExpenseTotal (workbook scope): INFO exists in Excel
+     only ...; used by Forecast!C1`; it does not rewrite names, so `--strict` and `--report-only --strict` exit 1.
+     Change the name in Excel: Formulas > Name Manager.
+   - The argument rules of a cell also run on the formulas of data validations, conditional-format rules and
+     defined names: an Excel `CONCAT` with one argument, with more than two arguments or with a range argument is
+     `X-CONCAT`, and a `FILTER` with a third argument is `X-FILTER` (warnings, the rule ids of a cell). The finding
+     names the range or the name, for example `data validation (custom formula) on Orders!D2:D10: CONCAT with 3
+     arguments: Google Sheets' CONCAT takes two values` or `defined name ValidOrder (workbook scope): CONCAT with 3
+     arguments: ...; used by Orders!E2`. compat reports these formulas and does not rewrite them: the fix ends with
+     `the rule is reported, not rewritten` (`the name is reported, not rewritten` for a name), and `--strict` and
+     `--report-only --strict` exit 1. A `CONCAT` with two single values gets no finding. Not with
+     `--product excel`.
+   - `REGEXMATCH` exists in Google Sheets only (`X-FUNC`, an error). Its alternative `ISNUMBER(SEARCH(...))` tests
+     whether the cell holds a piece of text without regard to case; REGEXMATCH is case-sensitive and reads a
+     regular expression. compat gives that recipe as the fix only when the pattern is a typed text with none of
+     `^ $ . [ ] ( ) { } * + ? |` and the backslash, for example `REGEXMATCH(A2,"invoice")`: `use
+     ISNUMBER(SEARCH("invoice",A2)) in a helper column: it tests whether the cell holds "invoice" without regard
+     to case, while REGEXMATCH is case-sensitive`. For any other pattern (for example `"^[A-Z]{3}-[0-9]{3}$"`, a
+     cell reference or a calculation) the fix says that a rewrite for this pattern is needed and that the original
+     rule stays until the rewrite is tested on examples that match and examples that do not.
 4. compat compares the cells and Excel's counts of sheets, tables, charts, names, queries and conditional formats
    before and after; any difference outside the replaced cells is `W-UNINTENDED` and nothing is written.
+   Formatted text inside a cell (rich text, in shared or inline strings) is a part openpyxl drops: compat then
+   writes through Excel, or without Excel exits 3 with nothing written, and the comparison includes the formatted
+   runs of every other text cell.
    `--product excel|sheets` targets one product. The comparison rule is the same in theme, compat and split:
    - formulas and typed values: exactly;
    - calculated values (after both files are recalculated in Excel): within a relative tolerance,

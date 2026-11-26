@@ -12,28 +12,28 @@
    },
    "build": {
     "exit_code": 0,
-    "sha256": "1a611fd75c28113e89c6139f8fc62b179bba2f4f0a9c89f724123229f47f46f6",
+    "sha256": "d6aca9204f7f9c955b6d24df9e455e0ba2ba7cd3794e39d4c8c912d669563334",
     "errors": 0,
     "warnings": 0,
     "strict": true,
-    "spec_sha256": "290aa4cef18d59765b12d75708ffc646c91fe420b34261027f634faa726f9dad",
-    "at": "2026-11-26T03:53:21+09:00"
+    "spec_sha256": "6521fac92d7ae292afed415403b2806ed8d2dcc580666f00b7c65a31ad6ec79e",
+    "at": "2026-11-26T09:16:31+09:00"
    },
    "audit": {
-    "at": "2026-11-26T03:53:28+09:00",
+    "at": "2026-11-26T09:16:38+09:00",
     "exit_code": 0,
     "strict": true,
-    "sha256": "61d606617e14d56722263786d9b668d070eaedcc2ce737d9528e568dfb61521b",
+    "sha256": "a03dbc2cac5cf121615f80f5e3a0c4b0d32b9138e7753ed70cc28c79807a128e",
     "errors": 0,
     "warnings": 0,
     "info": 0
    },
    "check": {
-    "at": "2026-11-26T03:53:22+09:00",
+    "at": "2026-11-26T09:16:32+09:00",
     "exit_code": 0,
     "strict": true,
-    "input_sha256": "1a611fd75c28113e89c6139f8fc62b179bba2f4f0a9c89f724123229f47f46f6",
-    "output_sha256": "61d606617e14d56722263786d9b668d070eaedcc2ce737d9528e568dfb61521b",
+    "input_sha256": "d6aca9204f7f9c955b6d24df9e455e0ba2ba7cd3794e39d4c8c912d669563334",
+    "output_sha256": "a03dbc2cac5cf121615f80f5e3a0c4b0d32b9138e7753ed70cc28c79807a128e",
     "recalculated": true,
     "refreshed": false,
     "checks": 13,
@@ -46,9 +46,9 @@
     "line": "checks: 13 of 13 hold"
    },
    "render": {
-    "at": "2026-11-26T03:53:29+09:00",
+    "at": "2026-11-26T09:16:38+09:00",
     "exit_code": 0,
-    "sha256": "61d606617e14d56722263786d9b668d070eaedcc2ce737d9528e568dfb61521b",
+    "sha256": "a03dbc2cac5cf121615f80f5e3a0c4b0d32b9138e7753ed70cc28c79807a128e",
     "files": [
      "reports/render/cover.png",
      "reports/render/inputs.png",

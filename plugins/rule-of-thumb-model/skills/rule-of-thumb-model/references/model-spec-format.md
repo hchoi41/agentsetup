@@ -225,7 +225,14 @@ with raw row r (a recorded exception to FAST 2.03-05).
   `rotm.py` command attached) is never replaced by `queries/<t>.pq.m`. Build reads its name and M text through
   Excel, attaches it again to the new workbook, keeps the text in `queries/<t>.hand.pq.m` and records
   `query_attach` `"hand"`. Without Excel build refuses (exit 2) and writes nothing; `--drop-hand-queries` rebuilds
-  the sheet as a static table (`references/excel-power-query.md`, "Attaching a query by hand").
+  the sheet as a static table (`references/excel-power-query.md`, "Attaching a query by hand"). The workbook queries
+  such a query reads by name (a staging query, directly or through others) are kept in `queries/<name>.hand.pq.m`
+  and added again as connection-only queries; one that reads the workbook's own tables or cells
+  (`Excel.CurrentWorkbook()`) is named in the refusal (`references/excel-power-query.md`, "What a rebuild does to a
+  query attached by hand"). A query read whose file `queries/<name>.hand.pq.m` would be the file of a raw table's
+  query attached by hand or of another query read (the names are equal without regard to case) is refused (exit 2,
+  nothing written), and the refusal names both queries; rename one of them in Excel, or pass
+  `--drop-hand-queries`.
 
 ## Helper sheets
 
@@ -364,7 +371,7 @@ Rows of one dimension times named measure columns.
 | `{"values": [...], "format": "..."}` | typed labels or headers; ISO dates become dates |
 | `{"in": "<list input id>"}` | each label or header a link to the list's cell (`=inputs!$D$11`) |
 | `{"timeline": {"start": "<scalar date input>", "periods": N, "step": "month"}}` (cols only) | first header `=EOMONTH(inputs!$D$6,0)`, next headers `=EOMONTH(D5,1)`; format `month` (FAST 1.01-03: one time ruler) |
-| `{"same_as": "<block id>"}` | links to that block's labels or headers (`=$B6`, `=calc!D5`) |
+| `{"same_as": "<block id>"}` | links to that block's labels or headers (`=$B6`, `=calc!D5`), each in the number format of the label or header it links to (labels from a list of dates show dates) |
 | `cols` left out | one column headed `Value` |
 
 `rows` may also carry `label` (written in B of the column-header row). Items blocks have no `rows`; measures blocks
@@ -493,6 +500,14 @@ reports `X-OPEN`). The rule `F-ARGS` (an error) counts the arguments of the func
   check stays visible.
 - `actual`, `expected`, `min`, `max`, `bound` are expressions, or the numbers 0 and 1. Any other typed number is
   refused: put it on the inputs sheet.
+- A check whose actual or expected expression holds `IFERROR` or `IFNA` makes build warn `W-CHECK-GUARD` (strict
+  mode exits 1), as it warns `W-SELF-CHECK` for a check that compares a value with itself: an error in an operand
+  must show in the check's result ([checks.md](checks.md), rule 4).
+- A check expression (actual, expected, min, max or bound) that holds ROUND, ROUNDUP, ROUNDDOWN, MROUND, INT, TRUNC,
+  CEILING or FLOOR (also CEILING.MATH, CEILING.PRECISE, ISO.CEILING, FLOOR.MATH, FLOOR.PRECISE) makes build warn
+  `W-CHECK-ROUND` (strict mode exits 1): a check compares the unrounded difference with the tolerance
+  ([checks.md](checks.md), rule 3). When a business rule needs rounded values, round them in a block and tie that
+  block to an independent total. A function name inside quotes is not a call.
 - Optional: `severity` (`error`, default, or `alert`), `note`, `targets` (text shown in column J; default: the
   blocks and raw tables the expressions read), `format` (a number-format key for the value cells D to G, for example
   `amount2` or `rate2`; default: the format of the block, line item, measure, raw column or helper column the
@@ -562,7 +577,9 @@ rotm.py land "<model>" --table sales --power-query         # attach a Power Quer
   promoted, the contract's columns selected, empty fields made null, typed with the contract types in culture
   en-US). The file holds the placeholder `<model folder>`, not a path of this computer; the attach puts the model
   folder's path in the text it sends to Excel. With `--pq-source database` it is a template that runs the SQL
-  through `Value.NativeQuery`, with `[EnableFolding = true]` for the systems Microsoft lists (platforms B1.4) and
+  through `Value.NativeQuery`, with `[EnableFolding = true]` for Google BigQuery, SQL Server (also Azure SQL and
+  Synapse), PostgreSQL, Snowflake, Amazon Redshift and SAP HANA, and without it for Oracle, MySQL and a system land
+  does not know ([excel-power-query.md](excel-power-query.md), "How the plugin lands a table in Excel"), and with
   the server and database left as `<...>` placeholders. The SQL inside that template quotes every column name for
   its connector: `[name]` for SQL Server (also for a system the plugin does not know), `"name"` for PostgreSQL,
   Snowflake, Redshift, SAP HANA and Oracle, backticks for BigQuery and MySQL. The template is not tested here (no
@@ -582,18 +599,42 @@ rotm.py land "<model>" --table sales --power-query         # attach a Power Quer
   `queries/<t>.pq.m` whose stamp is missing or names another contract, before Excel starts; build then warns
   W-PQ-NOT-ATTACHED with that message. `check --refresh` refuses to refresh a query written for another contract
   (exit 2, nothing refreshed).
-- `--csv`: the CSV must have the contract's header in the contract's order. Each value must fit its type (integer,
+- `--csv`: the CSV's header line is the contract's column names in the contract's order; or, for a contract
+  proposed from a sample CSV (each column records its sample header as `csv_header`), the sample headers, each
+  exactly once, in any order, compared after trimming spaces, and no other column. `land` then reads the columns by
+  their headers, writes `raw/<t>.csv` with the contract's names in the contract's order and prints each header
+  with its name. Any other header is `L-COLUMNS` (nothing written); its fix names the header lines `land` accepts
+  ([column-contract.md](column-contract.md), "Sample headers and the header line land accepts"). A contract in
+  which one column's sample header is another column's destination name is refused (exit 2, nothing written),
+  because a header line could be read either way ([column-contract.md](column-contract.md), "Sample headers and
+  the header line land accepts"). A record of only delimiters (`,,`) is refused (`L-NULL` on the first column, or
+  `L-FIELDS` when its number of fields differs from the header's; nothing written); a quoted field still open at
+  the end of the file, or another quoting error, is refused (exit 2) with its line
+  ([column-contract.md](column-contract.md), "Blank lines, records of only delimiters and quotes in a CSV").
+  Each value must fit its type (integer,
   number with `.` decimals and no thousands separator, date `YYYY-MM-DD` (also `YYYY/MM/DD`, `YYYY.MM.DD`, or with a
   zero time), datetime `YYYY-MM-DD HH:MM[:SS]`, also with a `T` between date and time (a `Z` or a UTC offset such as
   `+09:00` is accepted and dropped, with L-PRECISION), boolean
   `TRUE`/`FALSE`/`1`/`0`); never-null columns must be filled; allowed values must hold; the key must be unique
   (exact text, case-sensitive); a text value may hold at most 32,767 characters (an Excel cell's limit, counted
   in UTF-16 code units as Excel counts them); the row count must fit the contract, and each control total must
-  match exactly within the contract's tolerance and nothing else (the landed values are added as decimals; the
-  totals accepted for this snapshot in `raw/<t>.controls.json`, when there are any, take the place of the
-  contract's). Each failure is an error finding (`L-COLUMNS`, `L-FIELDS`, `L-TYPE`, `L-NULL`, `L-ALLOWED`,
-  `L-KEY`, `L-LENGTH`, `L-ROWS`, `L-EMPTY`, `L-TOTAL`), exit 1, and nothing is written: the earlier snapshot
-  stays. Whole numbers of 16 or more digits warn `L-DIGITS` (Excel keeps 15 significant digits).
+  match exactly within the contract's tolerance and nothing else (the landed values are added as decimals; which
+  control total is used: the next bullet). Each failure is an error finding (`L-COLUMNS`, `L-FIELDS`, `L-TYPE`,
+  `L-NULL`, `L-ALLOWED`, `L-KEY`, `L-LENGTH`, `L-ROWS`, `L-EMPTY`, `L-TOTAL`), exit 1, and nothing is written: the
+  earlier snapshot stays. Whole numbers of 16 or more digits warn `L-DIGITS` (Excel keeps 15 significant digits).
+- The control total used for a table and column is, in this order: `--control` given in this run; else the total
+  accepted for this snapshot in `raw/<t>.controls.json` under the agreement in force; else the agreed contract's
+  total. A total accepted under an earlier agreement (the contract was agreed again since, for example with another
+  total) is not used: `land`, `build`, `check` and `lift` print a note that names it, and when the rows do not meet
+  the contract's total, `L-TOTAL` (`land`) or `D-TOTAL` (`check`) names both totals. Give `--control` with the
+  source's current total; it is recorded under the agreement in force. How an entry is bound to its agreement:
+  [column-contract.md](column-contract.md#what-the-plugin-does-with-the-contract-later).
+- `land --csv <file> --force --control <t>.<column>=<source total>` lands a new extract against the source's new
+  total and records that total for the new snapshot in `raw/<t>.controls.json`. `--control` is accepted only for a
+  column whose control total the agreed contract names: a control total is part of the agreement. For any other
+  column `land` and `check --accept-refresh` refuse (exit 2; nothing is written or recorded). Add the total to the
+  contract (`contract propose ... --force ... --total <column>=<source total>`), show it and get it agreed; build
+  then writes its check `<t>_total_<column>`.
 - `L-PRECISION` (a warning, one per column and reason): a number with more than 15 significant digits; a datetime
   whose fraction of a second was cut (cut, never rounded up); a datetime whose `Z` or UTC offset was dropped (the
   time is landed as written). Decide with the user: round the values in the source, or land the column as text.
@@ -613,16 +654,22 @@ rotm.py land "<model>" --table sales --power-query         # attach a Power Quer
   --power-query` again before a refresh.
 - After a refresh, `rotm.py check <model> --accept-refresh` records the refreshed rows as the landed data
   ([checks.md](checks.md), "What `rotm.py check` does"):
-  - The control total of a table and column is `--control` given in this run; else the total recorded for this
-    exact snapshot in `raw/<t>.controls.json`; else the agreed contract's total. Never the inputs sheet: when its
+  - The control total used for a table and column is, in this order: `--control` given in this run; else the total
+    accepted for this snapshot in `raw/<t>.controls.json` under the agreement in force; else the agreed contract's
+    total. A total accepted under an earlier agreement (the contract was agreed again since, for example with
+    another total) is not used: `land`, `build`, `check` and `lift` print a note that names it, and when the rows
+    do not meet the contract's total, `L-TOTAL` (`land`) or `D-TOTAL` (`check`) names both totals. Give `--control`
+    with the source's current total; it is recorded under the agreement in force. Never the inputs sheet: when its
     control cell holds another value, `check` warns `D-CONTROL-INPUT`. A failing `<t>_total_<column>` check: find
     the missing or extra rows in `raw_<t>`; after a refresh with a new source total, give it with `--control`.
   - The manifest's raw entry keeps `digest` (the landed snapshot, which `land` updates), `workbook_digest` (the
     rows the raw sheet held when a `rotm.py` command last wrote them) and `contract_sha256` (the agreed contract
     build read). Changed rows are accepted only when they differ from `workbook_digest`; when the sheet still
     holds those rows and `raw/<t>.csv` holds rows landed after them, `R-CHANGED`: nothing is accepted and
-    `raw/<t>.csv` is not changed (refresh the query, or rebuild with `--force`). A manifest without
-    `workbook_digest` (built before v3): nothing is accepted until one rebuild.
+    `raw/<t>.csv` is not changed (refresh the query, or rebuild with `--force`). At an acceptance, changed rows
+    are accepted only when the manifest's `digest` equals its `workbook_digest`: after a later landing
+    (`land --force`) nothing is accepted, whatever the sheet holds, until a rebuild from the landed snapshot. A
+    manifest without `workbook_digest` (built before v3): nothing is accepted until one rebuild.
   - `--refresh` asked for and no refresh ran: nothing is accepted, `raw/`, the controls files and the manifest
     are not changed, and the exit code is not 0. A workbook with no query: `X-NO-QUERY` (a warning; an error with
     `--accept-refresh`). `check --refresh` is refused before Excel starts while a query-loaded table's contract
@@ -657,23 +704,37 @@ rotm.py land "<model>" --table sales --power-query         # attach a Power Quer
   value is an ISO date, else General. A list whose `format` is `text` gives its header cells the text format `@`
   (the audit accepts `@` or General there). A text label keeps General when it is not an item of an input list
   (for example `Total`).
-- The control totals on the inputs sheet come from the contract, or, for a snapshot accepted after a refresh with
-  `rotm.py check --accept-refresh --control`, from `raw/<t>.controls.json` (the totals recorded with that snapshot's
-  digest). The cell's note names the source.
+- The control totals on the inputs sheet follow the order of control totals (section "Landing raw data"; build
+  takes no `--control`): the total accepted for this snapshot in `raw/<t>.controls.json` under the agreement in
+  force (by `rotm.py land --control` or `rotm.py check --accept-refresh --control`), else the agreed contract's
+  total. A total accepted under an earlier agreement (the contract was agreed again since, for example with another
+  total) is not used: build prints a note that names it. The cell's note names the source, and for such a total
+  it says that the total is not used.
 - A workbook open in Excel cannot be replaced: build refuses and asks you to close it.
+- A rebuild of a workbook whose raw sheet holds a live query that `rotm.py` attached: before build replaces the
+  workbook and its manifest, it copies both to `<stem>.bak_<YYYYMMDD_HHMMSS>.xlsx` and
+  `<stem>.manifest.bak_<YYYYMMDD_HHMMSS>.json`. When every query is attached again, both copies are removed. When
+  an attach fails (for example the source cannot be reached) or Excel is not available, the copies stay and
+  `W-PQ-NOT-ATTACHED` names them: to go back, copy both over the new files; to go on, make the source reachable
+  and run `rotm.py land "<model>" --table <t> --power-query`. The hooks do not audit the copies. The raw-sheet
+  guard refuses a shell command that copies onto an existing workbook, so the user copies the two files back by
+  hand.
 - `-o <name>.xlsx` builds another file, with its own manifest `<name>.manifest.json` beside it.
 
 | Exit | When |
 | --- | --- |
 | 0 | built; no warning (with `--strict`) or no error |
-| 1 | built, with warnings under `--strict` (W-NO-CHECK, W-CAPACITY, W-PQ-NOT-ATTACHED, F-LENGTH, ...) |
+| 1 | built, with warnings under `--strict` (W-NO-CHECK, W-CHECK-GUARD, W-CHECK-ROUND, W-CAPACITY, W-PQ-NOT-ATTACHED, F-LENGTH, ...) |
 | 2 | refused: the spec, a contract or a snapshot has a problem (also a dependency cycle, or a helper capacity above the landed rows); every problem listed; nothing written |
 | 3 | not available (openpyxl missing) |
 | 4 | internal error: one line, the traceback in `<state dir>/last_error.txt` |
 
 Findings of build: `W-NO-CHECK` (a block no check reads), `W-SELF-CHECK` (a check whose actual and expected
-compile to the same expression or to links to the same cell), `W-CAPACITY` (helper rows fewer than raw rows),
-`W-PQ-NOT-ATTACHED`, `W-PQ-DIGEST`, the warnings of the formula rules, `I-KEYS-OUTSIDE` (info: the key check runs
+compile to the same expression or to links to the same cell), `W-CHECK-GUARD` (a check expression with `IFERROR`
+or `IFNA`), `W-CHECK-ROUND` (a check expression with a rounding function such as `ROUND` or `INT`), `W-CAPACITY`
+(helper rows fewer than raw rows), `W-PQ-NOT-ATTACHED`, `W-PQ-DIGEST`, the warnings of the
+formula rules, `I-TEXT-WIDTH` (info: a label, unit or note text wider than its cell), `I-SHEETS-ONLY` (info: a
+function only Google Sheets has, product `sheets`), `I-KEYS-OUTSIDE` (info: the key check runs
 in `rotm.py check` only), `I-NO-MARKER` (info: the folder has no `rotm_model.json`, so the hooks do not watch it), `I-SPARSE-SHEET` (info: a
 calculation sheet with size 8 from its role and fewer populated cells than `rules.sparse_sheet_cells`).
 
@@ -778,7 +839,8 @@ What build makes of it (from the built file):
 | `{prev}` without `first` | refused by the spec loader | give the item `"first"` |
 | styling a cell in Excel by hand, or editing `model.xlsx` with a script | the next build refuses without `--force` (the file changed) | change the spec or the dictionary and rebuild |
 | editing `raw/<t>.csv` or the raw sheet by hand | the audit reports R-CHANGED | land the new extract with `rotm.py land --force` |
-| landing a CSV in another column order | `L-COLUMNS` error, nothing written | change the SELECT list to the contract's order |
+| landing a CSV with the contract's names in another order | `L-COLUMNS` error, nothing written; it lands only when the contract records these names as its sample headers (`csv_header`), and then `raw/<t>.csv` has the contract's order | change the SELECT list to the contract's order |
+| landing a CSV whose header is not the contract's names | lands when the header holds the sample headers the contract recorded (`csv_header`), each once; otherwise `L-COLUMNS`, nothing written | land the file whose header was the sample's, or write the contract's names into the header line of a copy |
 
 ## Verified and not verified
 

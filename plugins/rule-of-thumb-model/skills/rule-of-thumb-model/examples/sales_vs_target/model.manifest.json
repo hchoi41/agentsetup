@@ -1,9 +1,9 @@
 {
  "rotm_manifest": 1,
  "plugin_version": "0.1.0",
- "built_at": "2026-11-26T03:53:02+09:00",
+ "built_at": "2026-11-26T14:51:49+09:00",
  "spec": "model.spec.json",
- "spec_sha256": "90eba044906844abe9b56925f38bd4a899929778acf1eb126fd030c00f789af0",
+ "spec_sha256": "45efef5bbb0c26585e4e10e36684aa6a479ec727c2b3f4d737567daf7c73e16b",
  "dictionary_sha256": "4fdc5e5739af4964b0652d11f313f996ac67880477916c6799763e60e942e400",
  "dictionary_applied": [],
  "workbook": "model.xlsx",
@@ -428,6 +428,49 @@
        "key": true
       }
      ]
+    },
+    {
+     "id": "pct_cell_diff",
+     "shape": "grid",
+     "body": "D45:I48",
+     "total": null,
+     "checks": [
+      "pct_cell_ties"
+     ],
+     "title": "Variance % check: absolute difference of % x target and variance",
+     "heading_row": 43,
+     "header_row": 44,
+     "labels": "B45:B48",
+     "total_row": null,
+     "total_col": null,
+     "cols_kind": "same_as",
+     "rows_kind": "same_as"
+    },
+    {
+     "id": "var_pct_cell_diff",
+     "shape": "items",
+     "body": "D52:I52",
+     "total": null,
+     "checks": [
+      "var_pct_cell_ties"
+     ],
+     "title": "All regions by month: variance % check",
+     "heading_row": 50,
+     "header_row": 51,
+     "labels": "B52:B52",
+     "total_row": null,
+     "total_col": null,
+     "cols_kind": "same_as",
+     "rows_kind": "items",
+     "items": [
+      {
+       "id": "diff",
+       "label": "Absolute difference",
+       "row": 52,
+       "first": false,
+       "key": false
+      }
+     ]
     }
    ]
   },
@@ -490,9 +533,9 @@
    "type": "checks",
    "font_size": 9,
    "master": "C2",
-   "results": "I5:I28",
-   "ids": "B5:B28",
-   "alerts": "I32:I32"
+   "results": "I5:I30",
+   "ids": "B5:B30",
+   "alerts": "I34:I34"
   },
   {
    "name": "notes",
@@ -821,20 +864,44 @@
    "result_formula": "=--(D28<>0)"
   },
   {
+   "id": "pct_cell_ties",
+   "kind": "at_most",
+   "result": "checks!I29",
+   "auto": false,
+   "targets": [
+    "calc!D45:I48"
+   ],
+   "label": "Largest per-cell difference of variance % x target and variance (target not 0)",
+   "severity": "error",
+   "result_formula": "=--(D29>E29)"
+  },
+  {
+   "id": "var_pct_cell_ties",
+   "kind": "at_most",
+   "result": "checks!I30",
+   "auto": false,
+   "targets": [
+    "calc!D52:I52"
+   ],
+   "label": "All regions by month: largest difference of variance % x target and variance",
+   "severity": "error",
+   "result_formula": "=--(D30>E30)"
+  },
+  {
    "id": "far_below",
    "kind": "zero",
-   "result": "checks!I32",
+   "result": "checks!I34",
    "auto": false,
    "targets": [
     "calc!D30:I33"
    ],
-   "label": "Region-months below target by more than the alert input",
+   "label": "Region-months whose variance % is below the alert input",
    "severity": "alert",
-   "result_formula": "=--(D32<>0)"
+   "result_formula": "=--(D34<>0)"
   }
  ],
  "master_check": "checks!C2",
- "master_formula": "=--(OR(SUM(I5:I28)>0,COUNT(I5:I28)<>COUNTA(B5:B28)))",
+ "master_formula": "=--(OR(SUM(I5:I30)>0,COUNT(I5:I30)<>COUNTA(B5:B30)))",
  "master_links": [
   "cover!C2",
   "inputs!C2",
@@ -1271,6 +1338,50 @@
    [
     "K41",
     "note"
+   ],
+   [
+    "B43",
+    "heading"
+   ],
+   [
+    "B44:I44",
+    "col_header"
+   ],
+   [
+    "B45:B48",
+    "row_header"
+   ],
+   [
+    "C45:C48",
+    "unit"
+   ],
+   [
+    "D45:I48",
+    "calc"
+   ],
+   [
+    "B50",
+    "heading"
+   ],
+   [
+    "B51:I51",
+    "col_header"
+   ],
+   [
+    "B52",
+    "row_header"
+   ],
+   [
+    "C52",
+    "unit"
+   ],
+   [
+    "D52:I52",
+    "calc"
+   ],
+   [
+    "K52",
+    "note"
    ]
   ],
   "summary": [
@@ -1337,7 +1448,7 @@
     "col_header"
    ],
    [
-    "B5:C28",
+    "B5:C30",
     "row_header"
    ],
    [
@@ -1349,11 +1460,11 @@
     "import"
    ],
    [
-    "I5:I28",
+    "I5:I30",
     "check"
    ],
    [
-    "J5:J28",
+    "J5:J30",
     "note"
    ],
    [
@@ -1425,31 +1536,35 @@
     "calc"
    ],
    [
-    "D28",
+    "D28:D30",
     "calc"
    ],
    [
-    "B30",
+    "E29:E30",
+    "import"
+   ],
+   [
+    "B32",
     "heading"
    ],
    [
-    "B31:J31",
+    "B33:J33",
     "col_header"
    ],
    [
-    "B32:C32",
+    "B34:C34",
     "row_header"
    ],
    [
-    "D32",
+    "D34",
     "calc"
    ],
    [
-    "I32",
+    "I34",
     "alert"
    ],
    [
-    "J32",
+    "J34",
     "note"
    ]
   ],
@@ -1489,5 +1604,5 @@
   ]
  },
  "outside_checks": [],
- "formula_cells": 7111
+ "formula_cells": 7163
 }

@@ -26,7 +26,7 @@ Sample profile (describes the sample only; these numbers are not controls):
 | line_id | 305 | 0 | 305 | - | - | - | S00001, S00002, S00003 |
 | sale_date | 305 | 0 | 81 | 2026-01-01 | 2026-03-27 | - | 2026-01-28, 2026-01-15, 2026-01-17 |
 | product | 305 | 0 | 4 | - | - | - | Delta, Beta, Alpha |
-| revenue | 305 | 0 | 214 | 10000 | 1995000 | 307,355,000 | 815000, 100000, 1720000 |
+| revenue | 305 | 0 | 214 | 10,000 | 1,995,000 | 307,355,000 | 815000, 100000, 1720000 |
 
 Points to confirm:
 

@@ -23,7 +23,10 @@ How it works:
   each function of the model outside supported_functions() as LIFT-UNSUPPORTED (function, cell count, first
   cell; v3, A-aera-13).
 - The control total of a raw table is the one accepted for the snapshot lift reads (raw/<table>.controls.json,
-  lib.controls), else the contract's (v3, J-5).
+  lib.controls), else the contract's (v3, J-5). v9 (r8 verdict [A-aera-2, C-sol-1]): the order is: the total
+  accepted for this snapshot in raw/<t>.controls.json under the agreement in force; else the agreed contract's
+  total. A total accepted under an earlier agreement (the contract was agreed again since, for example with another
+  total) is not used: lift prints a note that names it and the script uses the contract's total.
 - R output is not written: no R was available to test it (design 15: "R output only if it can be tested").
 """
 from __future__ import annotations
@@ -48,6 +51,7 @@ RUN_TIMEOUT_S = 900
 # writes. Standard library only; openpyxl is imported inside read_workbook_values(). Where a result depends on
 # one of Excel's rules, the rule is stated next to the code.
 import argparse as _argparse
+import bisect as _bisect
 import csv as _csv
 import datetime as _dt
 import itertools as _itertools
@@ -687,7 +691,9 @@ def _wildcard(pattern):
 #   same number, compared on their first 15 significant digits. A month and day without a year read as a date of
 #   the current year.
 # - A text criterion matches text cells only, without case. * and ? are wildcards (* any text, also none; ? one
-#   character); ~* and ~? are a literal * and ?; a ~ at the end is dropped.
+#   character); ~ makes the next character plain (~* and ~? a literal * and ?, ~~ a literal ~, ~ before any other
+#   character is dropped); a ~ at the end is dropped. Without * or ? a ~ is an ordinary character (v9, measured
+#   with Excel 16 on 2026-11-26).
 # - The texts TRUE and FALSE (any case) match the logical values only.
 # - A leading =, <>, <, >, <= or >= is an operator: <> with a number never counts a text cell as equal; = reads texts
 #   as numbers; <, >, <= and >= compare numbers with numbers and texts with texts (without case). '=' alone matches
@@ -849,13 +855,11 @@ def _c_pattern(p):
     while i < len(p):
         ch = p[i]
         if ch == "~":
-            if i + 1 < len(p) and p[i + 1] in "*?":
-                out.append(_re.escape(p[i + 1]))
-                i += 2
-                continue
             if i + 1 == len(p):
                 break                                   # a ~ at the end is dropped
-            out.append(_re.escape(ch))
+            out.append(_re.escape(p[i + 1]))             # ~ makes the next character plain, whatever it is
+            i += 2
+            continue
         elif ch == "*":
             out.append(".*")
         elif ch == "?":
@@ -1683,8 +1687,71 @@ def LOWER(text):
     return _text(text).lower()
 
 
+# v7, A-aera-12: PROPER as Excel 16 gives it. Measured on the build PC on 2026-11-26 (Excel 16.0, Windows locale
+# en-US) for every code point from U+0001 to U+3FFFF, from U+E0000 to U+F0FFF and from U+10F000 to U+10FFFF, each
+# as PROPER(c), PROPER("a"&c) and PROPER(c&"a"), and on 6,032 texts that mix French, German, Korean, CJK, Greek,
+# Cyrillic, digits and apostrophes (v7 build notes, P7). Excel's rule: a letter that starts the text or follows a
+# character that is not a letter is written in upper case, every other letter in lower case, and any other
+# character stays as it is. A word is a run of letters by Unicode: below U+10000 a letter is a character for which
+# str.isalpha() is true; its case is Python's single-character mapping, and a character whose mapping has two or
+# more characters (for example the upper case of the German sharp s) stays as it is. From U+10000 on (two UTF-16
+# units in Excel) no character is a letter and none changes. This gives Excel's three results for every measured
+# code point except 2,239 (for example the micro sign U+00B5, the dotted capital I U+0130, and the Greek capital
+# sigma U+03A3, whose lower case Excel writes as the final sigma at the end of a word). Those, and the code points
+# that were not measured (U+0000, the surrogates, the noncharacters, the planes 4 to 13, and the planes 15 and 16
+# outside their first and last 4,096 code points), are listed below: PROPER of a text that holds one of them is not
+# reproduced. The case mapping is that of the Python that runs the script (Unicode 16.0 in Python 3.14).
+_PROPER_NOT_REPRODUCED = (
+    "0 B5 130 17F 19B 23F-240 250-252 25C 261 264-266 26A 26C 271 282 287 29D-29E 2B9-2BA 2C6-2CF 2EC "
+    "370-374 376-377 37B-37D 37F 390 3A3 3B0 3CF 3D2-3D4 3D7-3D9 3F2-3F5 3F7-3FB 3FD-3FF 514-52F 560 588 "
+    "5EF 620 800-815 81A 824 828 840-858 860-86A 870-887 889-88E 8A0-8C9 973-97A 980 9FC AF9 C34 C5A C5D "
+    "C80 CDD CF1-CF2 D04 D29 D3A D4E D54-D56 D5F E31 E34-E3A E47-E4E E86 E89 E8C E8E-E93 E98 EA0 EA8-EA9 "
+    "EAC EDE-EDF F8C 10A0-10C5 10C7 10CD 10D0-10FA 10FD-10FF 115A-115E 11A3-11A7 11FA-11FF 13A0-13F5 "
+    "13F8-13FD 1677-167F 16EE-16F8 170D 171F 1878 1885-1886 18B0-18F5 191D-191E 19AA-19AB 19B0-19C0 "
+    "19C8-19C9 1A20-1A54 1AA7 1B4C 1BBA-1BE5 1C80-1C8A 1C90-1CBA 1CBD-1CBF 1CE9-1CEC 1CEE-1CF3 1CF5-1CF6 "
+    "1CFA 1D79 1D8E 1E9B 1E9E 1EFA-1F15 1F18-1F1D 1F20-1F45 1F48-1F4D 1F51 1F53 1F55 1F57 1F59 1F5B 1F5D "
+    "1F5F-1F7D 1F88-1F8F 1F98-1F9F 1FA8-1FB1 1FB8-1FBC 1FBE 1FC8-1FCC 1FD0-1FD1 1FD8-1FDB 1FE0-1FE1 1FE5 "
+    "1FE8-1FEC 1FF8-1FFC 2095-209C 2126 212A-212B 2160-2182 2185-2188 24B6-24CF 2C00-2C5F 2C6D-2C70 "
+    "2C72-2C73 2C7E-2CE3 2CEB-2CEE 2CF2-2CF3 2D00-2D25 2D27 2D2D 2D66-2D67 2E2F 3007 3021-3029 3038-303A "
+    "312E-312F 31B8-31BF 4DB6-4DBF 9FC4-9FFF A4D0-A4FD A640-A66D A67F-A69D A6A0-A6E5 A717-A71F A722-A72F "
+    "A732-A76F A779-A788 A78B-A7CD A7D0-A7D1 A7D3 A7D5-A7DC A7F2-A7FA A8F2-A8F7 A8FB A8FD-A8FE A960-A97C "
+    "A984-A9B2 A9CF A9E0-A9E4 A9E6-A9EF A9FA-A9FE AA60-AA76 AA7A AA7E-AAAF AAB1 AAB5-AAB6 AAB9-AABD AAC0 "
+    "AAC2 AADB-AADD AAE0-AAEA AAF2-AAF4 AB01-AB06 AB09-AB0E AB11-AB16 AB20-AB26 AB28-AB2E AB30-AB5A "
+    "AB5C-AB69 AB70-ABE2 D7B0-D7C6 D7CB-D7FB D800-DFFF FA2E-FA2F FA6B-FA6D FDD0-FDEF FFFE-FFFF "
+    "1FFFE-1FFFF 2FFFE-2FFFF 3FFFE-DFFFF EFFFE-EFFFF F1000-10EFFF 10FFFE-10FFFF ")
+
+
+def _code_ranges(text):
+    """([first code point, ...], [last code point, ...]) of a list of hexadecimal code points and ranges."""
+    starts, ends = [], []
+    for part in text.split():
+        a, _sep, b = part.partition("-")
+        starts.append(int(a, 16))
+        ends.append(int(b or a, 16))
+    return starts, ends
+
+
+_PROPER_STARTS, _PROPER_ENDS = _code_ranges(_PROPER_NOT_REPRODUCED)
+
+
 def PROPER(text):
-    return _re.sub(r"[A-Za-z]+", lambda m: m.group(0).capitalize(), _text(text))
+    out = []
+    after_letter = False
+    for ch in _text(text):
+        n = ord(ch)
+        k = _bisect.bisect_right(_PROPER_STARTS, n) - 1
+        if k >= 0 and n <= _PROPER_ENDS[k]:
+            raise NotReproduced(f"PROPER of a text with the character U+{n:04X} is not reproduced: Excel 16 gives "
+                                "another case for it than this script's rule, or it was not measured "
+                                "(_PROPER_NOT_REPRODUCED in this script)")
+        if n < 0x10000 and ch.isalpha():
+            mapped = ch.lower() if after_letter else ch.upper()
+            out.append(mapped if len(mapped) == 1 else ch)
+            after_letter = True
+        else:
+            out.append(ch)
+            after_letter = False
+    return "".join(out)
 
 
 def EXACT(a, b):
@@ -2696,6 +2763,7 @@ def tie_out(model, values, tolerance, rel=REL_TOLERANCE):
         counts = {"cells": 0, "tie": 0, "differ": 0, "not reproduced": 0}
         max_d, max_cell = None, None
         first = None
+        why = None                      # v7, A-aera-12: the reason of the step's first cell that is not reproduced
         sheet_cells = values.get(step["sheet"], {})
         always_formula = step["kind"] in ("helper", "grid", "items", "measures", "master")
         for row, col, py in step["cells"]:
@@ -2711,6 +2779,8 @@ def tie_out(model, values, tolerance, rel=REL_TOLERANCE):
                 max_d, max_cell = abs(d), ref
             if status != "tie" and first is None:
                 first = ref
+            if status == "not reproduced" and why is None:
+                why = str(py)
             cells.append({"cell": ref, "step": step["name"], "workbook": _show(wb), "script": _show(py),
                           "difference": d, "status": status})
         if step.get("problem"):
@@ -2721,7 +2791,7 @@ def tie_out(model, values, tolerance, rel=REL_TOLERANCE):
             largest, largest_cell = max_d, max_cell
         steps.append({"step": step["name"], "kind": step["kind"], "sheet": step["sheet"], **counts,
                       "max_difference": max_d, "max_difference_cell": max_cell, "first_difference": first,
-                      "problem": step.get("problem"), "note": step.get("note")})
+                      "problem": step.get("problem"), "note": step.get("note"), "not_reproduced_reason": why})
     recalculated = not (formula_cells and filled == 0)
     if not recalculated:
         status = "not_verified"
@@ -2757,7 +2827,9 @@ def print_tie_out(result, model, show_all=False, out=None):
             w(f"    problem: {s['problem']}\n")
         if s.get("note"):
             w(f"    note: {s['note']}\n")
-    shown = [c for c in result["cells"] if show_all or c["status"] != "tie"]
+        if s.get("not_reproduced_reason"):
+            w(f"    not reproduced: {s['not_reproduced_reason']}\n")
+    shown =[c for c in result["cells"] if show_all or c["status"] != "tie"]
     if shown:
         w("\n" + (f"Every compared cell ({len(shown):,})" if show_all else
                   "Cells that do not tie out (first 40; --all shows every compared cell)") + "\n")
@@ -2871,6 +2943,11 @@ RUNTIME_END = "# <<< SCRIPT RUNTIME"
 _SPECIAL = {"IF", "ROW"}
 # Functions the evaluator reproduces only in part (references/functions.md lists these limits; v3, A-aera-13).
 REPRODUCED_LIMITS = {
+    # v7, A-aera-12: the characters of _PROPER_NOT_REPRODUCED (runtime above)
+    "PROPER": "a word is a run of letters by Unicode, as Excel 16 treats it (measured on the code points up to "
+              "U+3FFFF); a text with a character the script lists as not reproduced (2,239 measured characters "
+              "whose case Excel gives otherwise, for example U+00B5, U+0130 and U+03A3, and the code points not "
+              "measured) is not reproduced",
     "ROW": "only ROW() without an argument, on a helper sheet",
     "TEXT": "only the formats yyyy, yy, mmmm, mmm, mm, m, dddd, ddd, dd, d (dates), 0, 0.0, #,##0, #,##0.00, 0%, "
             "0.0%, General and @",
@@ -3464,11 +3541,14 @@ def _inputs_info(spec: Any) -> dict[str, Any]:
 
 
 def _snapshot_controls(spec: Any, table: str, snapshot: str, types: list[str],
-                       expect: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
+                       expect: dict[str, Any], notes: list[str] | None = None) -> tuple[dict[str, Any], str | None]:
     """(expect, digest): the contract's expect with each control total replaced by the total accepted for the
-    snapshot lift reads (raw/<table>.controls.json, lib.controls.totals_for with the snapshot's digest, written by
-    check --accept-refresh --control), as build writes it into the inputs sheet; the contract's total where no
-    total is accepted for that snapshot (v3, J-5). An invalid controls file is a common.Refusal, as in build."""
+    snapshot lift reads (raw/<table>.controls.json, lib.controls.lookup with the snapshot's digest and the table's
+    agreed contract, written by check --accept-refresh --control or land --control), as build writes it into the
+    inputs sheet; the contract's total where no total is accepted for that snapshot (v3, J-5). v9 (r8 verdict
+    [A-aera-2, C-sol-1]): a total accepted under an earlier agreement is not used (the order of lib.controls); the
+    contract's total is used and the note of lib.controls.stale_note is appended to `notes`. An invalid controls
+    file is a common.Refusal, as in build."""
     import csv
 
     from . import controls, manifest as manmod
@@ -3480,7 +3560,10 @@ def _snapshot_controls(spec: Any, table: str, snapshot: str, types: list[str],
     except (OSError, UnicodeDecodeError, csv.Error):
         return expect, None
     totals = expect.get("totals") or []
-    found = controls.totals_for(spec.root, table, digest) if totals else None
+    contract = spec.contracts.get(table)
+    found, stale = controls.lookup(spec.root, table, digest, contract) if totals else (None, None)
+    if stale is not None and notes is not None:
+        notes.append(controls.stale_note(table, stale, contract))
     if not found:
         return expect, digest
     by_col = {str(t["column"]): t for t in found}
@@ -3496,7 +3579,7 @@ def _snapshot_controls(spec: Any, table: str, snapshot: str, types: list[str],
     return dict(expect, totals=new), digest
 
 
-def _tables_info(spec: Any, manifest: dict[str, Any]) -> dict[str, Any]:
+def _tables_info(spec: Any, manifest: dict[str, Any], notes: list[str] | None = None) -> dict[str, Any]:
     from . import manifest as manmod
     out: dict[str, Any] = {}
     for table in spec.raw:
@@ -3511,7 +3594,7 @@ def _tables_info(spec: Any, manifest: dict[str, Any]) -> dict[str, Any]:
         known_nulls = {c["name"]: c["known_nulls"]["max"] for c in contract.get("columns", [])[1:]
                        if c.get("null_rule") == "never" and isinstance(c.get("known_nulls"), dict)}
         snapshot = entry.get("snapshot") or f"raw/{table}.csv"
-        expect, digest = _snapshot_controls(spec, table, snapshot, types, contract.get("expect") or {})
+        expect, digest = _snapshot_controls(spec, table, snapshot, types, contract.get("expect") or {}, notes)
         out[table] = {"columns": cols, "types": types, "key": list(contract.get("key") or []),
                       "expect": expect, "never_null": never, "snapshot": snapshot}
         if digest:
@@ -3763,8 +3846,10 @@ def _sort_steps(steps: list[_Step]) -> list[_Step]:
     return done
 
 
-def generate_script(spec: Any, manifest: dict[str, Any], *, workbook: Path) -> tuple[str, list[_Step]]:
-    """(script text, steps) for a loaded spec and its workbook's manifest."""
+def generate_script(spec: Any, manifest: dict[str, Any], *, workbook: Path,
+                    notes: list[str] | None = None) -> tuple[str, list[_Step]]:
+    """(script text, steps) for a loaded spec and its workbook's manifest. `notes` (v9): the notes for lift's
+    report are appended to it (a control total accepted under an earlier agreement, _snapshot_controls)."""
     from . import common
     steps: list[_Step] = []
     _helper_steps(spec, steps)
@@ -3775,7 +3860,7 @@ def generate_script(spec: Any, manifest: dict[str, Any], *, workbook: Path) -> t
             "spec_sha256": spec.sha256, "workbook": common.relpath_posix(workbook, spec.root),
             "model_dir": spec.root.as_posix(), "tolerance": float(spec.settings.get("check_tolerance", 0.001)),
             "lifted_at": common.now_iso(), "plugin_version": common.VERSION,
-            "tables": _tables_info(spec, manifest), "inputs": _inputs_info(spec)}
+            "tables": _tables_info(spec, manifest, notes), "inputs": _inputs_info(spec)}
     body = ["def build_model(m):",
             '    """The model, step by step, in the specification\'s order (a step comes after the steps it',
             '    uses). Each step names its spec expression; r is one helper row, row/col are block labels."""']
@@ -3825,8 +3910,9 @@ def _script_header(spec: Any, info: dict[str, Any], steps: list[_Step], not_repr
              "Use:   from this script import run_model; m, _ = run_model(); m.frames()  (pandas data frames)",
              "",
              "Dates are Excel serial day numbers inside the model (1900 date system), as in the workbook.",
-             "Control totals: those accepted for the snapshot in raw/<table>.controls.json when this script was",
-             "written (rotm.py check --accept-refresh --control), else the contract's.",
+             "Control totals: those accepted for the snapshot in raw/<table>.controls.json under the agreement in",
+             "force when this script was written (rotm.py check --accept-refresh --control or rotm.py land --control),",
+             "else the contract's.",
              "Needs Python 3.10 or later and openpyxl (to read the workbook's values); pandas only for frames().",
              ]
     if not_repr:
@@ -3883,7 +3969,10 @@ def lift_model(target: str | Path, *, out: str | Path | None = None, lang: str =
                      f"cell(s), first {where}", UNSUPPORTED_FIX, sheet=u["sheet"], cell=u["cell"],
                      count=max(1, u["cells"]), data={"function": u["function"], "cells": u["cells"],
                                                      "steps": list(u["steps"])})
-    text, steps = generate_script(sp, man, workbook=workbook)
+    lift_notes: list[str] = []
+    text, steps = generate_script(sp, man, workbook=workbook, notes=lift_notes)
+    for n in lift_notes:
+        report.note(n)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = out_path.with_name(out_path.name + ".tmp")
     tmp.write_text(text, encoding="utf-8", newline="\n")
@@ -3999,9 +4088,12 @@ def _run_and_report(script: Path, workbook: Path, report: Any) -> None:
                 sheet=s["sheet"] or None, cell=first["cell"].split("!")[-1], count=s["differ"],
                 cells=[c["cell"].split("!")[-1] for c in bad[:20]]))
         if s["not reproduced"]:
+            # v7, A-aera-12: the reason of the first such cell (for example a PROPER text with a character listed
+            # in _PROPER_NOT_REPRODUCED), so the formula is named with what the script does not reproduce
+            why = f" (first: {s['not_reproduced_reason']})" if s.get("not_reproduced_reason") else ""
             report.add(common.Finding(
                 "L-NOT-REPRODUCED", "error", f"{s['step']}: {s['not reproduced']} of {s['cells']} cells are not "
-                "reproduced by the script", "see the step's reason in the script's header",
+                f"reproduced by the script{why}", "see the step's reason in the script's header",
                 sheet=s["sheet"] or None, count=s["not reproduced"]))
     c = data["counts"]
     t, r, d = data["tolerance"], data.get("relative_tolerance", 0), data.get("max_difference")

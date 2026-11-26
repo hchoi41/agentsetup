@@ -4,7 +4,7 @@
  "version": "0.1.0",
  "command": "build",
  "target": "model.xlsx",
- "at": "2026-11-26T03:53:02+09:00",
+ "at": "2026-11-26T14:51:49+09:00",
  "strict": true,
  "exit_code": 0,
  "status": "pass",
@@ -34,7 +34,7 @@
    "checks",
    "notes"
   ],
-  "formulas": 7111,
+  "formulas": 7163,
   "manifest": "model.manifest.json",
   "power_query_attached": [],
   "hand_queries_carried": {},

@@ -1191,7 +1191,7 @@
   },
   "dense_min_cells": {
    "value": 500,
-   "source": "SYNTHESIS D18 (builder default): and its used block holds at least this many cells; otherwise size 9 (MAX: 'some white spaces then 9')"
+   "source": "SYNTHESIS D18 (builder default; D18: 'the body holds at least 500 cells'): and its used block holds at least this many cells, filled or empty; otherwise size 9 (MAX: 'some white spaces then 9')"
   },
   "sparse_sheet_cells": {
    "value": 100,

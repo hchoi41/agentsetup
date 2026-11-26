@@ -520,6 +520,49 @@ def _in_list(v: Any, allowed: list[Any]) -> bool:
     return False
 
 
+def valid_problem(valid: Any, value: Any) -> str | None:
+    """v8 (r7 verdict [A-aera-5, A-aera-6] part 1), for check and audit, which read an input's saved value from the
+    workbook (rule V-INPUT-RANGE). None when `value` lies within `valid` (an input's "valid": min and max, either end
+    may be left out, or list), or when `valid` declares nothing; else the words that follow the value in the
+    messages of _check_input_values: 'outside its valid range <range>' (the range as it writes it: '1000 to 1000',
+    'of at least 0', 'of at most 12') or 'which is not one of its valid values (<v1>, <v2>, ...)'. A saved value is a
+    number, a date or datetime (compared by its date serial, as Excel's validation compares it; an ISO date text the
+    same), a text or a logical value; None (an empty cell) is outside. A logical value or a number stored as text is
+    never within a range."""
+    import datetime as dt
+    if not isinstance(valid, dict):
+        return None
+    if "list" in valid:
+        allowed = list(valid.get("list") or [])
+        v = value
+        if isinstance(v, dt.datetime) and v.time() == dt.time(0):
+            v = v.date().isoformat()
+        elif isinstance(v, dt.date) and not isinstance(v, dt.datetime):
+            v = v.isoformat()
+        if v is not None and _in_list(v, allowed):
+            return None
+        shown = ", ".join(_value_text(a) if not isinstance(a, str) else a for a in allowed)
+        return f"which is not one of its valid values ({shown})"
+    lo, hi = valid.get("min"), valid.get("max")
+    if lo is None and hi is None:
+        return None
+    if isinstance(value, dt.datetime):
+        x: float | None = (value - dt.datetime(1899, 12, 30)).total_seconds() / 86400
+    elif isinstance(value, dt.date):
+        x = float((value - dt.date(1899, 12, 30)).days)
+    else:
+        x = _serial_of(value)
+    if x is not None and (lo is None or x >= lo) and (hi is None or x <= hi):
+        return None
+    if lo is not None and hi is not None:
+        rng = f"{_value_text(lo)} to {_value_text(hi)}"
+    elif lo is not None:
+        rng = f"of at least {_value_text(lo)}"
+    else:
+        rng = f"of at most {_value_text(hi)}"
+    return f"outside its valid range {rng}"
+
+
 def _check_input_values(spec: Spec, problems: _Problems) -> None:
     """v5 (round 4 verdict A-aera-1): a value of a scalar, list or grid input outside its own "valid" (min and max,
     or list) is refused at its JSON path; an empty cell of a grid (null) is not checked. A date input is compared by
@@ -814,7 +857,9 @@ def _check_placeholder(spec: Spec, problems: _Problems, path: str, ph: Placehold
     if ctx not in ALLOWED_IN[kind]:
         allowed = ", ".join(_CONTEXT_WORDS[c] for c in ALLOWED_IN[kind])
         fix = {"this": "outside a helper sheet, read helper columns as {h:<table>.<column>}",
-               "h": "inside a helper sheet, read same-row helper columns as {this:<column>}"}.get(kind, "")
+               "h": "inside a helper sheet, read same-row helper columns as {this:<column>}; a helper column reads "
+                    "only its own row of its own sheet: for a rank or a percentile within a group see "
+                    "references/helper-patterns.md, \"Rank or percentile within a group\""}.get(kind, "")
         problems.add(path, f"{ph.text} cannot be used in {where} (only in {allowed})",
                      fix or "use a placeholder that fits this place (references/model-spec-format.md lists where each kind fits)")
         return

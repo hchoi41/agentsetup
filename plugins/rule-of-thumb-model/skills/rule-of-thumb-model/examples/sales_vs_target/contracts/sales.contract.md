@@ -30,7 +30,7 @@ Sample profile (describes the sample only; these numbers are not controls):
 | inv_date | 600 | 0 | 152 | 2026-01-01 | 2026-06-30 | - | 2026-01-03, 2026-06-09, 2026-06-13 |
 | region | 600 | 0 | 4 | - | - | - | North, West, South |
 | product | 600 | 27 | 6 | - | - | - | P1, P6, P3 |
-| amount | 600 | 0 | 590 | 10750 | 897700 | 264,697,350 | 858800, 791050, 492100 |
+| amount | 600 | 0 | 590 | 10,750 | 897,700 | 264,697,350 | 858800, 791050, 492100 |
 
 Points to confirm:
 

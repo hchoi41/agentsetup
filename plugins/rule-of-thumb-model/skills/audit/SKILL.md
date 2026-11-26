@@ -43,8 +43,11 @@ command too. Then `<SKILL_DIR>/references/fast-standard-rules.md` for the publis
    contract version the workbook was built from, H- helper columns (inconsistent, gaps,
    coverage, `H-BEYOND` helper formulas below the last raw row), B- block rows, C- checks (missing, block without a check, wiring, a result its own operands do not
    give, failing, raised alerts), V- error values,
-   formula cells with no value (`V-NO-VALUE`) and not recalculated, S- styles against the dictionary, W-
-   calculation mode, iteration and a check compared with itself, X- one-product features. `A-UNREADABLE`: a file the audit cannot read
+   formula cells with no value (`V-NO-VALUE`), saved inputs outside their valid range (`V-INPUT-RANGE`) and not
+   recalculated, S- styles against the dictionary (and
+   `S-CF`, conditional-format rules in a built workbook), W- calculation mode, iteration, a check compared with
+   itself, a check whose operands are wrapped in IFERROR or IFNA (`W-CHECK-GUARD`) and a check that rounds
+   (`W-CHECK-ROUND`), X- one-product features. `A-UNREADABLE`: a file the audit cannot read
    (encrypted, `.xls`); `A-RULE-FAILED`: one rule family could not run.
    - `C-MISSING` (error) also names a check result cell of the manifest that holds no formula (for example a
      typed 0): such a cell shows a pass whatever the model holds. Fix: `rotm.py build --force`.
@@ -87,21 +90,54 @@ command too. Then `<SKILL_DIR>/references/fast-standard-rules.md` for the publis
      compared. Only the kinds `equal` and `at_most` are compared, as in build: a `range` check whose actual
      equals its minimum can still exceed its maximum. Fix: point one side at an independent total (a raw column total, a control total or another
      block's total).
+   - With a manifest: `W-CHECK-GUARD` (warning) when a registered check's actual, expected (minimum or bound),
+     maximum or result cell (columns D, E, F and I of its row on the checks sheet) holds IFERROR or IFNA: an error
+     in an operand then shows as a value, so the check can pass while the model does not calculate
+     (`<SKILL_DIR>/references/checks.md`, rule 4). `build` warns the same for a check expression of the
+     specification. Fix: remove IFERROR or IFNA from the check; for a division that can be by zero, take the zero
+     case on the other side, for example `--(<denominator><>0)*<numerator>`; then rebuild.
+   - With a manifest: `W-CHECK-ROUND` (warning) when a registered check's actual, expected (minimum or bound) or
+     maximum cell (columns D, E and F of its row on the checks sheet) calls ROUND, ROUNDUP, ROUNDDOWN, MROUND, INT,
+     TRUNC, CEILING or FLOOR (or CEILING.MATH, CEILING.PRECISE, ISO.CEILING, FLOOR.MATH, FLOOR.PRECISE): a check
+     compares the unrounded difference with the tolerance (`<SKILL_DIR>/references/checks.md`, rule 3). `build`
+     warns the same for a check expression of the specification. Fix: remove the function from the check and
+     compare the unrounded values with the tolerance; when a business rule needs rounded values, round them in a
+     block and tie that block to an independent total; then rebuild.
+   - With a manifest: `V-INPUT-RANGE` (error) when a scalar input whose specification declares `valid` (min and
+     max, or list) holds a saved value outside it, for example the fixed scale 1000 typed or pasted over as 1. The
+     finding names the cell, the value, the range and the input's note; `check` reports the same. No row of the
+     checks sheet tests it. Fix: change the input's value in `model.spec.json` and rebuild
+     (`rotm.py build MODEL --force`); a value typed or pasted into the inputs sheet is not kept by a rebuild.
+   - With a manifest: `S-CF` (warning), one finding per sheet that holds a conditional-format rule: build writes
+     none, so the rule was added after the build. The style rules compare the fill stored on each cell and do not
+     read the colours such a rule draws; the renders show them. Fix: remove the rules (Home > Conditional
+     Formatting > Clear Rules > Clear Rules from Entire Sheet) and rebuild. Without a manifest there is no `S-CF`;
+     `theme` reports such rules as `T-CF`.
    - With a manifest: `S-NUMFMT` (warning) expects, for a header cell that shows an item of an input list, the
      format of that item: the block's own rows or columns format, else the list's format, else the date format
      (row headers) or the month format (column headers) when the item is an ISO date, else General. A header
-     of a list whose format is text may hold the text format or General. Without the specification these
-     header cells are not compared, and a note says so.
+     of a list whose format is text may hold the text format or General. A header cell of a block whose rows or
+     columns are given as `same_as` another block expects the format of the label cell it links to (to the end of
+     a chain of `same_as`; a timeline gives the month format; a format given on the `same_as` node wins).
+     Without the specification these header cells are not compared, and a note says so.
 4. Without a manifest (a workbook the plugin did not build) raw sheets, helper columns and checks are inferred;
    those findings start with "(inferred)", and styles are compared with the dictionary as a whole.
+   - The formula rules (F-) are left out only on a raw sheet a manifest registers. On a sheet classed as raw by
+     its name, by a query table or by `--raw-sheets`, they run, and each formula there is also `R-FORMULA`.
    - When the workbook has check cells, `C-BLOCK` (warning, "(inferred)") names each calculation block that no
      check cell reads: two or more formula cells with one formula copied down a column or along a row, on a
      sheet that is not raw and not a checks sheet. A check reads a block when its formula refers to at least one
-     cell of the block (a range that overlaps it counts). Each finding gives the sheet, the first cell and the
+     cell of the block (a range that overlaps it counts). A check that reads the block's total cell, or a link to
+     it, counts as reading the block: a cell whose formula is only `SUM` or `SUBTOTAL` (function 9 or 109) of
+     references, references joined by `+`, or one reference counts as read with the cells it refers to, at most
+     two such cells deep; no other formula is followed. Each finding gives the sheet, the first cell and the
      range; the fix is a check that ties the block to an independent total (`references/checks.md`). A note
-     gives the count of blocks found, read and not read.
+     gives the count of blocks found, read (and how many of them through a total or link cell) and not read.
    - A run of cells whose formula is only a reference to one cell (a link such as `=Sheet!B2` or `=B2`) is
      not a calculation block and gets no `C-BLOCK`. A note gives the count of such link runs left out.
+   - `W-CHECK-GUARD` (warning, "(inferred)"): an inferred check cell whose outermost function is IFERROR or
+     IFNA, for example `=IFERROR(IF(ABS(R)>1,"ERROR","OK"),"OK")`: an error in its operands shows as a pass
+     (or as the fallback value). Cells of one sheet with the same formula are one finding with their count.
    - An empty cell between two runs of one formula in a column is `H-GAP` (warning, "(inferred)") at that cell;
      the fix copies the formula of the cell above into it. A row that holds a label is taken as a deliberate
      break and gets no finding, and so is an empty spacer row (a row with no cell) in a column that reads no raw

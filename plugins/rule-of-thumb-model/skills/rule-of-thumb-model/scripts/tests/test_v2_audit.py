@@ -96,7 +96,8 @@ def test_two_blocks_with_a_check_on_one_reports_the_other_once(tmp_path: Path) -
     assert f.fix == FIX
     assert f.data["range"] == "D2:D6" and f.data["first_cell"] == "D2" and f.data["cells"] == 5
     assert f.data["inferred"] is True
-    assert "inferred calculation blocks: 2; 1 read by a check cell, 1 read by none (C-BLOCK)" in rep.notes
+    assert ("inferred calculation blocks: 2; 1 read by a check cell (0 of them through a total or link cell), "
+            "1 read by none (C-BLOCK)") in rep.notes                    # v9 (A-aera-11): the count through a total
     assert rep.exit_code == 1                          # a warning fails the strict audit
 
 

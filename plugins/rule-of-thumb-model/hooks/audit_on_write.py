@@ -12,6 +12,12 @@ when the session never saw it, when it changed in the last 600 s.
 When the command itself already ran a strict audit of that exact file (reports/status.json holds a strict
 audit whose sha256 is the file's), that result is used and the audit is not run again.
 
+v9 (round 8 verdict C-sol-5): a status record counts only while the model folder's inputs are as they were when
+it was recorded: a record whose field "inputs" (modelfolder.inputs_fingerprint: the sha256 of each raw/<t>.csv
+and the agreement hash of each agreed contract) differs from the inputs now is not reused and does not make the
+state "recalculated"; a record without "inputs" (written before v9) counts as in v8. The session record of the
+hook's own audit stores "inputs" as they were when that audit ran (for a reused audit: the reused record's).
+
 Output (JSON on stdout, exit 0):
 - errors or warnings: {"decision": "block", "reason": "rule-of-thumb-model audit on write: model.xlsx: 1 error,
   2 warnings ..." with up to 15 finding lines and a fix line}; the model sees it, the tool call has already run;
@@ -71,6 +77,7 @@ class Result:
     recalculated: bool = False
     lines: list[str] = field(default_factory=list)
     problem: str = ""
+    inputs: dict[str, Any] | None = None    # v9 (C-sol-5): the model folder's inputs when the audit ran
 
 
 def _plural(n: int, word: str) -> str:
@@ -92,16 +99,17 @@ def finding_line(f: dict[str, Any]) -> str:
     return text.replace("\n", " ")
 
 
-def recalculated_on_record(steps: dict[str, Any], sha256: str) -> bool:
+def recalculated_on_record(steps: dict[str, Any], sha256: str, inputs: dict[str, Any] | None = None) -> bool:
     """True when the status records of one workbook hold a passing check that recalculated it, or a passing
     recalc, whose output_sha256 is `sha256` (v5, A-aera-18). A recalc record has no field "recalculated": the
-    step always recalculates; a check record must say recalculated true."""
+    step always recalculates; a check record must say recalculated true. v9 (C-sol-5): with `inputs` (the model
+    folder's fingerprint now), a record whose own "inputs" differ does not count."""
     for step in RECALC_STEPS:
         rec = steps.get(step)
         if not isinstance(rec, dict) or not sha256:
             continue
         if rec.get("exit_code") == 0 and rec.get("output_sha256") == sha256 \
-                and rec.get("recalculated", step == "recalc") is True:
+                and rec.get("recalculated", step == "recalc") is True and hl.inputs_hold(rec, inputs):
             return True
     return False
 
@@ -115,15 +123,20 @@ def run_audit(wb: Path, root: Path, budget_s: float) -> Result:
         res.problem = f"the workbook could not be read ({type(exc).__name__})"
         return res
     steps = modelfolder.read_status(root)["workbooks"].get(rel) or {}
-    res.recalculated = recalculated_on_record(steps, res.sha256)
+    inputs = hl.model_inputs(root)
+    res.recalculated = recalculated_on_record(steps, res.sha256, inputs)
     rec = steps.get("audit") or {}
-    if rec.get("sha256") == res.sha256 and rec.get("strict") is True and rec.get("exit_code") == 0:
+    if rec.get("sha256") == res.sha256 and rec.get("strict") is True and rec.get("exit_code") == 0 \
+            and hl.inputs_hold(rec, inputs):
         # a clean strict audit of this exact file is on record (the command ran it): not run twice. A record
-        # with findings is not reused, so that the finding lines can be shown.
+        # with findings is not reused, so that the finding lines can be shown; nor is a record made before a later
+        # landing or agreement (v9, C-sol-5).
         res.reused = True
         res.ran = True
         res.exit_code = 0
+        res.inputs = rec.get("inputs") if isinstance(rec.get("inputs"), dict) else None
         return res
+    res.inputs = inputs
     if budget_s < 5:
         res.problem = "not audited: the hook's time budget was used up by other workbooks"
         return res
@@ -221,10 +234,12 @@ def handle(ctx: hl.Context) -> hl.Emit | None:
     with hl.session(ctx.session_id) as s:
         for r in results:
             if r.ran:
-                s["audits"][hl.key(r.wb)] = {
-                    "path": r.wb.as_posix(), "sha256": r.sha256, "strict": True, "exit_code": r.exit_code,
-                    "errors": r.errors, "warnings": r.warnings, "info": r.info, "recalculated": r.recalculated,
-                    "reused": r.reused, "at": common.now_iso()}
+                own = {"path": r.wb.as_posix(), "sha256": r.sha256, "strict": True, "exit_code": r.exit_code,
+                       "errors": r.errors, "warnings": r.warnings, "info": r.info, "recalculated": r.recalculated,
+                       "reused": r.reused, "at": common.now_iso()}
+                if r.inputs is not None:
+                    own["inputs"] = r.inputs            # v9 (C-sol-5): the inputs when the audit ran
+                s["audits"][hl.key(r.wb)] = own
     several = len({hl.key(r.root) for r in results}) > 1
     texts = []
     block = False

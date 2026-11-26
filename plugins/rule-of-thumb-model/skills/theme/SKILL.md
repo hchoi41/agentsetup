@@ -36,7 +36,8 @@ command too. Then `<SKILL_DIR>/references/style-dictionary.md` (sections 5 to 7:
    - Raw sheets the classifier misses: `--raw-sheets S1,S2`.
 4. theme compares before and after by code and keeps queries, tables, charts, names and conditional formats. A
    workbook with parts openpyxl would drop is edited through Excel; without Excel it is refused (exit 3,
-   `T-FRAGILE`) and nothing is written. The comparison rule is the same in theme, compat and split:
+   `T-FRAGILE`) and nothing is written. Formatted text inside a cell (rich text, in shared or inline strings) is
+   such a part; theme gives each such cell one font (`T-RICHTEXT`), an intended change. The comparison rule is the same in theme, compat and split:
    - formulas and typed values: exactly;
    - calculated values (after both files are recalculated in Excel, when Excel is available): within a relative
      tolerance, `--calc-tolerance` (default 1e-9; `--calc-tolerance 0` compares them exactly);

@@ -36,7 +36,9 @@ RAW_SHEET_RE = r"(?i)^(raw|data|src|landed)[_ -]?|_raw$"
 CHECK_WORDS = ("check", "chk", "control", "error", "diff", "검증", "체크", "차이", "오류")
 
 # Thresholds of the density rule when the dictionary gives none (dictionary rules dense_fill_ratio and
-# dense_min_cells; SYNTHESIS D18, builder default).
+# dense_min_cells; SYNTHESIS D18, builder default). v9 (r8 verdict A-aera-16), as D18 sets them: the sheet is
+# dense when its used block holds at least DENSE_MIN_CELLS cells (filled or empty) and at least DENSE_FILL_RATIO
+# of those cells are filled. In v8 the 500 was compared with the filled cells.
 DENSE_FILL_RATIO = 0.6
 DENSE_MIN_CELLS = 500
 YEAR_MIN, YEAR_MAX = 1990, 2100
@@ -161,13 +163,17 @@ def _guess(sheet: Any, dictionary: Any = None, raw: bool | None = None) -> tuple
     if raw:
         return "raw", "raw sheet (always dense)", dens
     ratio_min, cells_min = _thresholds(dictionary)
-    dense = dens["filled"] >= cells_min and dens["ratio"] >= ratio_min
-    what = (f"{dens['filled']} filled cells in a block of {dens['area']} ({dens['ratio']:.0%})"
-            if dens["area"] else "no cells")
+    # SYNTHESIS D18: the size threshold is on the cells of the block, the ratio on its filled cells. The ratio is
+    # compared unrounded (density() rounds it to 4 decimals for the report).
+    dense = (dens["area"] >= cells_min and dens["area"] > 0
+             and dens["filled"] / dens["area"] >= ratio_min)
+    what = (f"{dens['filled']} filled cells in a block of {dens['area']} cells "
+            f"({dens['filled'] / dens['area']:.1%})" if dens["area"] else "no cells")
     if _HELPER_RE.search(sheet.name):
         return "helpers", f"helper sheet by name; {what}", dens
     if dense:
-        return "calc", f"dense: {what}, at least {ratio_min:.0%} and {cells_min} cells", dens
+        return "calc", (f"dense: {what}, at least {ratio_min:.0%} filled and a block of at least {cells_min} "
+                        f"cells"), dens
     for sheet_type, pattern in _NAME_TYPES:
         if pattern.search(sheet.name):
             return sheet_type, f"not dense: {what}; '{sheet_type}' by its name", dens
@@ -176,9 +182,10 @@ def _guess(sheet: Any, dictionary: Any = None, raw: bool | None = None) -> tuple
 
 def guess_sheet_type(sheet: Any, dictionary: Any = None) -> str:
     """One of SHEET_TYPES for a workbook.SheetInfo, chosen for its font size: raw sheets are "raw" (dense); a
-    sheet whose used block is at least dense_fill_ratio filled and holds at least dense_min_cells cells is "calc"
-    (dense: size 8); a sheet with white space gets the type its name suggests among cover, inputs, checks,
-    notes and output, else "output" (spaced: size 9). Helper sheets (h_..., helper) are "helpers"."""
+    sheet whose used block (from the first to the last used row and column) holds at least dense_min_cells cells,
+    filled or empty, of which at least dense_fill_ratio are filled, is "calc" (dense: size 8; SYNTHESIS D18);
+    a sheet with white space gets the type its name suggests among cover, inputs, checks, notes and output,
+    else "output" (spaced: size 9). Helper sheets (h_..., helper) are "helpers"."""
     return _guess(sheet, dictionary)[0]
 
 

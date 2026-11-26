@@ -13,8 +13,12 @@ measured with Excel 16.0 on the build PC on 2026-11-25 (COUNTIFS, COUNTIF and SU
   '1234567890123456' and '1234567890123457' read as the same number. A month and day without a year ('1/2', '1-30')
   read as a date of the current year.
 - A text criterion matches text cells only, without case ('North' matches 'north'; 'Straße' matches 'STRASSE').
-  When it holds * or ?, they are wildcards (* any text, also none; ? one character); ~* and ~? are a literal * and ?,
-  a ~ at the end is dropped. Without * or ? a ~ is an ordinary character.
+  When it holds * or ?, they are wildcards (* any text, also none; ? one character), and a ~ makes the character
+  after it a plain character: ~* and ~? are a literal * and ?, ~~ is a literal ~, and ~ before any other character
+  is dropped (A~b* matches Abc, not A~bc); a ~ at the end is dropped. Without * or ? a ~ is an ordinary character
+  (A~~ matches A~~ only). v9: the ~ before a character other than * and ? measured with Excel 16.0 on the build PC
+  on 2026-11-26 (COUNTIF, COUNTIFS and SUMIFS on 81 pairs; test test_v9_criteria.py::
+  test_tilde_rules_follow_excel_countif).
 - The texts TRUE and FALSE (any case) match the logical values only, not the texts TRUE and FALSE.
 - A criterion that starts with =, <>, <, >, <= or >= is an operator: = and <> with a number compare numbers only
   for <> (a text cell is never equal to a number there) and read texts as numbers for =; <, >, <= and >= compare
@@ -31,6 +35,15 @@ criteria_findings() reports, for every criterion a formula of the workbook passe
 row and column labels of a block, input-list items and other label cells, and typed criteria) and every distinct
 value of its criteria range that is not exactly equal to it, the pairs Excel would add together (D-CRITERIA,
 warning). A typed criterion that starts with an operator or holds a wildcard is taken as meant and is not compared.
+v8 (C-sol-1) and v9 (A-aera-1, C-sol-2): when the label is also a value of its criteria range and Excel does not
+match it with itself (excel_criteria_match(label, label) is false), it reports D-CRITERIA with the reason key
+self_mismatch: Excel leaves the rows with this label out. The finding's data field case says why: logical (the
+texts TRUE and FALSE in any case, read as logical values), operator (a label taken from a cell that starts with =,
+< or >, read as a comparison), tilde (a label in which Excel reads ~* or ~? as a literal * or ?) or other (any
+other label, for example A~b* or A~~?). The fix names the pattern that fits (references/helper-patterns.md, "A
+label that Excel's criteria matching does not match with itself"): a helper key with a fixed prefix on both sides,
+or, for a label that holds ~ together with * or ?, helper keys on both sides that replace ~, * and ? by fixed
+texts, one SUBSTITUTE per helper column.
 Without saved values it covers criteria ranges that are fetch columns of a raw text column (and raw text columns
 themselves), with the values of the raw sheet; with saved values it also covers the other helper columns (and the
 other raw columns), with the values Excel saved.
@@ -55,6 +68,19 @@ EXCEL_MAX_NUMBER = Decimal("9.99999999999999E+307")
 FIX = ("make the labels unambiguous: change the contract's source expression of {column} (for example keep a code "
        "at a fixed length with its leading zeros, or put a letter in front of it), or match on a helper column that "
        "holds an unambiguous key; land again, show and agree the contract, and rebuild")
+# v8 (C-sol-1): a label that Excel's criteria matching does not match with itself (plan 5.1 texts)
+FIX_SELF = ('give both sides a helper key with a fixed prefix: a helper column "k_"&{column} and the criterion '
+            '"k_"&{label} (references/helper-patterns.md, "A label that Excel\'s criteria matching does not match '
+            'with itself")')
+# v9 (A-aera-1, C-sol-2): a label that holds ~ together with * or ? (plan 5.1 text)
+FIX_SIGNS = ("give both sides helper keys that replace ~, * and ? by fixed texts, one SUBSTITUTE per helper column "
+             '(references/helper-patterns.md, "A label that Excel\'s criteria matching does not match with itself")')
+SELF_REASONS = {
+    "logical": "Excel reads the criterion TRUE or FALSE as a logical value, which does not match the text",
+    "operator": "a criterion that starts with =, < or > is read as a comparison",
+    "tilde": "Excel reads ~* and ~? in a criterion as a literal * and ?, so the label does not match itself",
+    "other": "Excel's criteria matching does not match this text with itself",
+}
 
 _FUNC_RE = re.compile(r"\b(?:_xlfn\.)?(?:SUMIFS?|COUNTIFS?|AVERAGEIFS?|MAXIFS|MINIFS)\s*\(", re.IGNORECASE)
 _OPERATORS = ("<=", ">=", "<>", "<", ">", "=")
@@ -250,13 +276,11 @@ def _pattern(p: str) -> re.Pattern[str]:
     while i < len(p):
         ch = p[i]
         if ch == "~":
-            if i + 1 < len(p) and p[i + 1] in "*?":
-                out.append(re.escape(p[i + 1]))
-                i += 2
-                continue
             if i + 1 == len(p):
                 break                                   # a ~ at the end is dropped
-            out.append(re.escape(ch))
+            out.append(re.escape(p[i + 1]))             # v9: ~ makes the next character plain, whatever it is
+            i += 2
+            continue
         elif ch == "*":
             out.append(".*")
         elif ch == "?":
@@ -345,10 +369,61 @@ def _reason(label: Any, value: Any) -> tuple[str, str]:
     return "other", "Excel's criteria rules"
 
 
+def _escapes_wildcard(text: str) -> bool:
+    """Whether Excel reads ~* or ~? in `text` as a literal * or ?: a ~ before * or ? that is not itself made plain
+    by a ~ before it, in a text that holds * or ? (without them a ~ is an ordinary character)."""
+    if "*" not in text and "?" not in text:
+        return False
+    i = 0
+    while i < len(text) - 1:
+        if text[i] == "~":
+            if text[i + 1] in "*?":
+                return True
+            i += 2                                      # ~ makes the next character plain
+            continue
+        i += 1
+    return False
+
+
+def _self_case(label: Any) -> str | None:
+    """Why Excel's criteria matching does not match `label` with itself (v8 C-sol-1, v9 A-aera-1 and C-sol-2):
+    logical, operator, tilde or other; None when excel_criteria_match(label, label) is true."""
+    if excel_criteria_match(label, label):
+        return None
+    if isinstance(label, str):
+        if label.startswith(("=", "<", ">")):
+            return "operator"
+        if label.casefold() in ("true", "false"):
+            return "logical"
+        if _escapes_wildcard(label):
+            return "tilde"
+    return "other"
+
+
+def _self_reason(label: Any) -> str | None:
+    """The plan 5.1 reason text for every label that Excel's criteria matching does not match with itself
+    (excel_criteria_match(label, label) is false); None for a label that it matches with itself."""
+    case = _self_case(label)
+    return SELF_REASONS[case] if case else None
+
+
+def _self_fix(label: Any, column: str, criterion_text: str) -> str:
+    """The fix that fits a self-mismatch: the helper keys that replace ~, * and ? for a label that holds ~ together
+    with * or ? (a fixed prefix does not change how Excel reads them); else the helper key with a fixed prefix."""
+    if isinstance(label, str) and "~" in label and ("*" in label or "?" in label):
+        return FIX_SIGNS
+    return FIX_SELF.format(column=column, label=criterion_text)
+
+
 def _number_text(n: Decimal) -> str:
     if n == n.to_integral_value():
         return str(int(n))
     return format(n.normalize(), "f")
+
+
+def _data_value(v: Any) -> Any:
+    """A label or value for a finding's data (JSON): dates and times as their text."""
+    return _show(v) if isinstance(v, (dt.date, dt.time)) else v
 
 
 def _show(v: Any) -> str:
@@ -647,7 +722,27 @@ def criteria_findings(workbook: str | Path, manifest: dict[str, Any], *,
                 where = _block_name(manifest, call.sheet, call.cell)
                 group = (where.split(" (")[0], src.sheet, src.column, type(label).__name__, label)
                 for (_tname, value), row in distinct(src).items():
-                    if _exactly_equal(label, value) or not excel_criteria_match(label, value):
+                    if _exactly_equal(label, value):
+                        # v8 (C-sol-1), v9 (A-aera-1, C-sol-2): the label is a value of the range and Excel does
+                        # not match it with itself, whatever the reason
+                        key = group + ("self_mismatch",)
+                        if key in seen or excel_criteria_match(label, value):
+                            continue
+                        seen.add(key)
+                        case = _self_case(label) or "other"
+                        reason = SELF_REASONS[case]
+                        shown = _show(label)
+                        out.append(common.Finding(
+                            RULE, "warning",
+                            f"{where}: the label '{shown}' is also a value of {src.sheet} column {src.column} (first "
+                            f"row {row}), and Excel's criteria matching does not match '{shown}' with itself "
+                            f"({reason}), so {call.function} leaves out the rows with this label",
+                            _self_fix(label, src.column, call.criterion_text), sheet=call.sheet, cell=call.cell,
+                            data={"where": where, "label": _data_value(label), "value": _data_value(value),
+                                  "sheet": src.sheet, "column": src.column, "row": row, "function": call.function,
+                                  "reason": "self_mismatch", "case": case, "source": src.kind}))
+                        continue
+                    if not excel_criteria_match(label, value):
                         continue
                     key = group + (type(value).__name__, value)
                     if key in seen:

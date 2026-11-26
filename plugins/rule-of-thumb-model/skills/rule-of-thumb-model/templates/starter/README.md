@@ -44,6 +44,36 @@ never-null columns, coverage by helper rows, repeated keys) and the master check
 
 - `spend_ties_raw`: Grid total equals the raw total of amount.
 
+## Texts that follow an input
+
+The input `start_month` (First month of the model, 2026-01-31) and the timeline's `periods` (3 months, block
+`spend`) give the months of the model. When the months change, change each text below with them in
+`model.spec.json`, then rebuild, check and render.
+
+| Input | JSON path | Text |
+| --- | --- | --- |
+| `start_month` | `limitations[1]` | Three months, January to March 2026. |
+
+- The contract `lines` scopes the rows of its extract by its `source.where`:
+  `e.line_date BETWEEN '2026-01-01' AND '2026-03-31'`. These dates go with `start_month` and the 3 months: when the
+  months change, the where clause changes too. It is part of the agreed contract, so change it as
+  `references/column-contract.md`, "When the contract must change after agreement", says:
+  1. `rotm.py contract propose "<model folder>" --table lines --force --csv "<model folder>/raw/lines.csv"` with
+     `--where "<new where clause>"` and the options that give the agreed contract's other settings back (`--key`,
+     `--grain`, `--source`, `--connector`, `--system`, `--unit`, `--type`, `--rows`, `--total`, `--purpose`); then
+     edit in the proposed JSON what propose cannot write (the source expressions and the descriptions). The
+     plugin's `templates/rolling_forecast/README.md`, "The monthly roll", step 1, gives the whole command and the
+     edits for one contract.
+  2. `rotm.py contract show "<model folder>" --table lines`: its section "Changes since version <n>" lists the
+     where clause.
+  3. Show the user `contracts/lines.contract.md` and record their agreement in their new words:
+     `rotm.py contract agree "<model folder>" --table lines --reply "<the user's new words>" --by <name>`.
+  4. Land again: `rotm.py land "<model folder>" --table lines` writes the query texts with the new where clause;
+     then land the new extract: `rotm.py land "<model folder>" --table lines --csv "<export.csv>" --force --control
+     lines.amount=<source total>`.
+  5. Change `start_month`, the timeline's `periods` and the text above, then rebuild
+     (`rotm.py build "<model folder>" --strict --force`), check and render.
+
 ## How it was built and tested
 
 - Data: `make_data.py` writes `data/*.csv` and `data/controls.json` (deterministic, seed 20261125). The data are

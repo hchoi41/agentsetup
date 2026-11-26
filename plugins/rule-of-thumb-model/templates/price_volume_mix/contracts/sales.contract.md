@@ -29,7 +29,7 @@ Sample profile (describes the sample only; these numbers are not controls):
 | period | 250 | 0 | 2 | - | - | - | PY, CY |
 | product | 250 | 0 | 4 | - | - | - | Pro, Plus, Basic |
 | qty | 250 | 0 | 20 | 1 | 20 | 2,607 | 1, 2, 16 |
-| revenue | 250 | 0 | 220 | 19500 | 2082400 | 102,662,100 | 59300, 70000, 324800 |
+| revenue | 250 | 0 | 220 | 19,500 | 2,082,400 | 102,662,100 | 59300, 70000, 324800 |
 
 Points to confirm:
 

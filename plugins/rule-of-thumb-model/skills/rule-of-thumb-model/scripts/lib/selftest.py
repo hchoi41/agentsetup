@@ -39,6 +39,16 @@ Exit: 0 when every step that ran passed (and, with --strict, no Excel step was s
 3 when an Excel step was skipped under --strict, and when pytest is not installed (one line, N_PYTEST, before any
 step). --quick runs steps 1 to 3 only (the others are "not run", which never changes the exit code). The JSON
 report's "strict" field is the --strict option (v3, J-6). Owner: INTEGRATOR.
+
+Progress (v8, round 7 verdict A-aera-18): one line on stderr, flushed, when a step starts and when it ends, and about
+every PYTEST_PROGRESS_S seconds (300 s) while the pytest step runs; the elapsed time counts from the start of the run:
+  selftest: step <name> started (elapsed <s> s)
+  selftest: step <name> passed|failed in <s> s (elapsed <s> s)
+  selftest: step <name> skipped in 0 s (elapsed <s> s)        (a step that is skipped or not run: this line only)
+  selftest: step pytest running: <n> tests done (elapsed <s> s)
+  selftest: step pytest running (elapsed <s> s)                (no progress line of pytest's output read yet)
+<n> is the count of outcome characters (. F E s x X) in the progress lines pytest -q has printed so far (a test with
+an error at teardown counts twice). Stdout and the JSON report are as in v7: the lines go to stderr only.
 """
 from __future__ import annotations
 
@@ -51,6 +61,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import zipfile
 from dataclasses import dataclass
@@ -72,6 +83,31 @@ F27_TOLERANCE = Decimal("0.001")  # the default check_tolerance, in the unit of 
 # v3, [C-sol-16]: the one line `rotm.py selftest` prints when pytest is missing (exit 3, no step runs)
 N_PYTEST = ("rotm.py selftest needs the Python package pytest, which is not installed (python -m pip install pytest); "
             "the other commands do not need it")
+# v8, round 7 verdict A-aera-18: the progress lines on stderr (module docstring, "Progress")
+PYTEST_PROGRESS_S = 300.0         # seconds between two running lines of the pytest step; a test may set it lower
+PYTEST_TIMEOUT_S = 7200           # the pytest step's time limit in seconds, as in v7
+_WAIT_MIN_S = 0.05                # the shortest wait between two looks at the pytest process, in seconds
+_PYTEST_PROGRESS = re.compile(r"^([.FEsxX]+)\s*\[\s*\d+%\]\s*$")
+_PROGRESS_TEXT = re.compile(r"^selftest: step \S+ (?:started|passed|failed|skipped|running)\b")
+
+
+def _progress(text: str) -> None:
+    """One progress line on stderr, flushed at once; never on stdout and never in the report."""
+    stream = sys.stderr
+    if stream is None:
+        return
+    try:
+        stream.write(f"selftest: {text}\n")
+        stream.flush()
+    except (OSError, ValueError):
+        pass
+
+
+def pytest_progress_count(line: str) -> int | None:
+    """The count of outcome characters in one progress line of pytest -q output ("....F.s   [ 40%]"), or None when
+    the line is not a progress line."""
+    m = _PYTEST_PROGRESS.match(line.strip())
+    return len(m.group(1)) if m else None
 
 
 # ----------------------------------------------------------------------------- small helpers
@@ -155,7 +191,10 @@ def _copy_failures(report_path: Path, proc: subprocess.CompletedProcess[str]) ->
     data = rep.get("data") or {}
     steps = data.get("steps") or {}
     if not isinstance(steps, dict) or not steps:
-        return _tail(proc, 10)
+        # v8: the copy's progress lines on stderr are left out, so that the tail is the one v7 gave
+        err = "".join(line for line in (proc.stderr or "").splitlines(keepends=True)
+                      if not _PROGRESS_TEXT.match(line))
+        return _tail(subprocess.CompletedProcess(proc.args, proc.returncode, proc.stdout, err), 10)
     failed_steps = [k for k, v in steps.items() if v == "fail"]
     tests: list[str] = []
     for t in data.get("pytest_failed") or []:
@@ -419,6 +458,7 @@ class _Run:
         self.excel_why = excel_why
         self.foreign_dir = foreign_dir
         self.started = common.now_iso()
+        self.t_start = time.monotonic()           # v8 (A-aera-18): the elapsed time of the progress lines
         self.copies: list[Path] = []
         self.results: dict[str, str] = {}
         # step 8: workbook -> the cells to split, each with the rule id of the refusal it must end with (or None)
@@ -428,17 +468,68 @@ class _Run:
     def step_pytest(self) -> str:
         env = _env({"ROTM_NO_EXCEL": "1"} if (self.quick or not self.excel_ok) else None)
         # -rfE: one "FAILED <node id> - ..." or "ERROR <node id> - ..." line per failing test (v4, A-aera-7)
-        proc = subprocess.run([sys.executable, "-P", "-X", "utf8", "-B", "-m", "pytest", "scripts/tests", "-q",
-                               "-p", "no:cacheprovider", "-rfE"], cwd=_skill(), capture_output=True, text=True,
-                              encoding="utf-8", errors="replace", env=env, timeout=7200)
-        last = (proc.stdout or "").strip().splitlines()[-1:] or [""]
-        failed = failing_tests(proc.stdout or "")
+        code, stdout = self._pytest_run([sys.executable, "-P", "-X", "utf8", "-B", "-m", "pytest", "scripts/tests",
+                                         "-q", "-p", "no:cacheprovider", "-rfE"], env)
+        last = stdout.strip().splitlines()[-1:] or [""]
+        failed = failing_tests(stdout)
         self.report.data["pytest_failed"] = failed
-        if proc.returncode != 0:
-            raise StepFailed(f"pytest exit {proc.returncode}: {last[0]}"
+        if code != 0:
+            raise StepFailed(f"pytest exit {code}: {last[0]}"
                              + (f"; failing tests: {_names(failed)}" if failed else ""))
         excel_note = "Excel tests skipped" if (self.quick or not self.excel_ok) else "Excel tests included"
         return f"pytest: {last[0]} ({excel_note})"
+
+    def _pytest_run(self, cmd: list[str], env: dict[str, str] | None) -> tuple[int, str]:
+        """Run pytest in the skill folder and return its exit code and its whole stdout (the text v7 read from
+        subprocess.run). Stdout is read line by line while pytest runs, so that a running line with the count of
+        tests done can be written about every PYTEST_PROGRESS_S seconds (v8, A-aera-18); stderr is read and left
+        out, as in v7. After PYTEST_TIMEOUT_S seconds pytest is stopped and subprocess.TimeoutExpired is raised, as
+        subprocess.run raised it in v7."""
+        proc = subprocess.Popen(cmd, cwd=_skill(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                encoding="utf-8", errors="replace", env=env)
+        out: list[str] = []
+        done: list[int | None] = [None]
+
+        def read_stdout() -> None:
+            for line in proc.stdout:              # type: ignore[union-attr]
+                out.append(line)
+                n = pytest_progress_count(line)
+                if n is not None:
+                    done[0] = (done[0] or 0) + n
+
+        readers = [threading.Thread(target=read_stdout, daemon=True),
+                   threading.Thread(target=proc.stderr.read, daemon=True)]   # type: ignore[union-attr]
+        for t in readers:
+            t.start()
+        started = time.monotonic()
+        deadline = started + PYTEST_TIMEOUT_S
+        next_line = started + PYTEST_PROGRESS_S
+        try:
+            while True:
+                now = time.monotonic()
+                if now >= deadline:
+                    raise subprocess.TimeoutExpired(cmd, PYTEST_TIMEOUT_S)
+                try:
+                    proc.wait(timeout=max(_WAIT_MIN_S, min(next_line, deadline) - now))
+                    break
+                except subprocess.TimeoutExpired:
+                    pass
+                if time.monotonic() >= next_line and proc.poll() is None:
+                    n = done[0]
+                    _progress(f"step pytest running{f': {n} tests done' if n is not None else ''} "
+                              f"(elapsed {self.elapsed():.0f} s)")
+                    next_line = time.monotonic() + PYTEST_PROGRESS_S
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        finally:
+            for t in readers:
+                t.join()
+            for stream in (proc.stdout, proc.stderr):
+                if stream is not None:
+                    stream.close()
+        return proc.returncode, "".join(out)
 
     # --- 2
     def step_examples(self) -> str:
@@ -861,25 +952,38 @@ class _Run:
         return expected
 
     # --- driver
+    def elapsed(self) -> float:
+        """Seconds since this run started (v8, A-aera-18)."""
+        return time.monotonic() - self.t_start
+
+    def _ended(self, name: str, outcome: str, took: float) -> None:
+        _progress(f"step {name} {outcome} in {took:.0f} s (elapsed {self.elapsed():.0f} s)")
+
     def run(self, name: str, fn: Callable[[], str]) -> None:
         t0 = time.monotonic()
+        _progress(f"step {name} started (elapsed {self.elapsed():.0f} s)")
         try:
             text = fn()
         except StepFailed as exc:
             self.results[name] = "fail"
             self.report.error("SELFTEST-FAIL", f"step {name}: {exc}", "fix the cause named and run selftest again")
+            self._ended(name, "failed", time.monotonic() - t0)
             return
         except Exception as exc:  # noqa: BLE001 - a crash in a step is a failed step, the others still run
             self.results[name] = "fail"
             common.save_traceback(exc)
             self.report.error("SELFTEST-FAIL", f"step {name}: {type(exc).__name__}: {exc}",
                               "see the traceback in the state folder's last_error.txt")
+            self._ended(name, "failed", time.monotonic() - t0)
             return
+        took = time.monotonic() - t0
         self.results[name] = "pass"
-        self.report.info("SELFTEST-PASS", f"step {name} passed in {time.monotonic() - t0:.0f} s: {text}")
+        self.report.info("SELFTEST-PASS", f"step {name} passed in {took:.0f} s: {text}")
         self.report.note(f"{name}: pass: {text}")
+        self._ended(name, "passed", took)
 
     def skip(self, name: str, why: str, *, quick: bool = False) -> None:
+        self._ended(name, "skipped", 0.0)
         self.results[name] = "not run" if quick else "skipped"
         if quick:
             self.report.note(f"{name}: not run ({why})")

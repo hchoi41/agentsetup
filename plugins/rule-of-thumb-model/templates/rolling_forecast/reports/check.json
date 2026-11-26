@@ -4,7 +4,7 @@
  "version": "0.1.0",
  "command": "check",
  "target": "model.xlsx",
- "at": "2026-11-25T23:25:38+09:00",
+ "at": "2026-11-26T14:51:32+09:00",
  "strict": true,
  "exit_code": 0,
  "status": "pass",
@@ -15,7 +15,7 @@
  },
  "findings": [],
  "notes": [
-  "recalculated in Excel 16.0 and saved; Excel PID 58468 closed",
+  "recalculated in Excel 16.0 and saved; Excel PID 73792 closed",
   "raw_sales: 305 data rows, unchanged since landing (digest equals the manifest)",
   "check sales_rows OK (checks!I5): Rows of raw_sales lie within the contract's range; actual 305, range 1 to 100,000",
   "check sales_total_revenue OK (checks!I6): Sum of raw_sales revenue equals the contract's control total; actual 307,355,000, expected 307,355,000, tolerance 0",
@@ -33,8 +33,10 @@
   "check outlook_ties OK (checks!I18): Outlook total equals actuals plus forecast months at run rate times (1 + growth); actual 1,244,916.65, expected 1,244,916.65, tolerance 0.001",
   "check cum_ties OK (checks!I19): Cumulative outlook in December equals the outlook total; actual 1,244,916.65, expected 1,244,916.65, tolerance 0.001",
   "check fy_pct_ties OK (checks!I20): Full-year variance % times budget equals outlook less budget (budget not 0); actual 4,916.65, expected 4,916.65, tolerance 0.001",
+  "check runrate_cell_ties OK (checks!I21): Largest per-product difference of run rate x actual months and actuals; actual 0, expected 0.001",
+  "check closed_months_landed OK (checks!I22): Actual months with no landed row equal the closed months confirmed with no sales; actual 0, expected 0, tolerance 0.001",
   "master check checks!C2 = 0 (OK)",
-  "checks: 16 of 16 hold"
+  "checks: 18 of 18 hold"
  ],
  "verified": {
   "recalculated": true,
@@ -43,9 +45,9 @@
  "data": {
   "recalculated": true,
   "refreshed": false,
-  "input_sha256": "e3fbd6688a26809f205fd85f26191f4cd32e1eeff41a2261d08835c17f447a30",
-  "output_sha256": "b74ec26c748cd9d3fbbc326e80798d89f0b06db58ddb9cbe4c6c9318ddcf53c3",
-  "excel_pid": 58468,
+  "input_sha256": "a71682713585ba022f85438949c83d87ebcd4e4cfe2c66f46d53334ef49f3abb",
+  "output_sha256": "c127ac3aca0ddd1f9a743617eb8bed0eb37535d6b10dd128072833e5917cf4a4",
+  "excel_pid": 73792,
   "checks": [
    {
     "id": "sales_rows",
@@ -269,6 +271,34 @@
     "expected": 4916.649999999907,
     "max": null,
     "difference": 1.4551915228366852e-10,
+    "tolerance": 0.001
+   },
+   {
+    "id": "runrate_cell_ties",
+    "kind": "at_most",
+    "label": "Largest per-product difference of run rate x actual months and actuals",
+    "severity": "error",
+    "result_ref": "checks!I21",
+    "result": 0,
+    "state": "pass",
+    "actual": 0,
+    "expected": 0.001,
+    "max": null,
+    "difference": null,
+    "tolerance": null
+   },
+   {
+    "id": "closed_months_landed",
+    "kind": "equal",
+    "label": "Actual months with no landed row equal the closed months confirmed with no sales",
+    "severity": "error",
+    "result_ref": "checks!I22",
+    "result": 0,
+    "state": "pass",
+    "actual": 0,
+    "expected": 0,
+    "max": null,
+    "difference": 0,
     "tolerance": 0.001
    }
   ],

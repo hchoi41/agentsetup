@@ -25,7 +25,8 @@ command too.
 1. `ROTM diff <old> <new>` (each may be a workbook or a model folder). `--md FILE` writes a Markdown report;
    `--json FILE` the report; `--fail-on-change` exits 1 when anything differs.
 2. It lists: sheets added or removed (`D-SHEET`); formula cells whose formula changed (`D-FORMULA`, compared without
-   file prefixes); input values changed (`D-INPUT`); cached output values changed (`D-OUTPUT`); raw sheets as row
+   the file prefixes `_xlfn.`, `_xlws.` and `_xlpm.` outside text literals; a text in quotes is compared as it is, so
+   the criterion `"_xlfn.Fee"` changed to `"Fee"` is a changed formula); input values changed (`D-INPUT`); cached output values changed (`D-OUTPUT`); raw sheets as row
    count and digest (`D-RAW`); structure (`D-STRUCTURE`).
    - A formula replaced by a typed value, or the reverse: the `D-FORMULA` line shows both sides, the formula with
      the value Excel saved for it and the typed value (`B1: formula removed: =A1*0 (saved value 0) -> typed value
@@ -34,6 +35,17 @@ command too.
      changed, with both types. This holds on raw sheets and on every other sheet: the number 858800 and the text
      `858800` are a change, and so are the text `TRUE` and the logical value TRUE.
 3. Values are compared only when both files hold values saved by Excel; run `ROTM recalc` on a file that has none.
+   The report, the Markdown file and the JSON say what the comparison of outputs rests on:
+   - `verified.saved_values_compared`: true when both files hold values saved by Excel.
+   - `verified.recalculated`: true only when `reports/status.json` of each file's model folder records a passing
+     check that recalculated that file's current version, or a passing recalc of it. diff itself does not
+     recalculate. A file outside a model folder gives false. When it is false and values were compared, a note
+     says that the outputs are the values saved in the files and names each file without such a record.
+   - A workbook set to manual calculation gets a note that names it. While its version has no such record, the
+     note says that its saved values may be out of date and gives `rotm.py recalc` for both files: run
+     `ROTM recalc "<old>"` and `ROTM recalc "<new>"`, then run the diff again.
+   - The JSON's `data.calc_mode` gives each file's calculation mode (`auto`, `manual` or `autoNoTable`) and
+     `data.recalculated_on_record` whether each file has such a record.
 4. Formulas and typed values (inputs, constants) are compared exactly: 1,000,000,000,000 and 999,999,999,500 are a
    change. Calculated values (outputs) are compared within a relative tolerance, `--calc-tolerance` (default 1e-9;
    `--calc-tolerance 0` compares them exactly); the report prints the tolerance it used.
@@ -53,4 +65,7 @@ command too.
 
 - The changes grouped as formulas, inputs, outputs and raw data, with sheet and cell.
 - When one file held no recalculated values: outputs were not compared.
+- Whether the outputs were recalculated (`verified.recalculated` true) or are the values saved in the files. For a
+  workbook set to manual calculation without a recalculation on record: its saved values may be out of date until
+  both files are recalculated with `ROTM recalc`.
 - The tolerance used for outputs (the report's note `compared: ...`).

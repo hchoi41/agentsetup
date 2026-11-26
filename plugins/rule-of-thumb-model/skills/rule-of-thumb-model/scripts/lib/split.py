@@ -46,6 +46,14 @@ Only IF is handled so. A part under another function that calculates an argument
 SWITCH) is moved as before; the check of the new helper cells (below) then finds an error value with the current
 inputs only.
 
+ROW() and COLUMN() without an argument (v7, A-aera-5) give the row or the column of the cell that holds them, so in
+a helper they would give the helper's row or column. In every part that moves to a helper (a depth split and a
+length split alike), each such call is written with the original cell as its argument: COLUMN() of Scenarios!D2
+becomes COLUMN(Scenarios!D2) on split_helpers (the sheet name in quotes when it needs them, no sheet name when the
+host is on split_helpers itself). The reference is relative, so the helpers of a copied-down block keep one form.
+The host keeps its own ROW() and COLUMN(). A call that cannot be written so is refused with SPLIT-GUARD, which
+names the call; nothing is written (SplitPosition).
+
 Where the helpers go (any workbook): sheet `split_helpers`, created after the host sheet when it does not exist.
 - The split cell and the cells around it that hold the same formula (same relative form: a copied-down column,
   a row copied across, or a block) are split together, so the column stays consistent (audit H-INCONSISTENT).
@@ -199,13 +207,43 @@ def helper_key(text: str) -> str:
     return "".join(seg if is_text else seg.upper() for is_text, seg in fx._segments(text))
 
 
+# v7, A-aera-5: the functions whose call without an argument gives the position of the cell that holds it
+POSITION_FUNCTIONS = ("ROW", "COLUMN")
+
+
+def bind_position(text: str, host: str) -> str:
+    """`text` (a formula that moves out of the cell `host`, an A1 cell without a sheet) with every ROW() and
+    COLUMN() without an argument written as ROW(<host>) and COLUMN(<host>), so that it gives the host cell's row
+    or column wherever it sits (v7, A-aera-5). Raises SplitPosition for such a call it cannot rewrite."""
+    if not any(name + "(" in text.upper().replace(" ", "") for name in POSITION_FUNCTIONS):
+        return text
+    a = fx.analyze(text)
+    f = a.formula
+    edits: list[tuple[int, int]] = []
+    for c in a.calls:
+        if c.name not in POSITION_FUNCTIONS or c.args:
+            continue
+        call = f[c.start:c.end]
+        open_at = c.start + call.find("(")
+        if not a.ok or call.find("(") < 0 or not call.endswith(")") or f[open_at + 1:c.end - 1].strip():
+            raise SplitPosition(call, host)
+        edits.append((open_at + 1, c.end - 1))
+    if not edits:
+        return text
+    out = f
+    for s, e in sorted(edits, reverse=True):
+        out = out[:s] + host + out[e:]
+    return out
+
+
 def plan_split(formula: str, *, limit: int, host: str = "A1") -> SplitPlan:
     """Split until the formula and every helper are within `limit`.
 
     A part inside IFERROR or IFNA (v4, A-aera-14): the INDEX or MATCH call of a guarded lookup is rewritten with
     the pattern H5 (see the module text); any other part raises SplitGuard. A part in the second or third argument
     of an IF (v6, A-aera-10): the helper carries the IF's condition, or SplitBranch is raised (see the module
-    text)."""
+    text). `host`: the cell that holds the formula (v7, A-aera-5): ROW() and COLUMN() without an argument in a
+    helper are written as ROW(<host>) and COLUMN(<host>) (bind_position)."""
     if not isinstance(limit, int) or limit < 1:
         raise common.Refusal(f"limit {limit!r}: give a whole number 1 or more", key="--limit")
     f = fx.display_form(formula)
@@ -332,6 +370,8 @@ def plan_split(formula: str, *, limit: int, host: str = "A1") -> SplitPlan:
         return out
 
     rewritten = split(f)
+    for h in helpers:                  # v7, A-aera-5: a moved ROW() or COLUMN() keeps the host cell's position
+        h[1] = bind_position(h[1], host)
     labels = [(f"helper {i + 1}: {h[3] or _short(h[2], 60)}", h[1]) for i, h in enumerate(helpers)]
     depth_after = max([fx.depth(rewritten)] + [fx.depth(h[1]) for h in helpers])
     return SplitPlan(original=f, rewritten=rewritten, helpers=labels, depth_after=depth_after,
@@ -485,20 +525,22 @@ def _group_text(terms: list[tuple[str, str]]) -> str:
 
 def plan_length_split(formula: str, *, length_limit: int, sheet: str | None = None,
                       ref_length: int = REF_LENGTH_GUESS, host_ref_length: int | None = None,
-                      groups: list[int] | None = None) -> SplitPlan:
+                      groups: list[int] | None = None, host: str = "A1") -> SplitPlan:
     """Split an over-long + and - chain into helpers of a few terms each (v2, A-aera-13).
 
     `sheet`: the host sheet when the helpers go to another sheet (their references then name it, which counts
     in their length). `ref_length` and `host_ref_length`: the characters a helper reference takes on the helper
     sheet and in the host cell. `groups`: the number of terms in each first-level helper (to split the cells of
-    a block the same way). Raises SplitShape when the formula is not such a chain or a term alone is over the
-    limit."""
+    a block the same way). `host`: the cell that holds the formula; ROW() and COLUMN() without an argument in a
+    term are written as ROW(<host>) and COLUMN(<host>) before the terms are measured (v7, A-aera-5). Raises
+    SplitShape when the formula is not such a chain or a term alone is over the limit."""
     if not isinstance(length_limit, int) or length_limit < 1:
         raise common.Refusal(f"length limit {length_limit!r}: give a whole number 1 or more")
     f = fx.display_form(formula)
     terms = chain_terms(f)
     if terms is None:
         raise SplitShape(_shape_of(f))
+    terms = [(sign, bind_position("=" + text, host)[1:]) for sign, text in terms]
     host_ref_length = ref_length if host_ref_length is None else host_ref_length
 
     def measure(text: str) -> int:
@@ -746,6 +788,30 @@ class SplitBranch(SplitGuard):
 
     def data(self) -> dict[str, Any]:
         return {"if": self.if_text, "argument": self.argument, "why": self.why}
+
+
+# v7, A-aera-5: the reason and the fix of SPLIT-GUARD for a ROW() or COLUMN() call split cannot bind to the host
+POSITION_REASON = ("the call {call} gives the position of the cell that holds it, and split could not write the "
+                   "cell {host} as its argument in the helper; in a helper it would give the helper's position")
+POSITION_FIX = "write the cell as the argument of the call by hand ({name}({host})), then split again"
+
+
+class SplitPosition(SplitGuard):
+    """A ROW() or COLUMN() call without an argument in a part that moves to a helper, which bind_position cannot
+    write with the host cell as its argument (v7, A-aera-5); split_cell reports it as the error SPLIT-GUARD, which
+    names the call. Nothing is written."""
+
+    fix = POSITION_FIX
+
+    def __init__(self, call: str, host: str) -> None:
+        name = call.split("(")[0].strip().upper()
+        super().__init__(name, call, reason=POSITION_REASON.format(call=_short(call, fx.MESSAGE_TEXT_MAX), host=host))
+        self.call = call
+        self.host = host
+        self.fix = POSITION_FIX.format(name=name, host=host)
+
+    def data(self) -> dict[str, Any]:
+        return {"call": self.call}
 
 
 @dataclass(frozen=True)
@@ -1025,13 +1091,15 @@ def split_cell(path: str | Path, ref: str, *, out: str | Path | None = None, in_
         qual = None if on_helper_sheet else sheet_name
         try:
             lead = plan_length_split(first.formula, length_limit=length_lim, sheet=qual, ref_length=ref_len,
-                                     host_ref_length=host_ref_len)
+                                     host_ref_length=host_ref_len, host=first.coord)
             for r in range(r1, r2 + 1):
                 for c in range(c1, c2 + 1):
                     cell = sheet.at(r, c)
                     plans[(r, c)] = plan_length_split(cell.formula, length_limit=length_lim, sheet=qual,
                                                       ref_length=ref_len, host_ref_length=host_ref_len,
-                                                      groups=lead.groups)
+                                                      groups=lead.groups, host=cell.coord)
+        except SplitPosition as exc:           # v7, A-aera-5: a ROW() or COLUMN() that cannot be bound
+            return _guard_refusal(report, exc, sheet_name, first.coord)
         except SplitShape as exc:
             _shape_finding(report, sheet_name, first.coord, a.length, length_lim, lim, exc.shape)
             report.note("nothing was written")

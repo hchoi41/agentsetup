@@ -3,8 +3,9 @@
 Owner: M8. Reads both workbooks with lib.workbook (never writes them).
 
 What is compared, per sheet that both versions have:
-- formulas: the formula text after the _xlfn. prefixes are removed and outside text put in upper case
-  (workbook.normalise_formula); a formula added, removed or changed;
+- formulas: the formula text after the file prefixes (_xlfn., _xlws., _xlpm.) are removed and the text is put in
+  upper case, both outside text literals only (formula.strip_xlfn, workbook.normalise_formula; v9, A-aera-13: a
+  criterion "_xlfn.Fee" changed to "Fee" is a changed formula); a formula added, removed or changed;
 - constants outside raw sheets (inputs and labels): a value added, removed or changed, compared exactly (v2,
   A-aera-4: 1,000,000,000,000 and 999,999,999,500 differ); a cell the manifest marks as an input is named by its
   input id;
@@ -12,6 +13,13 @@ What is compared, per sheet that both versions have:
   openpyxl and not recalculated holds none; the report then says outputs were not compared); compared within a
   relative tolerance, --calc-tolerance (default workbook.DEFAULT_CALC_TOLERANCE, 1e-9; 0 = exact), which the
   report prints;
+- what the comparison of outputs rests on (v9, round 8 verdict A-aera-5): verified.saved_values_compared is true
+  when both workbooks hold saved values; verified.recalculated is true only when reports/status.json of each
+  workbook's model folder records a passing check that recalculated that workbook's current version or a passing
+  recalc of it (recalculated_on_record; diff itself never recalculates); otherwise a note says that the outputs
+  are the values saved in the files. A workbook set to manual calculation gets a note that names it; while its
+  version has no such record, the note says that its saved values may be out of date and gives rotm.py recalc
+  for both files;
 - a cell whose formula was replaced by a typed value, or the reverse (v3, A-aera-16): the formula line shows both
   sides, the formula with the value Excel saved for it and the typed value; when outputs are compared and the
   two values differ, the cell is also listed among the changed outputs;
@@ -268,7 +276,8 @@ def _group(changes: list[Change], category: str) -> list[Group]:
 
 def _norm_formula(f: str | None) -> str | None:
     """Formula text for comparison: formula.strip_xlfn (also _xlpm., spill and @ forms), then upper case outside
-    text (workbook.normalise_formula)."""
+    text (workbook.normalise_formula). Both remove the file prefixes outside text literals only, so a text that
+    holds a prefix is compared as it is (v9, A-aera-13)."""
     from . import formula, workbook
     if f is None:
         return None
@@ -294,6 +303,37 @@ def tolerance_words(tolerance: float, *, subject: bool = True) -> str:
     return f"outputs (calculated values) {how}" if subject else how
 
 
+STATUS_FILE = "reports/status.json"
+
+
+def recalculated_on_record(path: Path, sha256: str) -> bool:
+    """True when reports/status.json of the model folder that holds `path` records, for a workbook of that folder, a
+    passing check that recalculated the version `sha256` (exit_code 0, recalculated true, output_sha256 equal to it)
+    or a passing recalc of it (exit_code 0, output_sha256 equal to it), as the v5 rule of the hook's "recalculated"
+    state (A-aera-18), on the workbook's sha256 alone: the values saved in one version of a file do not depend on
+    raw/ or the contracts. False for a file outside a model folder (v9, round 8 verdict A-aera-5). Reads only."""
+    from . import modelfolder
+    if not sha256:
+        return False
+    root = modelfolder.find_model_root(path)
+    if root is None:
+        return False
+    books = modelfolder.read_status(root).get("workbooks") or {}
+    for steps in books.values():
+        if not isinstance(steps, dict):
+            continue
+        for step in ("check", "recalc"):
+            rec = steps.get(step)
+            if isinstance(rec, dict) and rec.get("exit_code") == 0 and rec.get("output_sha256") == sha256 \
+                    and rec.get("recalculated", step == "recalc") is True:
+                return True
+    return False
+
+
+def _files_text(paths: list[str]) -> str:
+    return " and ".join(paths)
+
+
 def diff_workbooks(old: str | Path, new: str | Path, *, calc_tolerance: float | None = None) -> Any:
     """Returns a common.Report; data: sheets added and removed, and per sheet the formula, input and output
     changes; raw sheets summarised by row count and digest. Constants are compared exactly; outputs within
@@ -317,7 +357,26 @@ def diff_workbooks(old: str | Path, new: str | Path, *, calc_tolerance: float | 
                     "run rotm.py check or rotm.py recalc on it first")
     report.note("compared: formulas and constants (typed values) exactly"
                 + (f"; {tolerance_words(tolerance)}" if compare_outputs else ""))
-    report.verified["recalculated"] = compare_outputs
+    # v9 (round 8 verdict A-aera-5): saved values compared is not the same as recalculated
+    on_record = {"old": recalculated_on_record(old_p, a.sha256), "new": recalculated_on_record(new_p, b.sha256)}
+    report.verified["saved_values_compared"] = bool(compare_outputs)
+    report.verified["recalculated"] = all(on_record.values())
+    if compare_outputs and not report.verified["recalculated"]:
+        missing = [common.norm_path(p) for p, label in ((old_p, "old"), (new_p, "new")) if not on_record[label]]
+        report.note(f"outputs compared on the values saved in the files; {_files_text(missing)} "
+                    f"{'have' if len(missing) > 1 else 'has'} no passing check or recalc of this version in "
+                    f"{STATUS_FILE}")
+    recalc_both = (f'run rotm.py recalc "{common.norm_path(old_p)}" and rotm.py recalc "{common.norm_path(new_p)}" '
+                   "before the diff")
+    for p, info, label in ((old_p, a, "old"), (new_p, b, "new")):
+        if info.calc_mode != "manual":
+            continue
+        if on_record[label]:
+            report.note(f"{common.norm_path(p)}: the workbook is set to manual calculation; its saved values are "
+                        f"those of the recalculation recorded for this version in {STATUS_FILE}")
+        else:
+            report.note(f"{common.norm_path(p)}: the workbook is set to manual calculation, so its saved values may "
+                        f"be out of date; {recalc_both}")
     sheets_a, sheets_b = a.sheet_names, b.sheet_names
     added = [s for s in sheets_b if s not in sheets_a]
     removed = [s for s in sheets_a if s not in sheets_b]
@@ -422,7 +481,9 @@ def diff_workbooks(old: str | Path, new: str | Path, *, calc_tolerance: float | 
               "structure": len(structure)}
     report.data = {"old": common.norm_path(old_p), "new": common.norm_path(new_p), "old_sha256": a.sha256,
                    "new_sha256": b.sha256, "sheets_added": added, "sheets_removed": removed,
-                   "outputs_compared": compare_outputs, "calc_tolerance": tolerance, "counts": counts,
+                   "outputs_compared": compare_outputs, "calc_tolerance": tolerance,
+                   "calc_mode": {"old": a.calc_mode, "new": b.calc_mode}, "recalculated_on_record": on_record,
+                   "counts": counts,
                    "structure": structure,
                    "sheets": {s: _entry_dict(e) for s, e in per_sheet.items()}}
     report.groups = per_sheet                   # the changed cells, for write_markdown (not part of the JSON)
@@ -586,7 +647,8 @@ def write_markdown(report: Any, path: str | Path) -> Path:
              f"- Old: `{d['old']}` (sha256 {d['old_sha256'][:12]})",
              f"- New: `{d['new']}` (sha256 {d['new_sha256'][:12]})",
              f"- Written by rule-of-thumb-model {common.VERSION} (rotm.py diff) on {report.at}.",
-             "- Compared: formulas (without _xlfn. prefixes), constants outside raw sheets (exactly), "
+             "- Compared: formulas (without the _xlfn., _xlws. and _xlpm. prefixes outside text literals), constants "
+             "outside raw sheets (exactly), "
              + (f"the values Excel saved for formula cells "
                 f"({tolerance_words(d.get('calc_tolerance', 0.0), subject=False)}), "
                 if d["outputs_compared"] else "")
@@ -594,6 +656,21 @@ def write_markdown(report: Any, path: str | Path) -> Path:
                "a cell whose stored type changed (number, text, logical value) is listed with both types."]
     if not d["outputs_compared"]:
         lines.append("- Outputs were not compared: a workbook holds no values saved by Excel (not recalculated).")
+    # v9 (A-aera-5): what the comparison of outputs rests on, and each file's calculation mode
+    lines.append("- Saved values compared: " + ("yes (both files hold values saved by Excel)."
+                                                if d["outputs_compared"] else "no."))
+    on_record = d.get("recalculated_on_record") or {}
+    missing = [d[label] for label in ("old", "new") if not on_record.get(label)]
+    if report.verified.get("recalculated"):
+        lines.append(f"- Recalculated: yes; {STATUS_FILE} of each file's model folder records a passing check or "
+                     "recalc of this version.")
+    else:
+        lines.append("- Recalculated: no; "
+                     + ("the outputs are the values saved in the files: " if d["outputs_compared"] else "")
+                     + f"{_md(_files_text(missing))} {'have' if len(missing) > 1 else 'has'} no passing check or "
+                       f"recalc of this version in {STATUS_FILE}.")
+    modes = d.get("calc_mode") or {}
+    lines.append(f"- Calculation mode: old {modes.get('old', '')}, new {modes.get('new', '')}.")
     lines += ["", "## Summary", "",
               "| Sheet | Formula cells | Constant cells | Output cells | Raw sheet |",
               "| --- | ---: | ---: | ---: | --- |"]

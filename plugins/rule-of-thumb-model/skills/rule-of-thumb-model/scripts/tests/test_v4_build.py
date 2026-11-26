@@ -285,6 +285,33 @@ def _example_copy(tmp_path: Path, monkeypatch) -> Path:
     return dest
 
 
+def _spec_error_checks(spec: dict) -> list[dict]:
+    """The checks of severity error a specification writes (v7: the count follows the worked example's checks;
+    the r6 verdict [A-aera-4, A-aera-13] part 2 adds per-cell checks to it)."""
+    return [c for s in spec["sheets"] if s["type"] == "checks" for c in s["checks"]
+            if c.get("severity", "error") == "error"]
+
+
+def _var_pct_checks(spec: dict) -> set[str]:
+    """The error checks that read the item var_pct of the block bridge: directly, or through a block that reads it
+    (v7: the worked example's per-cell check of var_pct reads it through the block var_pct_cell_diff)."""
+    blocks = {b["id"]: json.dumps(b) for s in spec["sheets"] for b in s.get("blocks", [])}
+
+    def reads(text: str, ids: set[str]) -> bool:
+        return "bridge.var_pct" in text or any(p in text for d in ids for p in (f"{{blk:{d}}}", f"{{blk:{d}.",
+                                                                                  f"{{g:{d}}}", f"{{b:{d}."))
+    dep: set[str] = set()
+    grown = True
+    while grown:
+        grown = False
+        for bid, text in blocks.items():
+            if bid not in dep and bid != "bridge" and reads(text, dep):
+                dep.add(bid)
+                grown = True
+    return {c["id"] for c in _spec_error_checks(spec)
+            if reads(json.dumps({k: c.get(k) for k in ("actual", "expected", "min", "max", "bound")}), dep)}
+
+
 def _set_item(spec: dict, block_id: str, item_id: str, expr: str) -> None:
     for s in spec["sheets"]:
         for b in s.get("blocks", []):
@@ -303,10 +330,14 @@ def test_example_var_pct_check_fails_when_the_item_is_zero(tmp_path: Path, monke
     assert proc.returncode == 0, out(proc)
     chk = rotm("check", root, "--strict")
     assert chk.returncode == 0, out(chk)
-    assert "checks: 24 of 24 hold" in out(chk), out(chk)
+    n = len([c for c in manifest.load_manifest(root / "model.xlsx")["checks"] if c.get("severity", "error") == "error"])
+    assert f"checks: {n} of {n} hold" in out(chk), out(chk)
     bad = tmp_path / "bad"
     shutil.copytree(root, bad, ignore=shutil.ignore_patterns("*.xlsx", "*.manifest.json", "reports"))
     spec = common.read_json(bad / "model.spec.json")
+    # the checks that read the item var_pct (var_pct_all, and since v7 its per-cell form) fail with it
+    of_var_pct = _var_pct_checks(spec)
+    assert "var_pct_all" in of_var_pct
     _set_item(spec, "bridge", "var_pct", "0")
     common.write_json(bad / "model.spec.json", spec)
     proc = rotm("build", bad, "--strict", "--force")
@@ -316,7 +347,7 @@ def test_example_var_pct_check_fails_when_the_item_is_zero(tmp_path: Path, monke
     failed = [f for f in json.loads(chk.stdout)["findings"] if f["rule"] == "C-FAIL"]
     named = [f["data"].get("check") for f in failed]
     assert "var_pct_all" in named and "master" in named, failed
-    assert [n for n in named if n not in ("var_pct_all", "master")] == [], failed
+    assert [n for n in named if n not in of_var_pct | {"master"}] == [], failed
 
 
 def test_example_var_pct_check_is_not_a_self_check(tmp_path: Path, monkeypatch) -> None:
@@ -326,7 +357,9 @@ def test_example_var_pct_check_is_not_a_self_check(tmp_path: Path, monkeypatch) 
     assert rep.exit_code == 0, [f.line() for f in rep.findings]
     data = manifest.load_manifest(root / "model.xlsx")
     errors = [c for c in data["checks"] if c.get("severity", "error") == "error"]
-    assert "var_pct_all" in [c["id"] for c in errors] and len(errors) == 24
+    spec_errors = [c["id"] for c in _spec_error_checks(common.read_json(root / "model.spec.json"))]
+    assert "var_pct_all" in [c["id"] for c in errors]
+    assert [c["id"] for c in errors if not c["auto"]] == spec_errors       # v6: 8 of 24; v7: the spec's count
     entry = next(c for c in data["checks"] if c["id"] == "var_pct_all")
     bridge = next(b for s in data["sheets"] for b in s.get("blocks") or [] if b["id"] == "bridge")
     assert entry.get("targets") == [f"calc!{bridge['body']}"], entry

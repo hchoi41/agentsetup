@@ -268,9 +268,10 @@ def _known_rule_ids() -> set[str]:
     # rule ids that land, build, check and audit write into their findings (a quoted id in the module's source;
     # v3: check.py and audit.py too, for warnings such as D-KEY-SEPARATOR that are reported but not in RULES;
     # v4: criteria.py for D-CRITERIA, excel.py for X-OPEN of recalc, contract.py for N-HELPER-NAME;
-    # v5: compat.py for X-FUNC, which google-sheets.md names for the formulas of validations and rules)
+    # v5: compat.py for X-FUNC, which google-sheets.md names for the formulas of validations and rules;
+    # v7: theme.py for T-CF, which checks.md names for conditional-format rules)
     for module in ("land.py", "build.py", "check.py", "audit.py", "criteria.py", "excel.py", "contract.py",
-                   "compat.py"):
+                   "compat.py", "theme.py"):
         path = SCRIPTS / "lib" / module
         if path.is_file():
             ids |= set(re.findall(r"\"([A-Z]{1,2}-[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)\"", path.read_text(encoding="utf-8")))

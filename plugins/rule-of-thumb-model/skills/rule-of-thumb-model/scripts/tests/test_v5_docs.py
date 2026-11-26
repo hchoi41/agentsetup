@@ -6,7 +6,8 @@
   for every research identifier the file cites.
 - [J-3]: SKILL.md and README.md "What is and is not verified": the three v5 items of the verified list with their
   tests (plan section 5.4). v6 (J-3): the subsection "Runs on the final v5 files" became "Runs on the final v6
-  files"; test_v6_docs.py checks it, the v6 items and the integrator's sentences.
+  files"; v7 (J-6): "Runs on the final v7 files"; v8 (J-2): "Runs on the final v8 files"; v9 (J-2): "Runs on the
+  final v9 files"; test_v9_docs.py checks it, the v9 items and the integrator's sentences.
 - The documents of the other packages' v5 changes (plan section 6.8): the unit rule and the valid range
   ([A-aera-1]), the ids ([J-1]), land --control ([A-aera-6, C-sol-3]), the query file and the attached query
   ([A-aera-2, C-sol-1, C-sol-4]), {blk:<block>.<item>} and the Difference of a date check ([A-aera-9, C-sol-14,
@@ -40,8 +41,14 @@ PY = [sys.executable, "-P", "-X", "utf8", "-B"]
 
 RUNS_V5 = "### Runs on the final v5 files"
 P_RUNS_V5 = "Integrator: replace this line with the runs on the final v5 files."
-# v6 (J-3): the subsection that replaces RUNS_V5 (test_v6_docs.py checks its contents).
+# v6 (J-3): the subsection that replaced RUNS_V5; v7 (J-6): the subsection that replaces it (test_v7_docs.py checks
+# its contents).
 RUNS_V6 = "### Runs on the final v6 files"
+RUNS_V7 = "### Runs on the final v7 files"
+# v8 (r7 verdict [J-2]): the subsection that replaced RUNS_V7.
+RUNS_V8 = "### Runs on the final v8 files"
+# v9 (r8 verdict [J-2]): the subsection that replaces RUNS_V8 (test_v9_docs.py checks its contents).
+RUNS_V9 = "### Runs on the final v9 files"
 
 # The three v5 items of the verified list and their tests (plan section 5.4).
 V5_VERIFIED = {
@@ -290,12 +297,14 @@ def test_every_source_row_has_a_publisher_a_title_a_link_and_a_date(name: str) -
 
 @pytest.mark.parametrize("path", _verified_files(), ids=lambda p: p.name)
 def test_the_v5_runs_subsection_is_replaced_by_the_v6_one(path: Path) -> None:
-    """v6 (J-3): the runs on the final v5 files are not carried over; test_v6_docs.py checks the v6 subsection (its
-    placeholder or the integrator's dated runs, the version line and the v5 run numbers left out)."""
+    """v6 (J-3): the runs on the final v5 files are not carried over. v7 (J-6): the v6 subsection was replaced by
+    the v7 one in turn; test_v7_docs.py checks it (its placeholder or the integrator's dated runs, the version line
+    and the v6 run numbers left out). v8 (r7 verdict [J-2]): the v7 subsection was replaced by the v8 one; v9 (r8
+    verdict [J-2]): the v8 subsection was replaced by the v9 one; test_v9_docs.py checks it."""
     section = _verified(path)
     assert RUNS_V5 not in section, f"{path.name}: the v5 subsection is left"
     assert "### Runs on the final v4 files" not in section and "### Runs on the final v3 files" not in section
-    assert RUNS_V6 in section
+    assert RUNS_V6 not in section and RUNS_V7 not in section and RUNS_V8 not in section and RUNS_V9 in section
     assert P_RUNS_V5 not in section and "Version v5 of" not in section
 
 

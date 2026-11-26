@@ -46,6 +46,12 @@ command too. Then `<SKILL_DIR>/references/column-contract.md` (what a contract h
      build adds. Propose prints the note N-HELPER-NAME with the suggested destination name `<name>_src` and lists
      it under "Points to confirm"; build refuses the name (exit 2). Rename the destination column in the JSON, keep
      its source expression, run `ROTM contract show MODEL --table <t>` and show the user the contract;
+   - a destination name may not be another column's sample header (`csv_header`): propose never writes one, and
+     `contract show`, `contract agree` and `land` refuse such a contract (exit 2, nothing recorded or written);
+   - a sample record of only delimiters (`,,`) is named with its line under "Points to confirm", and `land`
+     refuses such a record; a quoted field left open at the end of the file, or another quoting error, is refused
+     (exit 2) with its line (`<SKILL_DIR>/references/column-contract.md`, "Blank lines, records of only delimiters
+     and quotes in a CSV");
    - each source expression is the sample's header: bare when it is a plain identifier (`amount`), in backticks
      when it is a GoogleSQL reserved keyword or not a plain identifier (`` `order` ``, `` `Order Date` ``). The SQL
      then reads `` `order` AS `order` ``; the SQL inside a database Power Query gives such a name the connector's

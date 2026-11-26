@@ -52,7 +52,7 @@ Where the research shows two conventions, the dictionary uses one by default and
 | Grey on the unit column | F2F2F2, the row-header grey, so the row band is continuous (design 10.2) | `unit_unfilled`: no fill; Max named grey for column and row headers only (SYNTHESIS D18) |
 | Colour of the top rule on totals | black 000000 (design 10.2); top border preferred so rows can be inserted above (GUIDES L-68, not re-checked) | `total_grey_rule`: grey 808080 (SYNTHESIS D8) |
 | The two grey hex values | D9D9D9 and F2F2F2 (SYNTHESIS D18: both the survey and researcher 2 propose D9D9D9; F2F2F2 is the lighter of the survey's F2F2F2 and researcher 2's EEEEEE) | any other greys, through `style_overrides.json` (section 4) |
-| When a sheet the plugin did not build counts as dense | at least 60% of its used block filled and at least 500 filled cells (SYNTHESIS D18, builder default) | `rules.dense_fill_ratio`, `rules.dense_min_cells` in `style_overrides.json` |
+| When a sheet the plugin did not build counts as dense | its used block holds at least 500 cells, filled or empty, and at least 60% of them are filled (SYNTHESIS D18, builder default) | `rules.dense_fill_ratio`, `rules.dense_min_cells` in `style_overrides.json` |
 
 Related rule values in the same file (they are explained in the main SKILL.md): `depth_limit` 2 (Max, spec 1.2); `length_limit` 100 characters (the plugin's own number); `allowed_literals` 0 and 1; `check_tolerance` 0.001 in the unit of the checked values; `helper_spare_rows` 0 rows; `formula_key_check_max_rows` 5,000 rows; `sparse_sheet_cells` 100 populated cells (build's information note I-SPARSE-SHEET for a calculation sheet that takes size 8 from its role; build does not change the size).
 
@@ -86,10 +86,11 @@ Example: inputs in blue font without fill, and the column-header grey of a clien
 - theme: classifies every non-empty cell (section 6), then sets the font name, size, colour, bold, italic and fill. `--number-formats`, `--borders`, `--align` and `--views` add number formats, borders, alignment and wrap, and gridlines and zoom (section 7).
 - audit: the S-* rules compare six attributes of each non-empty cell with the dictionary: font name (S-FONT), size (S-SIZE), font colour (S-FONTCOLOR), bold (S-BOLD), fill (S-FILL) and number format (S-NUMFMT).
   - With a manifest, each cell is compared with the look of its cell type: font name, size, font colour and fill on every cell the manifest types; bold on column headers, titles, headings, totals, outputs and the master check.
-  - S-NUMFMT compares the number format of these cells with the dictionary: the cells whose cell type fixes a format (not `item`), the raw columns (the format key build recorded for the column in the manifest, `formats`, else the column type's default), the scalar inputs (their format key) and the header cells that show an item of an input list. It does not compare the format of block cells or helper cells: the manifest records no format key for a block cell, and a helper cell has the cell type `calc`, whose format is the item's.
+  - S-NUMFMT compares the number format of these cells with the dictionary: the cells whose cell type fixes a format (not `item`), the raw columns (the format key build recorded for the column in the manifest, `formats`, else the column type's default), the scalar inputs (their format key), the header cells that show an item of an input list, and the header cells of a block whose rows or columns are given as `same_as` another block (the format of the label cell each links to, followed to the end of a chain of `same_as`; a format given on the `same_as` node wins). It does not compare the format of block cells or helper cells: the manifest records no format key for a block cell, and a helper cell has the cell type `calc`, whose format is the item's.
   - A header cell that shows an item of an input list is compared with the format build gives it (the block's rows or columns format, else the list's format, else date for row headers or month for column headers when the item is an ISO date, else General); a header of a list whose format is text may hold the text format or General.
   - Without a manifest, the cell types are not known: the font must be the dictionary's font, the size 8 or 9, and the fill and the font colour must be colours of the dictionary's palette. Bold and number formats are not compared.
 - borders and alignment: not audited. build writes them into every cell it makes, and theme writes them with `--borders` and `--align`; a border or an alignment changed by hand afterwards gives no finding. Italic, wrap and locking are not audited either.
+- conditional formats (v7): the audit compares the fills stored on cells; it does not read conditional-format rules. theme reports them with T-CF. With a manifest, audit reports S-CF (a warning, one per sheet) for any conditional-format rule, because build writes none. A colour such a rule draws is seen in the renders.
 - Equivalences used in every comparison (`lib/styles.py`):
   - An automatic font colour counts as 000000. Excel draws automatic text in black.
   - Font names compare without regard to case.
@@ -107,7 +108,9 @@ Sheets:
 
 - A sheet is raw when the manifest says so, when its name matches `^(raw|data|src|landed)` or ends in `_raw` (case ignored), when a table on it is loaded by a query, or when `--raw-sheets` names it. On a raw sheet the first non-empty row is `col_header`; every other cell is `raw`. Raw sheets are size 8.
 - A sheet named `h_...` or `helper...` is a helper sheet, size 8.
-- Any other sheet is dense, size 8, when at least 60% of its used block holds a value and it holds at least 500 filled cells (Max: "a brick wall of data then 8"). The used block runs from the first to the last used row and column.
+- Any other sheet is dense, size 8, when its used block holds at least 500 cells, filled or empty, and at least 60% of them are filled (Max: "a brick wall of data then 8"; SYNTHESIS D18: "at least 60% of the body's cells are filled and the body holds at least 500 cells"). Example: 300 filled cells in a block of 500 cells (60%) is dense; 299 filled cells in it is not; 300 filled cells in a block of 499 cells is not.
+- The used block runs from the first to the last used row and column. D18 measures the body from row 6 and column B; the plugin measures the whole used block, so title and header rows count.
+- theme prints the measure for each sheet, for example `dense: 300 filled cells in a block of 500 cells (60.0%), at least 60% filled and a block of at least 500 cells` or `not dense: 299 filled cells in a block of 500 cells (59.8%)`.
 - Otherwise it is size 9, and its type comes from its name: check, cover or contents, input or assumption, notes, output or summary; else output.
 - With a manifest, the manifest's sheet type and size win.
 
@@ -552,7 +555,7 @@ Contract column types take these formats (design 6.8, land and build):
 | helper_spare_rows | 0 | PLUGIN (design 7.2; v2 A-aera-6): a value above 0 is refused by build, because a helper row below the last raw row reads empty raw cells as 0 |
 | formula_key_check_max_rows | 5000 | PLUGIN: the per-row key check SUMPRODUCT(--EXACT(K$2:Kr,Kr)) grows with the square of the row count |
 | dense_fill_ratio | 0.6 | SYNTHESIS D18 (builder default): a sheet the plugin did not build is dense, so size 8, when at least this share of its used block holds a value (MAX: 'a brick wall of data then 8') |
-| dense_min_cells | 500 | SYNTHESIS D18 (builder default): and its used block holds at least this many cells; otherwise size 9 (MAX: 'some white spaces then 9') |
+| dense_min_cells | 500 | SYNTHESIS D18 (builder default; D18: 'the body holds at least 500 cells'): and its used block holds at least this many cells, filled or empty; otherwise size 9 (MAX: 'some white spaces then 9') |
 | sparse_sheet_cells | 100 | PLUGIN's own number (r4 verdict A-aera-15, reduced scope): build notes a calculation sheet that takes size 8 from its role and holds fewer populated cells than this (I-SPARSE-SHEET, information); choosing the size from measured density stays a decision for Max (SYNTHESIS D18). Measured on the v4 shipped models: calculation sheets hold 40 (starter, font_size 9 set), 98, 165, 223, 259 and 289 populated cells |
 
 ### Named overrides

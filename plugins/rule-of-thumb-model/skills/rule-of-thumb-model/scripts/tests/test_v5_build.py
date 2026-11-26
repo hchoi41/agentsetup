@@ -364,7 +364,9 @@ def test_reordered_bridge_items_keep_the_check(tmp_path: Path, monkeypatch: pyte
     assert cells["D"].value == f"=SUMPRODUCT({vp},{tg})" and cells["E"].value == f"=SUMPRODUCT(--({tg}<>0),{va})"
     chk = rotm("check", root, "--strict")
     assert chk.returncode == 0, out(chk)
-    assert "checks: 24 of 24 hold" in out(chk), out(chk)
+    # v7 (request v7_P2 R3): the count of the worked example's error checks, from the manifest (26 in v7)
+    n = len([c for c in manifest.load_manifest(root / "model.xlsx")["checks"] if c.get("severity", "error") == "error"])
+    assert f"checks: {n} of {n} hold" in out(chk), out(chk)
     values = openpyxl.load_workbook(root / "model.xlsx", data_only=True)
     entry = next(c for c in manifest.load_manifest(root / "model.xlsx")["checks"] if c["id"] == "var_pct_all")
     sheet, cell = entry["result"].replace("$", "").split("!")
@@ -416,7 +418,9 @@ def test_example_with_every_target_zero_holds(tmp_path: Path, monkeypatch: pytes
     assert proc.returncode == 0, out(proc)
     chk = rotm("check", root, "--strict")
     assert chk.returncode == 0, out(chk)
-    assert "checks: 24 of 24 hold" in out(chk), out(chk)
+    # v7 (request v7_P2 R3): the count of the worked example's error checks, from the manifest (26 in v7)
+    n = len([c for c in manifest.load_manifest(root / "model.xlsx")["checks"] if c.get("severity", "error") == "error"])
+    assert f"checks: {n} of {n} hold" in out(chk), out(chk)
     aud = rotm("audit", root, "--strict")
     assert aud.returncode == 0, out(aud)
 

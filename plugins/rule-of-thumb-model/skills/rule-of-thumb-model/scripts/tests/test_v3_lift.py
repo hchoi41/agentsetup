@@ -438,8 +438,10 @@ def test_control_total_comes_from_the_controls_file_for_the_snapshot(tmp_path: P
     contract_total = _total(_rows(root / "raw" / "lines.csv"))
     digest = manifest.csv_digest(root / "raw" / "lines.csv", _types(root))[0]
     # a total accepted for another snapshot does not apply
+    agreed = common.read_json(root / "contracts" / "lines.contract.json")["agreement"]["contract_sha256"]   # v9
     controls.record_acceptance(root, "lines", digest="sha256:" + "0" * 64, rows=61,
-                               totals=[{"column": "amount", "value": 1, "tolerance": 0}], given=["lines.amount=1"])
+                               totals=[{"column": "amount", "value": 1, "tolerance": 0}], given=["lines.amount=1"],
+                               contract_sha256=agreed)
     lift.lift_model(root)
     mod = _load_script(_script(root))
     assert mod.INFO["tables"]["lines"]["expect"]["totals"][0]["value"] == contract_total
@@ -448,7 +450,7 @@ def test_control_total_comes_from_the_controls_file_for_the_snapshot(tmp_path: P
     accepted = contract_total + 1250
     controls.record_acceptance(root, "lines", digest=digest, rows=60,
                                totals=[{"column": "amount", "value": accepted, "tolerance": 0}],
-                               given=[f"lines.amount={accepted}"])
+                               given=[f"lines.amount={accepted}"], contract_sha256=agreed)
     lift.lift_model(root)
     mod = _load_script(_script(root))
     total = mod.INFO["tables"]["lines"]["expect"]["totals"][0]

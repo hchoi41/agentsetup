@@ -284,7 +284,10 @@ def test_raw_formula_fails(tmp_path: Path) -> None:
     f = findings(rep, "R-FORMULA")[0]
     assert f.sheet == "raw_sales" and f.cell == "C3" and f.severity == "error"
     assert "inferred" in f.message
-    assert "F-LITERAL" not in rules_of(rep)            # formulas on raw sheets are reported once, by R-FORMULA
+    # v8 (r7 verdict A-aera-12): without a manifest the formula rules run on a sheet classed as raw by its name too,
+    # and R-FORMULA is an added finding (only a raw sheet a manifest registers is left out of the formula rules)
+    lit = findings(rep, "F-LITERAL")[0]
+    assert (lit.sheet, lit.cell) == ("raw_sales", "C3")
 
 
 def test_raw_sheets_flag_names_a_sheet(tmp_path: Path) -> None:
@@ -681,6 +684,32 @@ def test_v6_rule_entries_are_listed_with_their_family() -> None:
     assert "F-ARGS" in families["formula"]
     assert "H-BEYOND" in families["helper-column"]
     assert audit._parse_rules("f-args,h-beyond") == {"F-ARGS", "H-BEYOND"}
+
+
+def test_v7_rule_entries_are_listed_with_their_family() -> None:
+    """v7 (r6 verdict A-aera-4 and A-aera-11): the rule entries W-CHECK-GUARD (the check family, with and without a
+    manifest) and S-CF (the style family, with a manifest only), so --rules selects each one; their behaviour is
+    tested in test_v7_audit.py."""
+    guard, cf = audit.RULES["W-CHECK-GUARD"], audit.RULES["S-CF"]
+    assert (guard.severity, guard.needs) == ("warning", "workbook")
+    assert (cf.severity, cf.needs) == ("warning", "manifest")
+    families = {name: ids for name, _fn, ids in audit.FAMILIES}
+    assert "W-CHECK-GUARD" in families["check"]
+    assert "S-CF" in families["style"]
+    assert audit._parse_rules("w-check-guard,s-cf") == {"W-CHECK-GUARD", "S-CF"}
+
+
+def test_v8_rule_entries_are_listed_with_their_family() -> None:
+    """v8 (r7 verdict [A-aera-5, A-aera-6]): the rule entries V-INPUT-RANGE (the value family, with a manifest) and
+    W-CHECK-ROUND (the check family, with a manifest), so --rules selects each one; their behaviour is tested in
+    test_v8_check.py and test_v8_audit.py."""
+    rng, rnd = audit.RULES["V-INPUT-RANGE"], audit.RULES["W-CHECK-ROUND"]
+    assert (rng.severity, rng.needs) == ("error", "manifest")
+    assert (rnd.severity, rnd.needs) == ("warning", "manifest")
+    families = {name: ids for name, _fn, ids in audit.FAMILIES}
+    assert "V-INPUT-RANGE" in families["value"]
+    assert "W-CHECK-ROUND" in families["check"]
+    assert audit._parse_rules("v-input-range,w-check-round") == {"V-INPUT-RANGE", "W-CHECK-ROUND"}
 
 
 def test_every_rule_has_a_source_and_a_test() -> None:

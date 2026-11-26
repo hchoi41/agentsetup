@@ -228,6 +228,44 @@ def test_density_thresholds_come_from_the_dictionary(tmp_path: Path, d: dictiona
     assert d.rule("dense_fill_ratio") == 0.6 and d.rule("dense_min_cells") == 500
 
 
+def boundary_cells(rows: int, cols: int, filled: int) -> dict[str, object]:
+    """`filled` numbers in a block of rows x cols cells from A1: the first filled - 1 cells in row order and the
+    block's last cell, so that the used block is exactly rows x cols."""
+    out: dict[str, object] = {}
+    order = [(r, c) for r in range(1, rows + 1) for c in range(1, cols + 1)]
+    for r, c in order[:filled - 1] + [order[-1]]:
+        out[f"{common.col_letter(c)}{r}"] = r * 100 + c
+    assert len(out) == filled
+    return out
+
+
+@pytest.mark.parametrize("rows, cols, filled, dense", [
+    (20, 25, 300, True),      # 300 filled cells in a block of 500 cells (60%)
+    (20, 25, 299, False),     # 299 in 500 (59.8%)
+    (499, 1, 300, False),     # 300 in 499 (60.1%): the block holds fewer than 500 cells
+    (20, 25, 500, True),      # the whole block
+])
+def test_density_boundary_follows_d18(d: dictionary.Dictionary, rows: int, cols: int, filled: int,
+                                      dense: bool) -> None:
+    """v9 (r8 verdict A-aera-16; SYNTHESIS D18): dense when the used block holds at least dense_min_cells cells
+    and at least dense_fill_ratio of them are filled. v8 compared the 500 with the filled cells, so 300 filled
+    cells in a block of 500 cells was not dense."""
+    sheet = make_sheet("Block", boundary_cells(rows, cols, filled))
+    dens = classify.density(sheet)
+    assert (dens["filled"], dens["area"]) == (filled, rows * cols)
+    for dic in (None, d):
+        st = classify.guess_sheet_type(sheet, dic)
+        assert (st == "calc") is dense, (rows, cols, filled, st)
+    plan = classify.plan_workbook(make_wb(sheet), d)["Block"]
+    assert plan.size == (8 if dense else 9)
+    ratio = f"{filled / (rows * cols):.1%}"
+    what = f"{filled} filled cells in a block of {rows * cols} cells ({ratio})"
+    if dense:
+        assert plan.reason == f"dense: {what}, at least 60% filled and a block of at least 500 cells"
+    else:
+        assert plan.reason == f"not dense: {what}"
+
+
 def test_plan_workbook_manifest_wins(d: dictionary.Dictionary) -> None:
     wb = make_wb(make_sheet("calc", {"B2": "x", "D2": 1}), make_sheet("raw_sales", {"A1": "a"}, index=1),
                  make_sheet("Other", _grid(60, 12), index=2))

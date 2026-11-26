@@ -448,9 +448,10 @@ def test_build_takes_the_accepted_control_total_for_its_snapshot(tmp_path: Path)
     root = make_model(tmp_path / "m")
     snap = land.read_snapshot(root, "sales")
     contract_before = (root / "contracts" / "sales.contract.json").read_bytes()
+    agreed = common.read_json(root / "contracts" / "sales.contract.json")["agreement"]["contract_sha256"]
     controls.record_acceptance(root, "sales", digest=snap.digest, rows=len(snap.rows),
                                totals=[{"column": "amount", "value": 31435000.5, "tolerance": 0}],
-                               given=["sales.amount=31435000.5"])
+                               given=["sales.amount=31435000.5"], contract_sha256=agreed)    # v9
     assert build.build(root / "model.spec.json").exit_code in (0, 1)
     man = manifest.load_manifest(root / "model.xlsx")
     sheet, cell = common.parse_ref(man["inputs"]["sales_total_amount"])
@@ -463,7 +464,8 @@ def test_build_takes_the_accepted_control_total_for_its_snapshot(tmp_path: Path)
     # another snapshot: the contract's total again
     root2 = make_model(tmp_path / "m2")
     controls.record_acceptance(root2, "sales", digest="sha256:" + "0" * 64, rows=1,
-                               totals=[{"column": "amount", "value": 5.0, "tolerance": 0}], given=[])
+                               totals=[{"column": "amount", "value": 5.0, "tolerance": 0}], given=[],
+                               contract_sha256=agreed)
     build.build(root2 / "model.spec.json")
     ws2 = load(root2 / "model.xlsx")[sheet]
     assert ws2[cell].value == 31435000
@@ -486,7 +488,9 @@ def test_check_accept_records_the_control_totals_once(tmp_path: Path, monkeypatc
     assert entry["rows"] == 12 and entry["given"] == [text]
     assert [(t["column"], float(t["value"]), float(t["tolerance"])) for t in entry["totals"]] == \
         [("amount", total12, 0.0)]
-    assert controls.totals_for(m.root, "sales", digest)[0]["value"] == total12
+    agreed = common.read_json(m.root / "contracts" / "sales.contract.json")
+    assert entry["contract_sha256"] == agreed["agreement"]["contract_sha256"]     # v9: under the agreement in force
+    assert controls.totals_for(m.root, "sales", digest, agreed)[0]["value"] == total12
     # the acceptance run again (as after an interruption) gives the same record
     rep = check.check_model(m.root, accept_refresh=True, controls={"sales.amount": total12}, control_texts=[text])
     assert "D-TOTAL" not in tc.rules(rep)

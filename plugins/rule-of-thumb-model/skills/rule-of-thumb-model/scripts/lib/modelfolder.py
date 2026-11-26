@@ -298,6 +298,48 @@ def _empty_status() -> dict[str, Any]:
     return {"rotm_status": 1, "workbooks": {}}
 
 
+# v9 (round 8 verdict C-sol-5): the steps whose record holds the fingerprint of the model folder's inputs
+INPUT_STEPS = ("audit", "check", "recalc")
+
+
+def inputs_fingerprint(root: str | Path) -> dict[str, dict[str, str | None]]:
+    """The inputs of the model folder's workbooks as they are now (v9, round 8 verdict C-sol-5): for every
+    contracts/<t>.contract.json, {"raw_sha256": sha256 hex of the bytes of raw/<t>.csv, or None when that file does
+    not exist or cannot be read; "contract_sha256": agreement.contract_sha256 when the contract is agreed (its hash
+    matches, contract_state "agreed"), else None}. A landing changes raw_sha256; an agreement of other content, or a
+    contract that is no longer agreed, changes contract_sha256. raw/<t>.controls.json is not part of it."""
+    r = Path(root)
+    out: dict[str, dict[str, str | None]] = {}
+    for t in tables(r):
+        raw = r / "raw" / f"{t}.csv"
+        try:
+            raw_sha = common.file_sha256(raw) if raw.is_file() else None
+        except OSError:
+            raw_sha = None
+        state, data, _problems = read_contract(r, t)
+        agreed = ((data or {}).get("agreement") or {}).get("contract_sha256") if state == "agreed" else None
+        out[t] = {"raw_sha256": raw_sha, "contract_sha256": agreed if isinstance(agreed, str) else None}
+    return out
+
+
+def inputs_changes(recorded: Any, current: dict[str, dict[str, Any]]) -> list[tuple[str, str]]:
+    """The differences between a record's field "inputs" and the current fingerprint, as (table, what) sorted by
+    table, what being "raw" (raw_sha256 differs) or "contract" (contract_sha256 differs); a table that is in one of
+    the two only counts as having None for both values. [] when `recorded` is not a dict (a record written before
+    v9) or equals `current`."""
+    if not isinstance(recorded, dict) or recorded == current:
+        return []
+    out: list[tuple[str, str]] = []
+    for t in sorted(set(recorded) | set(current)):
+        old = recorded.get(t) if isinstance(recorded.get(t), dict) else {}
+        new = current.get(t) or {}
+        if old.get("raw_sha256") != new.get("raw_sha256"):
+            out.append((t, "raw"))
+        if old.get("contract_sha256") != new.get("contract_sha256"):
+            out.append((t, "contract"))
+    return out
+
+
 def read_status(root: str | Path) -> dict[str, Any]:
     """reports/status.json, or an empty status ({"rotm_status": 1, "workbooks": {}}) when absent or unreadable."""
     path = status_path(root)
@@ -419,12 +461,17 @@ def record_step(root: str | Path, workbook_rel: str, step: str, entry: dict[str,
     contract). `workbook_rel` may be absolute; it is stored relative to the model folder with forward slashes.
     An unreadable status file is kept as status.json.bad_<time> and a new one is started.
     v3 (A-aera-2): a record of a step that wrote the workbook (write_pair) also appends its (input, output) pair to
-    reports/writes.json, under the same lock; status.json keeps one record per step as before."""
+    reports/writes.json, under the same lock; status.json keeps one record per step as before.
+    v9 (round 8 verdict C-sol-5): an audit, check or recalc record gets the field "inputs" (inputs_fingerprint of
+    the model folder when the step is recorded) unless the entry holds it already; the finish check counts a pass
+    only while the fingerprint is unchanged."""
     r = Path(os.path.abspath(common.native_path(root)))
     if step not in STEPS:
         raise ValueError(f"unknown step {step!r}; known steps: {', '.join(STEPS)}")
     if not isinstance(entry, dict):
         raise ValueError("entry must be a dict")
+    if step in INPUT_STEPS and "inputs" not in entry:
+        entry = dict(entry, inputs=inputs_fingerprint(r))
     wp = common.native_path(workbook_rel)
     if not wp.is_absolute():
         # A path given relative to the current folder (rotm.py audit examples/m/model.xlsx run from elsewhere) is

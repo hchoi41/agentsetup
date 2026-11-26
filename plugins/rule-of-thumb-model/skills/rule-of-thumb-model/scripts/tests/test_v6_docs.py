@@ -16,8 +16,11 @@ Each test reads the place where the v6 plan (section 5.4) puts a text and checks
 - T-14 ([A-aera-1, C-sol-1]): the words that read as a refusal or a stop (the hooks tables of SKILL.md and
   README.md, SKILL.md P1 step 6, skills/contract/SKILL.md step 7, column-contract.md).
 - T-15 ([A-aera-5]): skills/diff/SKILL.md: a cell whose stored type changed is listed with both types.
-- [J-3]: SKILL.md and README.md "What is and is not verified": the subsection "Runs on the final v6 files", the
-  four v6 items of the verified list with their tests (plan section 5.5), Google Sheets only under "Not verified".
+- [J-3]: SKILL.md and README.md "What is and is not verified": the four v6 items of the verified list with their
+  tests (plan section 5.5), Google Sheets only under "Not verified". v7 ([J-6]): the subsection "Runs on the final
+  v6 files" became "Runs on the final v7 files"; test_v7_docs.py tests it, the v7 items and the integrator's
+  sentences; the tests here keep only what still holds of v6. v8 (r7 verdict [J-2]): it became "Runs on the final
+  v8 files"; v9 (r8 verdict [J-2]): "Runs on the final v9 files" (test_v9_docs.py).
 - Tests whose names end in `_in_the_code` read a name or a text from the code of another package (P1 formula.py and
   excel.py, P2 audit.py, P3 check.py): they fail until that package has written it (plan section 7, I-3).
 
@@ -41,6 +44,9 @@ RUNS_V6 = "### Runs on the final v6 files"
 P_RUNS_V6 = "Integrator: replace this line with the runs on the final v6 files."
 KEEP_V6 = "Integrator: keep this item only when these tests passed in the final runs."
 VERSION_V6 = "Version v6 of 2026-11-26"
+RUNS_V7 = "### Runs on the final v7 files"     # v7 ([J-6]): the subsection that replaced RUNS_V6
+RUNS_V8 = "### Runs on the final v8 files"     # v8 (r7 verdict [J-2]): the subsection that replaced RUNS_V7
+RUNS_V9 = "### Runs on the final v9 files"     # v9 (r8 verdict [J-2]): the subsection that replaces RUNS_V8
 
 # The four v6 items of the verified list and their tests (plan sections 5.3 and 5.5).
 V6_VERIFIED = {
@@ -72,9 +78,6 @@ V6_VERIFIED = {
 V5_RUN_TEXTS = ("2,609", "2,255", "151 skipped", "455 skipped", "141 passed", "00:49 to 00:56", "00:42 to 00:48",
                 "00:24 to 00:26", "00:49 to 00:54", "00:56 to 01:03", "23:28 to", "23:20 to 23:24",
                 "23:24 to 23:26", "Version v5", "on the final v5 files", "for v5 only")
-
-# The runs the integrator states (verdict [J-3]; plan section 8, step 5).
-REQUIRED_RUNS = ("selftest --quick", "f02_skill_alone", "f27_power_query", "-m excel", "selftest --strict")
 
 # The argument counts of plan section 5.1: (smallest, largest, parity, the <allowed> text of F-ARGS).
 PAIRS_255 = "a range and then pairs of a criteria range and its criterion (3, 5, 7, ... up to 255)"
@@ -207,17 +210,6 @@ def _hooks_row(path: Path, hook: str, next_hook: str) -> str:
     heading = "## Hooks" + (" (when the plugin is installed)" if path.name == "SKILL.md" else "")
     hooks = _plain(_section(_read(path), heading))
     return hooks.split(f"| {hook} |", 1)[1].split(f"| {next_hook} |", 1)[0]
-
-
-def _run_bullets(section: str) -> list[str]:
-    runs = _section(section, RUNS_V6)[len(RUNS_V6):]
-    bullets: list[str] = []
-    for line in runs.splitlines():
-        if line.startswith("- "):
-            bullets.append(line[2:].strip())
-        elif line.startswith("  ") and line.strip() and bullets:
-            bullets[-1] += " " + line.strip()
-    return bullets
 
 
 # ----------------------------------------------------------------------------- T-1, T-2 [A-aera-3, C-sol-2]
@@ -428,36 +420,33 @@ def test_type_rules_in_the_code() -> None:
 
 # ----------------------------------------------------------------------------- [J-3] what is and is not verified
 
+# v7 ([J-6]): the subsection "Runs on the final v6 files" was replaced by "Runs on the final v7 files"; the tests of
+# the v7 subsection (its placeholder or dated runs, the required runs, the v7 items and the integrator's sentences)
+# are in test_v7_docs.py. What still holds of v6 is tested here.
+
+def _bullets(section: str) -> list[str]:
+    """The top-level bullets of a section, each as one line (continuation lines joined)."""
+    bullets: list[str] = []
+    for line in section.splitlines():
+        if line.startswith("- "):
+            bullets.append(line[2:].strip())
+        elif line.startswith("  ") and line.strip() and bullets:
+            bullets[-1] += " " + line.strip()
+    return bullets
+
+
 @pytest.mark.parametrize("path", _verified_files(), ids=lambda p: p.name)
-def test_runs_on_the_final_v6_files_holds_the_placeholder_or_runs(path: Path) -> None:
+def test_the_v6_runs_subsection_is_replaced_by_the_v7_one(path: Path) -> None:
+    """v8 (r7 verdict [J-2]): the v7 subsection was replaced by the v8 one in turn; v9 (r8 verdict [J-2]): the v8
+    one by the v9 one (test_v9_docs.py checks it)."""
     section = _verified(path)
-    assert RUNS_V6 in section, f"{path.name}: no subsection '{RUNS_V6}'"
+    assert RUNS_V6 not in section, f"{path.name}: the v6 subsection is left"
+    assert P_RUNS_V6 not in section and VERSION_V6 not in section
     for old in ("v3", "v4", "v5"):
         assert f"### Runs on the final {old} files" not in section, f"{path.name}: the {old} subsection is left"
-    assert VERSION_V6 in section, f"{path.name}: the version line does not say '{VERSION_V6}'"
-    bullets = _run_bullets(section)
-    assert bullets, f"{path.name}: the subsection '{RUNS_V6}' holds no bullet"
-    if bullets == [P_RUNS_V6]:
-        return                                              # before the integrator's runs: only the placeholder
-    assert P_RUNS_V6 not in " ".join(bullets), f"{path.name}: the placeholder is left beside the runs"
-    for bullet in bullets:
-        if bullet.startswith("Not run"):
-            continue
-        assert re.search(r"20\d\d-\d\d-\d\d", bullet) and re.search(r"\b\d\d:\d\d\b", bullet), \
-            f"{path.name}: a run without its date and time: {bullet[:120]}"
-
-
-@pytest.mark.parametrize("path", _verified_files(), ids=lambda p: p.name)
-def test_runs_on_the_final_v6_files_name_the_required_runs(path: Path) -> None:
-    """Verdict [J-3]: the whole suite without Excel in three temporary-folder set-ups, the Excel tests of the changed
-    modules, selftest --quick, the selftest steps f02 and f27 alone, and whether the full strict selftest ran."""
-    section = _verified(path)
-    bullets = _run_bullets(section)
-    if bullets == [P_RUNS_V6]:
-        pytest.skip("the integrator has not written the runs yet")
-    runs = _flat(" ".join(bullets))
-    _all(runs, REQUIRED_RUNS, f"{path.name}, runs on the final v6 files")
-    assert runs.count("--basetemp") >= 2, f"{path.name}: the two --basetemp runs are not both stated"
+    assert RUNS_V7 not in section, f"{path.name}: the v7 subsection is left"
+    assert RUNS_V8 not in section, f"{path.name}: the v8 subsection is left"
+    assert RUNS_V9 in section, f"{path.name}: no subsection '{RUNS_V9}'"
 
 
 @pytest.mark.parametrize("path", _verified_files(), ids=lambda p: p.name)
@@ -469,18 +458,21 @@ def test_no_v5_run_statement_is_carried_over(path: Path) -> None:
 
 @pytest.mark.parametrize("path", _verified_files(), ids=lambda p: p.name)
 def test_verified_list_names_the_v6_items_with_their_tests(path: Path) -> None:
+    """The four v6 items stay in the verified list with their tests (the tests did not change in v7) and without
+    the integrator's sentence; Google Sheets only under 'Not verified'."""
     section = _verified(path)
-    verified = _flat(_section(section, "### Verified, with the tests that show it"))
+    verified_text = _section(section, "### Verified, with the tests that show it")
+    verified = _flat(verified_text)
     not_verified = _flat(_section(section, "### Not verified"))
     present = [item for item in V6_VERIFIED if item in verified]
+    assert present == list(V6_VERIFIED), f"{path.name}: v6 items missing: {set(V6_VERIFIED) - set(present)}"
+    bullets = _bullets(verified_text)
     for item in present:
-        missing = [t for t in V6_VERIFIED[item] if t not in verified]
+        own = [b for b in bullets if b.startswith(item)]
+        assert len(own) == 1, f"{path.name}: {len(own)} bullets for the v6 item '{item}'"
+        missing = [t for t in V6_VERIFIED[item] if t not in own[0]]
         assert not missing, f"{path.name}: the verified item '{item}' does not name {missing}"
-    if _run_bullets(section) == [P_RUNS_V6]:   # before the integrator's runs: every item, each with its sentence
-        assert present == list(V6_VERIFIED), f"{path.name}: v6 items missing: {set(V6_VERIFIED) - set(present)}"
-        assert verified.count(KEEP_V6) == len(V6_VERIFIED), f"{path.name}: {verified.count(KEEP_V6)} sentences"
-    else:                                       # after them: the items kept, and no sentence for the integrator
-        assert KEEP_V6 not in verified
+        assert KEEP_V6 not in own[0], f"{path.name}: the v6 item '{item}' still holds the integrator's sentence"
     assert "Google" not in verified, f"{path.name}: a Google Sheets statement in the verified list"
     _all(not_verified, ["Google Sheets", "local stand-in", "not in Google Sheets",
                         "test_v6_audit.py::test_shorter_extract_repair_passes_check_and_audit"],

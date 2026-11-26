@@ -39,6 +39,9 @@ Operation shapes (run_job, apply_edits; checked by normalize_operations, which s
   {"op": "inventory"}
   {"op": "render", "out_dir": DIR, "sheets": [...] | None, "max_rows": 200, "max_cols": 40}
   {"op": "pq_attach", "sheet": S, "table_name": T, "query_name": Q, "m_text": M, "formats": F}
+  {"op": "pq_add_query", "query_name": Q, "m_text": M}
+      v8 (r7 verdict C-sol-4): adds the query Q with the M text M, or sets its formula when Q exists; no table and
+      no load (a connection-only query). The step reports "query": "added" or "updated".
   {"op": "pq_refresh", "wait_s": 300, "formats": F}
       F = {sheet: {"columns": [look per table column], "header": look}} (looks as in "style"). Both operations set
       PreserveFormatting on and AdjustColumnWidth off on every query table they touch, and apply F to each raw
@@ -98,7 +101,7 @@ EXCEL_SUFFIXES = {".xlsx": 51, ".xlsm": 52, ".xlsb": 50, ".xls": 56}   # Excel F
 MACRO_SUFFIXES = {".xlsm", ".xlsb", ".xls"}
 
 READ_OPS = ("recalc", "read", "errors", "inventory", "render", "sleep")
-EDIT_OPS = ("style", "formula", "value", "fill_down", "add_sheet", "clear", "pq_attach", "pq_refresh")
+EDIT_OPS = ("style", "formula", "value", "fill_down", "add_sheet", "clear", "pq_attach", "pq_add_query", "pq_refresh")
 OPS = READ_OPS + EDIT_OPS
 
 _CREATE_NO_WINDOW = 0x08000000
@@ -942,6 +945,12 @@ def normalize_operations(operations: Sequence[dict[str, Any]]) -> list[dict[str,
                 raise _bad(i, name, f"table name {op['table_name']!r}: letters, digits, '_' and '.', no spaces")
             o.update(table_name=op["table_name"], query_name=op["query_name"], m_text=op["m_text"])
             o["formats"] = _formats(op.get("formats"), i, name)
+        elif name == "pq_add_query":
+            # v8 (r7 verdict C-sol-4): a connection-only query (no table, no load)
+            for key in ("query_name", "m_text"):
+                if not isinstance(op.get(key), str) or not op[key].strip():
+                    raise _bad(i, name, f"give '{key}'")
+            o.update(query_name=op["query_name"], m_text=op["m_text"])
         elif name == "pq_refresh":
             o["wait_s"] = float(op.get("wait_s", 300))
             o["formats"] = _formats(op.get("formats"), i, name)
@@ -1021,7 +1030,7 @@ def run_job(workbook: str | Path, operations: Sequence[dict[str, Any]], *, save:
             save_as: str | Path | None = None, timeout_s: float | None = None,
             read_only: bool | None = None, _treat_as_foreign: bool = False) -> JobResult:
     """Run operations (design 12: style, formula, value, fill_down, add_sheet, clear, recalc, read, errors,
-    inventory, render, pq_attach, pq_refresh) on one workbook in one new Excel instance.
+    inventory, render, pq_attach, pq_add_query, pq_refresh) on one workbook in one new Excel instance.
 
     - `save`: save the workbook in place; `save_as`: save to that path instead (the original is not changed).
     - Without save or save_as the workbook is opened read-only and nothing is written.
@@ -1673,6 +1682,17 @@ def pq_attach(workbook: str | Path, *, sheet: str, table_name: str, query_name: 
     loaded range (v2, A-aera-8)."""
     op = {"op": "pq_attach", "sheet": sheet, "table_name": table_name, "query_name": query_name, "m_text": m_text}
     return run_job(workbook, [op], save=save and out is None, save_as=out if save else None, timeout_s=timeout_s)
+
+
+def pq_add_queries(workbook: str | Path, queries: Sequence[tuple[str, str]], *, then: Sequence[dict[str, Any]] = (),
+                   save: bool = True, out: str | Path | None = None, timeout_s: float | None = None) -> JobResult:
+    """v8 (r7 verdict C-sol-4): add each query of `queries` ((name, M text) pairs, in that order) as a
+    connection-only query: no table and no load; a query of that name that exists gets the new M text. The
+    operations of `then` (for example a pq_attach of a query that reads these queries) run after them in the same
+    Excel job. One step "pq_add_query" per query, with "query" "added" or "updated"."""
+    ops: list[dict[str, Any]] = [{"op": "pq_add_query", "query_name": name, "m_text": text} for name, text in queries]
+    ops += [dict(o) for o in then]
+    return run_job(workbook, ops, save=save and out is None, save_as=out if save else None, timeout_s=timeout_s)
 
 
 def pq_refresh(workbook: str | Path, *, save: bool = True, wait_s: float = 300,

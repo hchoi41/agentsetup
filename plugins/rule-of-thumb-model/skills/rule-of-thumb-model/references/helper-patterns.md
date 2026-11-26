@@ -2,7 +2,7 @@
 
 Max's rule: "the realistic approach is having less than 3 nested functions at most. (if we require something more than that perhaps we need a helper column)" (Max, spec 1.2). This file shows how to meet it. It gives the counting rule, the order in which to split a formula, where helpers go in a model built by this plugin, and before-and-after formulas for the deep formulas the research found most often.
 
-Read it when `build` refuses an expression with F-DEPTH or F-NESTED-IF, when `audit` reports F-DEPTH, F-NESTED-IF, F-LITERAL or F-LENGTH, when `build` or `check` warns D-CRITERIA, when `split` reports SPLIT-GUARD, or before you write a calculation that needs more than two nested functions.
+Read it when `build` refuses an expression with F-DEPTH or F-NESTED-IF, when `build` refuses `{h:<table>.<column>}` in a helper column ([Rank or percentile within a group](#rank-or-percentile-within-a-group)), when `audit` reports F-DEPTH, F-NESTED-IF, F-LITERAL or F-LENGTH, when `build` or `check` warns D-CRITERIA, when `split` reports SPLIT-GUARD, or before you write a calculation that needs more than two nested functions.
 
 ## Evidence labels
 
@@ -402,18 +402,159 @@ The VLOOKUP form passes the depth limit, but VLOOKUP is flagged (F-FUNC-FLAGGED:
 
 - The "After" cell holds no IF inside an IF, so it also passes F-NESTED-IF.
 
+## Rank or percentile within a group
+
+- Evidence: plugin, v7 (round 6 judge item J-1). In a user test the model needed the rank of each line within its group, and the agent wrote its own pattern with two extra typed numbers and three extra checks. This section gives one pattern that `build` accepts within the depth limit of 2 and without typed numbers other than 0 and 1, and one check that proves it.
+- Result: each line gets its rank within its region (largest amount first), its rank from the other end (smallest first), the count of lines in its region, and its rank as a share of the region. Measured in Excel 16 on the build PC on a fixture of 21 lines in 4 groups with ties and decimals: every value equals the same calculation in Python (test `test_v7_patterns.py::test_rank_pattern_equals_python_in_excel`).
+
+### Why a helper column may not read other rows of its own sheet
+
+- The rule: `{h:<table>.<column>}` is allowed in calc, output and checks only, and a helper column reads its own helper sheet only as `{this:<column>}`, the cell of its own row (design 6.6, the placeholder table; `ALLOWED_IN` in `scripts/lib/spec.py`). Row r of a helper sheet belongs to raw row r, and every helper formula is the same on every row (design 7.1).
+- `build` refuses `{h:...}` in a helper column (exit 2, nothing built); its fix names this section.
+- The reason (my reading): `{h:<table>.<column>}` becomes the whole helper column with its sheet name, for example `h_sales!$G:$G`. On the helper sheet itself that is a reference to its own sheet (F-SELF-SHEET; design 6.6: the current sheet is never written as a prefix), and a helper column that reads its own column, or a column that reads it, refers to itself: a circular reference.
+- The raw sheet holds the same rows: row r of `h_<table>` reads raw row r. So the pattern reads the other rows of the group from the raw columns, `{raw:<table>.<column>}`, which `build` allows in a helper column, and the row's own values from `{this:<column>}`.
+
+### The pattern
+
+- In the example below the raw table is `sales`; the helper sheet fetches `region` (column D) and `amount` (column F), as in the other examples of this file. Column letters are examples: `build` assigns them.
+- The refused form reads the helper sheet itself: `{h:sales.region}` and `{h:sales.amount}` in a helper column of `h_sales`.
+
+| After | Holds | Formula | Depth |
+| --- | --- | --- | --- |
+| `h_sales!G2` | rank of the amount in its region, largest first: 1 plus the lines of the same region with a larger amount | `=COUNTIFS(raw_sales!$D:$D,D2,raw_sales!$F:$F,">"&F2)+1` | 1 |
+| `h_sales!H2` | rank of the amount in its region, smallest first: 1 plus the lines of the same region with a smaller amount | `=COUNTIFS(raw_sales!$D:$D,D2,raw_sales!$F:$F,"<"&F2)+1` | 1 |
+| `h_sales!I2` | lines in the region | `=COUNTIFS(raw_sales!$D:$D,D2)` | 1 |
+| `h_sales!J2` | rank as a share of the region: 1/n for the largest amount of a region of n lines, 1 for the smallest when it is not tied | `=G2/I2` | 0 |
+
+```json
+{"helper_columns": [
+  {"id": "amount_rank", "label": "Rank in region, largest first", "unit": "rank", "format": "integer", "expr": "COUNTIFS({raw:sales.region},{this:region},{raw:sales.amount},\">\"&{this:amount})+1"},
+  {"id": "amount_rank_up", "label": "Rank in region, smallest first", "unit": "rank", "format": "integer", "expr": "COUNTIFS({raw:sales.region},{this:region},{raw:sales.amount},\"<\"&{this:amount})+1"},
+  {"id": "region_n", "label": "Lines in region", "unit": "count", "format": "count", "expr": "COUNTIFS({raw:sales.region},{this:region})"},
+  {"id": "amount_share", "label": "Rank as share of region", "unit": "share", "format": "rate", "expr": "{this:amount_rank}/{this:region_n}"}],
+ "check": {"id": "sales_rank_sums", "kind": "equal", "label": "Ranks in region: largest first and smallest first add up to the same total", "actual": "SUM({h:sales.amount_rank})", "expected": "SUM({h:sales.amount_rank_up})"}}
+```
+
+- The check goes into the `checks` list of the checks sheet; the four helper columns go into the `columns` of the helper sheet `h_sales`.
+- A percentile in another form uses the same columns, for example the share of the region below the line, `({this:amount_rank_up}-1)/{this:region_n}`.
+- Calculation blocks read the columns as any helper column, for example the lines that rank first in their region: `COUNTIFS({h:sales.amount_rank},1)`.
+
+### How ties are ranked
+
+- Equal amounts in one region get the same rank, the best of their places, and the next rank is skipped. Amounts 500, 300, 300 and 100 in one region rank 1, 2, 2 and 4 (largest first) and 4, 2, 2 and 1 (smallest first). RANK.EQ ranks ties the same way over a whole range (builder's reading of Microsoft's function reference, not confirmed).
+- Tied lines get the same share: 0.25, 0.5, 0.5 and 1 in the example.
+
+### The check that proves it
+
+- In each region, the sum of (rank - 1) over its lines counts the pairs of lines whose amounts differ, once from the line with the smaller amount; the sum of (rank from the other end - 1) counts the same pairs from the line with the larger amount. Tied pairs add 0 to both. So the two rank columns have the same sum, in each region and over the table. In the example: 1 + 2 + 2 + 4 = 9 and 4 + 2 + 2 + 1 = 9.
+- The check `sales_rank_sums` fails when one of the two rank columns counts lines of other regions (the region criterion left out), counts the line itself or its ties (`">="` in place of `">"`), or lacks the `+1`. Tested in Excel for the first case: the fixture with the region criterion left out of `amount_rank` fails `check --strict` (test `test_v7_patterns.py::test_rank_check_fails_for_a_rank_without_its_group`). The other two cases follow from the two sums (my reading).
+- It does not find a mistake that both rank columns share, and it does not find labels that Excel's criteria matching merges ([Labels that Excel's criteria matching merges](#labels-that-excels-criteria-matching-merges)): both columns then count the same wrong rows.
+- It has no typed number other than 0 and 1, and its tolerance is the input `check_tolerance`; both sums are whole numbers.
+
+### Order functions in the catalogue
+
+What `scripts/lib/functions.py` gives for the functions that rank or order values, in the profiles `both`, `excel` and `sheets` alike:
+
+| Functions | Class | What `build` and `audit` do |
+| --- | --- | --- |
+| COUNTIFS, COUNTIF, SUMPRODUCT, LARGE, SMALL, MEDIAN | allowed | accept them; none of them ranks within a group by itself: COUNTIFS does it with a criterion per column, as above |
+| MAXIFS, MINIFS | allowed | accept them; the catalogue gives Excel 2019 and later (stored with the prefix `_xlfn.`) |
+| SORT, SORTBY | flagged | F-FUNC-FLAGGED (warning; strict mode exits 1): spilling arrays |
+| RANK, RANK.EQ, RANK.AVG, PERCENTRANK, PERCENTRANK.INC, PERCENTRANK.EXC, PERCENTILE, PERCENTILE.INC, PERCENTILE.EXC, QUARTILE, QUARTILE.INC, QUARTILE.EXC | not in the catalogue | F-FUNC-UNKNOWN (warning; strict mode exits 1); each works on one whole range and takes no group criterion |
+
+### What `">"&` does to a number
+
+- In a criterion, `">"&F2` joins the text `>` with the number in F2, so Excel turns the number into text first. Excel writes at most 15 significant digits there and compares to that precision: two amounts that agree in their first 15 significant digits rank as ties, also when they differ after it.
+- Measured in Excel 16 on the build PC (2026-11-26; test `test_v7_patterns.py::test_rank_criteria_compare_numbers_to_15_significant_digits`): `">"&(0.1+0.2)` gave the text `>0.3`, and 0.30000000000000004 and 0.3 in one group both got rank 1 from each end (Python's exact comparison gives 1 and 2). The same held for 1/3 and 0.333333333333333, and for 1234567890123456 and 1234567890123457 (the criterion was `>1234567890123460`). Amounts of 15 significant digits or fewer ranked exactly: 1234.5678 (twice), 99.125, -0.5, 0 and 2.75 got Python's ranks.
+- Landed amounts with 15 significant digits or fewer (whole won, or two decimals below 10,000,000,000,000) are not affected. Rank a value computed in a helper column, such as a ratio, only when ties at 15 significant digits are acceptable.
+
 ## Labels that Excel's criteria matching merges
 
 - Evidence: plugin, v4. Excel's COUNTIFS counted the text keys 00123, 0123 and 123 as one key (measured in Excel 16, 2026-11-25; [checks.md](checks.md)). The plugin's rules below are compared with Excel's COUNTIFS by the test `test_v4_check.py::test_criteria_match_follows_excel_countifs` (Excel).
 - SUMIFS, COUNTIFS, AVERAGEIFS, MAXIFS, MINIFS, SUMIF, COUNTIF and AVERAGEIF do not compare their criterion with each cell of the criteria range as exact text. Four rules:
   1. A criterion that reads as a number matches a number cell of that value and every text that reads as the same number: `'001'`, `'1'` and `'1.0'` match one another.
   2. Upper and lower case are not told apart: `'North'` matches `'north'`. The comparison ignores case.
-  3. `*` matches any run of characters and `?` any one character; `~` before either makes it a plain character. A label `A*` matches `AB` and `A-1`.
+  3. `*` matches any run of characters and `?` any one character; `~` before either makes it a plain character. A label `A*` matches `AB` and `A-1`. In a criterion that holds `*` or `?`, a `~` makes the next character plain whatever it is: `~~` is a plain `~`, and the `~` of `A~b*` is dropped, so `A~b*` matches `Abc` and not `A~bc`. In a criterion without `*` or `?`, a `~` is an ordinary character: `A~b` matches `A~b` (plugin, v9: measured in Excel 16 on the build PC, 2026-11-26).
   4. A criterion that starts with `=`, `<` or `>` is read as a comparison: a label `<5` counts the numbers below 5.
 - So a block that sums by label adds the rows of every value that Excel takes as equal to the label. Example: a text column `category` holds `'001'` on a row with amount +100 and `'1'` on a row with amount -100 in the same month. `SUMIFS(<amounts>,<categories>,"001")` and `SUMIFS(<amounts>,<categories>,"1")` both return 0: Excel adds both rows under each label.
 - `build` and `check` report it with the warning D-CRITERIA (strict mode exits 1). The warning names the block or the cell, the label, the other value, the column and its first row, and the reason (both read as the same number; they differ only in case; the label holds a wildcard; the label starts with an operator). `build` and `check` test the landed rows in Python, for criteria ranges that are fetch columns of a raw text column. `check` also tests the values Excel saved after a completed recalculation, for criteria ranges on other helper columns.
 - The fix: make the labels unambiguous before they reach the criteria range. Change the contract's source expression of the column (for example keep a code at a fixed length with its leading zeros, so that `1` and `001` become one code, or put a letter in front of it), or match on a helper column that holds an unambiguous key. Then land again, show the contract and get it agreed, and rebuild.
 - Keys are not affected: the key checks compare exact text with EXACT, not with COUNTIFS or MATCH ([checks.md](checks.md)).
+- A label that is also a value of its column but that Excel does not match with itself is the opposite case: Excel leaves its rows out ([A label that Excel's criteria matching does not match with itself](#a-label-that-excels-criteria-matching-does-not-match-with-itself)).
+
+### A label that Excel's criteria matching does not match with itself
+
+- Evidence: plugin, v8 (round 7 review C-sol-1). A reviewer gave the starter the text category `TRUE` with +300 in January and -300 in February, and `East` with +200 in January. Excel's SUMIFS returned 0 for `TRUE` in both months, and every check held, because the rows left out add up to 0 over the months. The test `test_v8_criteria.py::test_true_label_whose_amounts_net_to_zero_fails_build_and_check` repeats this case in Excel 16 on the build PC.
+- Evidence: plugin, v9 (round 8 reviews A-aera-1 and C-sol-2). Two reviewers gave the starter the categories `A~*` (+300 in January, -300 in February) and `A~?` (+400 in January, -400 in February). Excel's SUMIFS returned 0 for both labels in both months, and `build`, `audit` and `check` exited 0 in strict mode. The test `test_v9_criteria.py::test_tilde_wildcard_labels_netting_to_zero_fail_build_and_check` repeats this case in Excel 16 on the build PC.
+- Three named cases:
+  1. The texts `TRUE` and `FALSE`, in any case (`true`, `False`): Excel reads the criterion as the logical value TRUE or FALSE. A logical value matches only a cell that holds a logical value, not a cell that holds the text. A fetch column of a raw text column (`INDEX(...)&""`) always holds text.
+  2. A label taken from a cell (not typed in the formula) that starts with `=`, `<` or `>`: Excel reads the criterion as a comparison. The label `<100` counts the numbers below 100, not the cells that hold the text `<100`. A criterion typed in the formula that starts with an operator is taken as meant and is not compared.
+  3. A label that holds `~*` or `~?`: Excel reads `~*` and `~?` in a criterion as a literal `*` and `?`. The criterion `A~*` matches the cell that holds `A*`, not the cell that holds `A~*`. A criterion typed in the formula that holds `*` or `?` is taken as meant and is not compared.
+- Every other label that Excel's criteria matching does not match with itself is reported too, with the general reason "Excel's criteria matching does not match this text with itself". Examples: `A~b*` (Excel drops the `~`, so the criterion matches `Abc`) and `A~~?` (Excel reads `~~` as one `~`, so the criterion matches `A~x`). A label that holds `~` and no `*` or `?` matches itself (`A~b`, `A~~`, `~`), and so does a label with `*` or `?` and no `~` (`A*` matches the text `A*`; it can also match other values: rule 3 above).
+- Measured in Excel 16 on the build PC (2026-11-26): COUNTIF, COUNTIFS and SUMIFS over one cell gave the same answer as the plugin's rules on 81 pairs of a criterion and a cell value, among them every label above against itself (test `test_v9_criteria.py::test_tilde_rules_follow_excel_countif`).
+- Why the rows are left out: the block's label is the text `TRUE`, and the criteria column holds the text `TRUE` on those rows. Excel compares the column with the logical value TRUE, so no row matches, and the label's sum and count are 0. The label `A~*` is the same: Excel looks for the text `A*`, which no row holds. When the rows left out add up to 0, the block total still equals the raw total and every check holds.
+- `build` and `check` warn D-CRITERIA (strict mode exits 1) with the reason key `self_mismatch`. The warning names the block, the label, the column and its first raw row, gives the reason, and says that the function leaves out the rows with this label (plugin, v8 and v9). The finding's data field `case` is `logical`, `operator`, `tilde` or `other`.
+- The fix names the pattern that fits the label: the helper key with a fixed prefix for `TRUE`, `FALSE` and a label that starts with an operator; the helper keys that replace `~`, `*` and `?` for a label that holds `~` together with `*` or `?` ([Helper keys for a label that holds a tilde](#helper-keys-for-a-label-that-holds-a-tilde)). A fixed prefix does not change how Excel reads `~`, `*` and `?`: `k_A~*` still does not match itself.
+
+#### The helper key with a fixed prefix (TRUE, FALSE and operators)
+
+- The fix, in formulas only: give both sides a helper key with a fixed prefix. A helper column holds `"k_"&` the label column, and the block's criterion is `"k_"&` the label. Then the criterion is `k_TRUE` or `k_<100`: a text that is neither a logical value nor a comparison, so it matches the key cells that hold the same text.
+- The prefix also keeps numbers apart (`k_001` and `k_1` are two keys). It does not change rules 2 and 3 above: `k_North` still matches `k_north`, a `*` or `?` in a label is still a wildcard, and a `~` before a character still makes it plain when the label holds `*` or `?`.
+- The labels on the block stay as they are (`TRUE`, `East`); only the criterion adds the prefix. Measured in Excel 16 on the build PC with the reviewer's data: `build --strict`, `audit --strict` and `check --strict` exit 0, and every category-month sum equals the sum computed in Python from the CSV (test `test_v8_criteria.py::test_helper_key_form_passes_and_equals_python`).
+
+| After | Holds | Formula | Depth |
+| --- | --- | --- | --- |
+| `h_sales!K2` | the key of the row: `k_` followed by its region | `="k_"&D2` | 0 |
+| `calc!D7` | the amount of the region in B7 for the month in D6, matched on the key | `=SUMIFS(h_sales!$F:$F,h_sales!$K:$K,"k_"&$B7,h_sales!$G:$G,D$6)` | 1 |
+
+```json
+{"helper_columns": [
+  {"id": "region_key", "label": "Region key with a fixed prefix", "unit": "key", "format": "text", "expr": "\"k_\"&{this:region}"}],
+ "block": {"cell": "SUMIFS({h:sales.amount},{h:sales.region_key},\"k_\"&{row},{h:sales.month_end},{col})"}}
+```
+
+- The helper column goes into the `columns` of the helper sheet `h_sales`; the cell replaces the `cell` of the block that sums by region. Column letters are examples: `build` assigns them.
+
+#### Helper keys for a label that holds a tilde
+
+- For a label that holds `~` together with `*` or `?` (case 3 and the other labels above, for example `A~*`, `A~?` and `A~b*`): give both sides helper keys that replace `~`, `*` and `?` by fixed texts, one SUBSTITUTE per helper column. The key holds none of the three signs, so Excel compares it as plain text, and the key of each label matches the key cells of its own rows.
+- One SUBSTITUTE per helper column: three SUBSTITUTE calls inside one another have depth 3, and the limit is 2. Each step reads the step before it.
+- The steps, on both sides: step 1 writes `k_` in front and replaces `~` by `_t_`; step 2 replaces `*` by `_s_`; step 3 replaces `?` by `_q_`. `A~*` becomes `k_A_t__s_` and `A~?` becomes `k_A_t__q_`. The prefix `k_` makes the same key fit `TRUE`, `FALSE` and labels that start with an operator, for a column that holds both kinds.
+- The texts `_t_`, `_s_` and `_q_` must not occur in a label of the column: `A~` and `A_t_` would get the same key. The check `region_keys_rows` below then fails, because the rows of both labels are counted twice.
+- The row side: three helper columns on `h_sales`. The label side: three grids of one column on the `calc` sheet, before the block that sums. The first grid reads the label (`{row}`), the second and the third read the grid before them (`{g:<grid>}`), and the block that sums reads the key of its row with `{grow:region_keys}` (the one cell of that row of the third grid). Every block needs a check of severity error (W-NO-CHECK): the check `region_keys_signs` reads the three grids.
+- Two checks prove the keys:
+  - `region_keys_rows` (equal): the rows counted under the keys of the block equal the rows of the raw table. It fails when the keys leave a row out, also when the amounts of the rows left out add up to 0, and when two labels get the same key. It also fails when a raw row holds a label that the block does not list.
+  - `region_keys_signs` (zero): the keys of the three grids that still hold the sign their step replaces (`"*~~*"` counts the texts that hold a plain `~`, `"*~**"` those that hold a plain `*`, `"*~?*"` those that hold a plain `?`).
+- The labels on the block stay as they are (`A~*`, `East`). Measured in Excel 16 on the build PC with the reviewers' data: `build --strict`, `audit --strict` and `check --strict` exit 0, Excel's sums for `A~*` are +300 in January and -300 in February, and every category-month sum equals the sum computed in Python from the CSV (test `test_v9_criteria.py::test_helper_keys_for_tilde_labels_pass_and_equal_python`). Not tested in Google Sheets.
+
+| After | Holds | Formula | Depth |
+| --- | --- | --- | --- |
+| `h_sales!K2` | step 1 of the row's key: `k_` and the region with `~` replaced | `="k_"&SUBSTITUTE(D2,"~","_t_")` | 1 |
+| `h_sales!L2` | step 2: `*` replaced | `=SUBSTITUTE(K2,"*","_s_")` | 1 |
+| `h_sales!M2` | the row's key: `?` replaced | `=SUBSTITUTE(L2,"?","_q_")` | 1 |
+| `calc!D6` | step 1 of the key of the region in B6 | `="k_"&SUBSTITUTE($B6,"~","_t_")` | 1 |
+| `calc!D13` | step 2 | `=SUBSTITUTE(D6,"*","_s_")` | 1 |
+| `calc!D20` | the key of the region in B20 | `=SUBSTITUTE(D13,"?","_q_")` | 1 |
+| `calc!D27` | the amount of the region in B27 for the month in D26, matched on the key in D20 | `=SUMIFS(h_sales!$F:$F,h_sales!$M:$M,$D20:$D20,h_sales!$G:$G,D$26)` | 1 |
+| `checks!D14` | the rows counted under the keys | `=SUMPRODUCT(COUNTIFS(h_sales!$M:$M,calc!$D$20:$D$23))` | 2 |
+| `checks!D15` | the keys that still hold a replaced sign | `=COUNTIF(calc!$D$6:$D$9,"*~~*")+COUNTIF(calc!$D$13:$D$16,"*~**")+COUNTIF(calc!$D$20:$D$23,"*~?*")` | 1 |
+
+```json
+{"helper_columns": [
+  {"id": "region_k1", "label": "Region key, step 1: k_ and ~ replaced", "unit": "key", "format": "text", "expr": "\"k_\"&SUBSTITUTE({this:region},\"~\",\"_t_\")"},
+  {"id": "region_k2", "label": "Region key, step 2: * replaced", "unit": "key", "format": "text", "expr": "SUBSTITUTE({this:region_k1},\"*\",\"_s_\")"},
+  {"id": "region_key", "label": "Region key: ? replaced", "unit": "key", "format": "text", "expr": "SUBSTITUTE({this:region_k2},\"?\",\"_q_\")"}],
+ "blocks": [
+  {"id": "region_keys_1", "title": "Region key, step 1", "unit": "key", "format": "text", "rows": {"in": "regions", "label": "Region"}, "cell": "\"k_\"&SUBSTITUTE({row},\"~\",\"_t_\")"},
+  {"id": "region_keys_2", "title": "Region key, step 2", "unit": "key", "format": "text", "rows": {"same_as": "region_keys_1"}, "cols": {"same_as": "region_keys_1"}, "cell": "SUBSTITUTE({g:region_keys_1},\"*\",\"_s_\")"},
+  {"id": "region_keys", "title": "Region key", "unit": "key", "format": "text", "rows": {"same_as": "region_keys_1"}, "cols": {"same_as": "region_keys_1"}, "cell": "SUBSTITUTE({g:region_keys_2},\"?\",\"_q_\")"}],
+ "checks": [
+  {"id": "region_keys_rows", "kind": "equal", "label": "Rows counted under the region keys equal the raw rows", "actual": "SUMPRODUCT(COUNTIFS({h:sales.region_key},{blk:region_keys}))", "expected": "COUNT({raw:sales.amount})"},
+  {"id": "region_keys_signs", "kind": "zero", "label": "Region keys that still hold ~, * or ?", "actual": "COUNTIF({blk:region_keys_1},\"*~~*\")+COUNTIF({blk:region_keys_2},\"*~**\")+COUNTIF({blk:region_keys},\"*~?*\")"}],
+ "block": {"cell": "SUMIFS({h:sales.amount},{h:sales.region_key},{grow:region_keys},{h:sales.month_end},{col})"}}
+```
+
+- The helper columns go into the `columns` of the helper sheet `h_sales`, the three grids into the `blocks` of the `calc` sheet before the block that sums by region, and the checks into the `checks` of the checks sheet; the cell replaces the `cell` of the block that sums by region. Column letters and rows are examples: `build` assigns them.
 
 ## Common mistakes
 
@@ -427,3 +568,4 @@ The VLOOKUP form passes the depth limit, but VLOOKUP is flagged (F-FUNC-FLAGGED:
 - Replacing a "changes the result" pattern (H3, H4, H5, H9) without telling the user which values change.
 - Leaving a flag that counts a problem without a check: nothing then fails when the problem occurs.
 - Summing by a code that the data write with and without leading zeros, or in two cases: Excel's criteria matching adds both under one label (D-CRITERIA). Make the labels unambiguous in the contract's source expression or in a helper column.
+- Summing by a label that is the text TRUE or FALSE, a label from a cell that starts with =, < or >, or a label that holds ~* or ~?: Excel leaves its rows out (D-CRITERIA, reason `self_mismatch`). Use a helper key with a fixed prefix on both sides for TRUE, FALSE and the operators, and helper keys that replace ~, * and ? on both sides for a label that holds ~ together with * or ? ([A label that Excel's criteria matching does not match with itself](#a-label-that-excels-criteria-matching-does-not-match-with-itself)).

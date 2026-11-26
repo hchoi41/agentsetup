@@ -316,7 +316,10 @@ def test_section_5_states_exactly_what_the_audit_compares() -> None:
     assert "borders and alignment" in sec and "not audited" in sec
     assert "--borders" in sec and "--align" in sec
     style_rules = {r.id for r in audit.RULES.values() if r.id.startswith("S-") and r.needs in ("styles", "manifest")}
-    assert style_rules == {"S-FONT", "S-SIZE", "S-FILL", "S-FONTCOLOR", "S-BOLD", "S-NUMFMT"}
+    # v7 (r6 verdict A-aera-11): S-CF reports that a built workbook holds conditional-format rules; it compares no
+    # attribute of a cell, and section 5 says so
+    assert style_rules == {"S-FONT", "S-SIZE", "S-FILL", "S-FONTCOLOR", "S-BOLD", "S-NUMFMT", "S-CF"}
+    assert "S-CF" in sec and "does not read conditional-format rules" in sec
 
 
 def test_the_audit_does_not_report_a_changed_border_or_alignment(tmp_path: Path) -> None:

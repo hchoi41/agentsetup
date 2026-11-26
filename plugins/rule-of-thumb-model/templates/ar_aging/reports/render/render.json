@@ -1,30 +1,30 @@
 {
  "rotm_render": 1,
  "workbook": "model.xlsx",
- "sha256": "61d606617e14d56722263786d9b668d070eaedcc2ce737d9528e568dfb61521b",
- "at": "2026-11-26T03:53:37+09:00",
+ "sha256": "a03dbc2cac5cf121615f80f5e3a0c4b0d32b9138e7753ed70cc28c79807a128e",
+ "at": "2026-11-26T09:16:47+09:00",
  "note": "rendered, not looked at by code",
  "files": [
   {
    "sheet": "cover",
    "file": "cover.png",
-   "range": "A1:E50",
-   "last_row": 50,
+   "range": "A1:E53",
+   "last_row": 53,
    "last_col": 5,
    "truncated": false,
    "width_px": 724,
-   "height_px": 953,
+   "height_px": 1001,
    "problem": null
   },
   {
    "sheet": "inputs",
    "file": "inputs.png",
-   "range": "A1:E42",
-   "last_row": 42,
+   "range": "A1:E43",
+   "last_row": 43,
    "last_col": 5,
    "truncated": false,
    "width_px": 1037,
-   "height_px": 721,
+   "height_px": 770,
    "problem": null
   },
   {
@@ -41,11 +41,11 @@
   {
    "sheet": "h_open_items",
    "file": "h_open_items.png",
-   "range": "A1:L200",
+   "range": "A1:N200",
    "last_row": 241,
-   "last_col": 12,
+   "last_col": 14,
    "truncated": true,
-   "width_px": 1033,
+   "width_px": 1243,
    "height_px": 3200,
    "problem": null
   },
@@ -85,12 +85,12 @@
   {
    "sheet": "notes",
    "file": "notes.png",
-   "range": "A1:E7",
-   "last_row": 7,
+   "range": "A1:E8",
+   "last_row": 8,
    "last_col": 5,
    "truncated": false,
    "width_px": 898,
-   "height_px": 162,
+   "height_px": 211,
    "problem": null
   }
  ]

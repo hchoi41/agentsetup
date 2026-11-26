@@ -73,6 +73,18 @@
     "input_sha256": "1a611fd75c28113e89c6139f8fc62b179bba2f4f0a9c89f724123229f47f46f6",
     "output_sha256": "61d606617e14d56722263786d9b668d070eaedcc2ce737d9528e568dfb61521b",
     "at": "2026-11-26T03:53:22+09:00"
+   },
+   {
+    "step": "build",
+    "input_sha256": null,
+    "output_sha256": "d6aca9204f7f9c955b6d24df9e455e0ba2ba7cd3794e39d4c8c912d669563334",
+    "at": "2026-11-26T09:16:31+09:00"
+   },
+   {
+    "step": "check",
+    "input_sha256": "d6aca9204f7f9c955b6d24df9e455e0ba2ba7cd3794e39d4c8c912d669563334",
+    "output_sha256": "a03dbc2cac5cf121615f80f5e3a0c4b0d32b9138e7753ed70cc28c79807a128e",
+    "at": "2026-11-26T09:16:32+09:00"
    }
   ]
  }

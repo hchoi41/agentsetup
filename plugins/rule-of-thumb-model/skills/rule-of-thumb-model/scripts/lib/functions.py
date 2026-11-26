@@ -118,11 +118,16 @@ AV_A31_2019 = ("Google: platforms A3.1 (Google function list), " + _N
 AV_A31_2024 = ("Google: platforms A3.1 (Google function list), " + _N
                + "; Excel: Microsoft 365 and Excel 2024 only: builder's reading of Microsoft's 'Applies to' lists, "
                + _N)
-AV_A31_LAMBDA_HELPER = ("Google: platforms A3.1 (Google function list), " + _N + "; Excel: Microsoft 365 and "
-                        "Excel 2024 only, like LAMBDA (builder's reading of Microsoft's 'Applies to' lists, " + _N
-                        + ")")
-AV_K_LAMBDA_HELPER = ("both; Excel: Microsoft 365 and Excel 2024 only, like LAMBDA: builder's reading of the "
-                      "Microsoft and Google function lists; " + _N)
+# v8 (A-aera-15): the Excel statement of the LAMBDA helpers. The research synthesis lists "LAMBDA and its helpers
+# MAP, BYROW, BYCOL, REDUCE, SCAN, MAKEARRAY" as Excel 365 and 2024 only and cites platforms A3.6; the claim check
+# of A3.6 covers LET, LAMBDA and FILTER only, so the statement is not confirmed for these functions.
+_EXCEL_LAMBDA_HELPER = ("Excel: Microsoft 365 and Excel 2024 only, like LAMBDA (research synthesis, which names "
+                        "LAMBDA and its helpers and cites platforms A3.6; " + _N + " for this function: the claim "
+                        "check of A3.6 covers LET, LAMBDA and FILTER only; builder's reading of Microsoft's 'Applies "
+                        "to' lists, " + _N + ")")
+AV_A31_LAMBDA_HELPER = ("Google: platforms A3.1 (Google function list), " + _N + "; " + _EXCEL_LAMBDA_HELPER)
+AV_K_LAMBDA_HELPER = ("both; Google: builder's reading of Google's function list, " + _N + "; "
+                      + _EXCEL_LAMBDA_HELPER)
 AV_K_2021 = ("both; Excel: Microsoft 365, Excel 2024 and Excel 2021: builder's reading of the Microsoft and Google "
              "function lists; " + _N)
 AV_A36_LET = ("Excel: Microsoft 365, 2024 and 2021 (platforms A3.6, " + _V + "); Google: platforms A3.1, " + _N)
@@ -146,8 +151,9 @@ AV_365_NOT_SHEETS = ("Excel: Microsoft 365 (builder's reading, " + _N + "); Goog
                      + _N + ")")
 AV_2024_NOT_SHEETS = ("Excel: Microsoft 365 and Excel 2024 only (builder's reading, " + _N + "); Google Sheets: no "
                       "evidence found (" + _N + ")")
-AV_LAMBDA_NOT_SHEETS = ("Excel: Microsoft 365 and Excel 2024 only, like LAMBDA (builder's reading, " + _N + "); "
-                        "Google Sheets: no evidence found (" + _N + ")")
+AV_LAMBDA_NOT_SHEETS = ("Excel: Microsoft 365 and Excel 2024 only, like LAMBDA (builder's reading of Microsoft's "
+                        "'Applies to' lists, " + _N + "; no research item names this function); Google Sheets: no "
+                        "evidence found (" + _N + ")")
 AV_2021_NOT_SHEETS = ("Excel: Microsoft 365, Excel 2024 and Excel 2021, the versions with dynamic arrays "
                       "(builder's reading, " + _N + "); Google Sheets: no evidence found (" + _N + ")")
 
@@ -157,8 +163,11 @@ S_VOLATILE_FMD = "FMD p306 'Avoid volatile functions' (books B-56, " + _V + ")"
 S_VOLATILE_K = "volatile: recalculates on every change (Microsoft's list; builder's reading, " + _N + ")"
 S_LAMBDA = ("Excel has it only in Microsoft 365 and 2024 (platforms A3.6, " + _V + "); its logic sits inside one "
             "cell, where the procedure wants one step per helper cell (spec P3)")
-S_LAMBDA_HELPER = ("takes a LAMBDA: Excel 365 or 2024 only like LAMBDA (platforms A3.6, " + _V + "); logic inside "
-                   "one cell instead of helper cells (spec P3)")
+# v8 (A-aera-15): the reason the plugin flags the LAMBDA helpers, apart from the availability statement.
+S_LAMBDA_HELPER = ("takes a LAMBDA, so its logic sits inside one cell, where the procedure wants one step per "
+                   "helper cell (spec P3)")
+S_ISOMITTED = ("tests whether an argument of a LAMBDA was left out, so it is used only inside a LAMBDA, whose logic "
+               "sits inside one cell, where the procedure wants one step per helper cell (spec P3)")
 S_GOOGLE_ONLY = "Google Sheets only: the workbook must work in both products (spec 1.6, compatibility)"
 S_GOOGLE_UNSUPPORTED = "not supported in Google Sheets (researcher 2 #20, " + _V + ")"
 S_B25 = ("PFM p134 'VLOOKUP and HLOOKUP should generally be avoided', INDEX/MATCH preferred (books B-25, "
@@ -277,7 +286,7 @@ _ENTRIES: list[FunctionInfo] = [
        versions=V_2024),
     _e("MAKEARRAY", "365", "yes", "refused", S_LAMBDA_HELPER, R_HELPER, availability=AV_K_LAMBDA_HELPER,
        versions=V_2024),
-    _e("ISOMITTED", "365", "not confirmed", "refused", S_LAMBDA_HELPER, R_HELPER,
+    _e("ISOMITTED", "365", "not confirmed", "refused", S_ISOMITTED, R_HELPER,
        availability=AV_LAMBDA_NOT_SHEETS, versions=V_2024),
     # Google Sheets only (design 8.5); in profile "sheets" the practice reason decides the class.
     _e("QUERY", "no", "yes", "refused", S_GOOGLE_ONLY + "; in profile sheets "
@@ -309,7 +318,11 @@ _ENTRIES: list[FunctionInfo] = [
     _e("JOIN", "no", "yes", "refused", S_GOOGLE_ONLY + "; allowed in profile sheets", "the & operator",
        availability=AV_GOOGLE_ONLY, basis="product"),
     _e("REGEXMATCH", "no", "yes", "refused", S_GOOGLE_ONLY + "; allowed in profile sheets",
-       "ISNUMBER(SEARCH(<text>,<cell>)) in a helper column", availability=AV_GOOGLE_ONLY, basis="product"),
+       # v9 (A-aera-12): SEARCH ignores case and reads no regular expression; lib/compat.py gives the recipe only
+       # for a typed pattern without a regular-expression sign (compat.regexmatch_fix)
+       "ISNUMBER(SEARCH(<text>,<cell>)) in a helper column: it tests whether the cell holds the text, without "
+       "regard to case, so it gives REGEXMATCH's result only for a pattern that is plain text",
+       availability=AV_GOOGLE_ONLY, basis="product"),
     # Excel functions Google lists as not supported (researcher 2 #20, confirmed).
     _e("CALL", "yes", "no", "refused", S_GOOGLE_UNSUPPORTED + "; it calls code outside the workbook, refused "
        "in profile excel too", "none: remove it", availability=AV_R2_20, basis="product", cls_excel="refused"),
@@ -499,6 +512,13 @@ def names(cls: str | None = None, product: str = "both") -> list[str]:
     return [n for n in CATALOGUE if classify(n, product) == cls]
 
 
+def sheets_only_names() -> list[str]:
+    """The functions only Google Sheets has, in catalogue order: Excel "no" and Sheets "yes" (v7, r6 verdict
+    A-aera-8). Excel cannot calculate them, so `rotm.py check` does not open a workbook that calls one in Excel
+    (X-SHEETS-ONLY, lib/check.py); the alternative of each is its `replacement`."""
+    return [n for n, e in CATALOGUE.items() if e.excel == "no" and e.sheets == "yes"]
+
+
 # ----------------------------------------------------------------------------- references/functions.md
 
 def _cell(text: str | None) -> str:
@@ -584,6 +604,13 @@ def render_markdown() -> str:
         "refused there. A class that rests on modelling practice (FAST, the books) stays the same in every "
         "profile.",
         "- The profile is the specification's `product` key, or `--product` on `audit`, `compat` and `formula`.",
+        # v7 (r6 verdict A-aera-8, plan T-21): what is verified for a model with a function only Google Sheets has
+        "- A model that uses a function only Google Sheets has (JOIN, SPLIT, REGEXMATCH and the others this "
+        "catalogue marks Excel \"no\") cannot be verified in Excel: build prints I-SHEETS-ONLY, and `rotm.py check` "
+        "reports X-SHEETS-ONLY, does not open the workbook in Excel, leaves the file byte for byte and exits 3 "
+        "(\"audited, not recalculated: functions only Google Sheets has\"). Prefer the alternative the catalogue "
+        "names (for JOIN the & operator). Such a model is listed under \"Not verified\".",
+        "- The functions only Google Sheets has (Excel `no`, Sheets `yes`): " + ", ".join(sheets_only_names()) + ".",
         "",
         "## Evidence labels",
         "",

@@ -48,6 +48,7 @@ Each column entry:
 | `source_expression` | one SQL expression that produces the column, for example `CAST(i.invoice_id AS STRING)` | used to write the SELECT list; no comma or `AS` outside brackets and no prose (put prose in `description`). `land` writes `NULL` and a comment for an expression that is not one SQL expression, with warning `L-SQL-EXPR`. `contract propose` writes the sample's header here as a GoogleSQL identifier (see the bullet "Source expressions from headers" below); an expression you write is used as written |
 | `format` | a number-format key of the style dictionary (`number_formats` in `style_dictionary.json`), for example `amount2` | how build shows the column on the raw sheet and in its fetch column. `contract propose` writes it for each number column from the sample (see "The format key"). Without it, a `number` column whose landed values hold a fraction shows two decimals (`amount2`), or General when a value has more than two |
 | `description` | one sentence | |
+| `csv_header` | written by `contract propose --csv`: the sample header the column was read from, trimmed of spaces at both ends (for example `Order Date` for the column `order_date`) | optional; `--columns` writes none. `land --csv` reads the columns by these headers when the CSV's header line holds each of them once (see "Sample headers and the header line land accepts") |
 
 - Why the first column must never be null: the raw sheet's row count is `COUNTA` of column A minus the header, and the helper sheet's `in_raw` flag is 1 when column A of raw row r is not empty (design 7.1). An empty first cell would hide a whole raw row.
 - Why totals come from the source side: "a total calculated twice from the landed cells is only an internal tie" (researcher 2 section 4, not confirmed). A check compares two independent paths (books B-32, confirmed). Ask the user for the source system's own row count or total (for example from its report or a separate count query), and write that number.
@@ -84,6 +85,84 @@ Raw data is often not clean: a transaction delivered twice, one row without a re
 - Do not invent a key (for example a row number added to the extract) or set `null_rule` to `allowed` to get defective rows landed: the key check then always shows 0, the null check disappears, and the master check shows OK with the defects unreported (live test 1, 2026-11-25).
 - When a refresh brings more defects than the contract agrees, the check fails and names the rows. Fix the source, or propose the contract again with the new count and ask the user again.
 
+## Sample headers and the header line land accepts
+
+A sample CSV's headers are often not valid column names (`Order ID`, `Net Sales (KRW)`). `contract propose --csv`
+then proposes a destination name for each (`order_id`, `net_sales_krw`) and records the header it was read from.
+
+- `contract propose --csv` writes `csv_header` on every column: the sample header, trimmed of spaces at both ends,
+  also when it equals the name. It moves with its column when propose moves a never-null column first.
+  `contract propose --columns` writes none.
+- When a sample header differs from its destination name, the `.md` shows the column "CSV header" right after
+  "Column", and "Points to confirm" lists each header with its destination name: `land --csv accepts a CSV whose
+  header line holds these sample headers, each once, in any order: 'Order ID' -> order_id, ...; or the destination
+  names in the contract's order; land writes raw/<t>.csv with the destination names`. When every header equals its
+  name, the `.md` has no column "CSV header" and no such point to confirm, as in v6.
+- `csv_header` is part of the agreed content: it counts in the contract hash, and a changed header is listed under
+  "Changes since version N".
+- `land --csv` (also with `--force` and with `--control`) accepts two header lines:
+  1. the destination names in the contract's order, as for every contract;
+  2. when every column records a sample header and no two columns record the same one: each of those headers
+     exactly once, in any order, compared after trimming spaces (upper and lower case count), and no other column.
+- In the second form `land` reads each column by its header, checks the rows as for the first form, writes
+  `raw/<t>.csv` with the destination names in the contract's order, and prints the note `<file name>: the header
+  holds the contract's sample headers; columns read by them: '<h1>' -> <name1>, '<h2>' -> <name2>, ...;
+  raw/<t>.csv has the contract's names in the contract's order`. The snapshot, its digest, the manifest and every
+  later check see only the destination names.
+- Any other header (a column missing, a column more, a header given twice, a destination name mixed with sample
+  headers) is `L-COLUMNS`: nothing is written. The message names the missing headers, the extra ones and each
+  header given twice (`given twice: '<h>'`). For a contract with sample headers the fix is `land a CSV whose header
+  line is exactly: <names> (the contract's order); or one that holds each sample header once, in any order:
+  '<h1>', '<h2>', ...; or propose the contract again`. Report it and stop, as for every refusal ("When land
+  refuses an extract").
+- A contract without `csv_header` (proposed with `--columns`, or before v7; every shipped example and template)
+  behaves as in v6: its hash does not change, its `.md` has no column "CSV header", and its CSV needs the destination
+  names in the contract's order (fix `land a CSV whose header is exactly: <names>; or propose the contract again`).
+- Since every column of a contract proposed from a sample with plain headers records its name as its sample
+  header, `land` also accepts that contract's names in another order and writes them in the contract's order.
+- A contract in which one column's sample header (`csv_header`, trimmed) is another column's destination name is
+  refused (v8): a header line could then be read by the names or by the sample headers, with other columns. Example:
+  the column `credit` has the sample header `debit` and the column `debit` has the sample header `credit`; the
+  header line `id,credit,debit` is both the names and the sample headers. `contract show` writes no `.md` and
+  `contract agree` records nothing (exit 2); `land` writes nothing (exit 2), also with `--force` and `--control`, and
+  without `--csv`. The message is `contract '<t>': column '<a>' has the sample header '<h>', which is the destination
+  name of column '<b>', so a header line could be read by either; nothing was recorded` (`land`: `nothing was
+  written`). The fix is `rename the destination column '<b>', or remove the csv_header entries (contract propose
+  --force with --columns), then run contract show and get the contract agreed again`.
+- `contract propose` never writes such a contract. When the name it derives for a column is another column's sample
+  header (the headers `a b` and `a_b`: `a b` becomes `a_b`, which is the sample header of the second column), it
+  names that column `<name>_<k>`, with the first `k` from 1 that gives a name that no other column has and that is no
+  other column's sample header (`a_b_1`). A note under "Points to confirm" names the header, the name chosen, the
+  name not used and the column whose sample header it is.
+
+## Blank lines, records of only delimiters and quotes in a CSV
+
+`land --csv` and `contract propose --csv` read a CSV with strict quoting (v8).
+
+- Only a physically blank line (nothing before its line end) is skipped.
+- A line that holds only delimiters (`,,`: every field empty) is a record. `land` checks it like any other row.
+  The first column of every contract is never null and cannot have `known_nulls`, so no contract lands such a
+  record: `L-NULL` refuses it and nothing is written.
+- The finding names the line and ends with `(line <n> holds only delimiters: every field is empty)`. Its fix is
+  `remove the records whose fields are all empty from the extract (line <n>)`. `L-KEY` and `L-FIELDS` (a record of
+  only delimiters with another number of fields) name such a line the same way. No contract entry lands such a
+  record; remove it from the extract.
+- `contract propose` counts such records in a sample and names them under "Points to confirm": `<n> record(s) hold
+  only delimiters (every field empty): line <n>[, ...]; land refuses them, because the first column, which is never
+  null, is empty in them; remove them from the extract`. The sample profile leaves them out of its statistics.
+- A quoted field whose closing quote is missing at the end of the file is refused (exit 2, nothing written):
+  `<file>: line <n>: a quoted field starts here and its closing quote is missing at the end of the file; nothing was
+  written`, with the fix `close the quote in the source export, or export the file again`. `<n>` is the line where
+  the quoted field starts.
+- Any other quoting error, for example a character after a closing quote (`"2026-03-31"x`), is refused (exit 2,
+  nothing written): `<file>: line <n>: <the message of Python's csv module>; nothing was written`, with the fix
+  `export the file again as CSV UTF-8`.
+- A CSV in the form Excel saves as "CSV UTF-8 (Comma delimited)" lands: a byte order mark, CRLF line ends, a field
+  with a comma in quotes (`"Seoul, Korea"`), a doubled quote (`"He said ""yes"""`), a line break inside quotes. The
+  test file was written in that form; it was not saved by Excel.
+- Every line that a finding of `land` or a note of `contract propose` names is the physical line of the file: line 1
+  is the header line, and a line break inside quotes and a blank line count.
+
 ## When land refuses an extract
 
 `rotm.py land` refuses an extract that breaks the agreed contract and writes nothing (`L-KEY`, `L-NULL`, `L-ROWS`, `L-TYPE`, `L-ALLOWED` and the other refusals). Each refusal line names the rows: the line numbers of the extract and, for a key, the key values.
@@ -101,7 +180,7 @@ Raw data is often not clean: a transaction delivered twice, one row without a re
 3. Propose the contract: `rotm.py contract propose "<model>" --table <t> --csv <sample.csv> --key <a,b> --grain "<one row per ...>" --source "<system and object>" --rows <MIN:MAX>`. It infers types from the sample (integer, number, ISO date `YYYY-MM-DD`, datetime, boolean, else text; identifiers with leading zeros stay text). A date and time written with a space or a `T` between date and time, also with a `Z` or a UTC offset such as `+09:00` (`2026-01-05T09:30:00+09:00`), is proposed as datetime; `land` lands it with the offset dropped and warns L-PRECISION. A text that `land` cannot read as a date and time is not proposed as datetime, counts nulls, lists allowed values when a column has 12 or fewer distinct values, tests the key for uniqueness, and writes the JSON with status `proposed` and the `.md` (design 15). Without a sample, use `--columns a,b,c` and fill in the types by hand.
 4. Edit the proposed JSON where the sample could not know the answer: units, null rules, allowed values, source expressions, the control total from the source side. A proposed contract may be edited; an agreed one may not. After every edit of the JSON run `rotm.py contract show "<model>" --table <t>`: it writes `contracts/<t>.contract.md` again from the JSON and records `agreement.shown_sha256`.
 5. Show the user `contracts/<t>.contract.md` in full, unchanged, as the last `contract propose` or `contract show` wrote it. Never show an `.md` written before the last edit of the JSON. It ends with the line "Reply 'agreed' or say what to change." Then stop and wait for the reply. Do not write SQL, do not land data, do not build.
-6. If the user asks for changes, make them in the JSON, run `rotm.py contract show "<model>" --table <t>` to print the new `.md`, show it again, and wait again. `contract agree` refuses (exit 2, nothing recorded) when the `.md` is missing, when it differs from the text rendered from the current JSON, or when `agreement.shown_sha256` differs from the current content hash: the contract changed after it was last shown. Then run `contract show`, show the user the `.md` again and record their new reply. A contract proposed before v3 has no `agreement.shown_sha256`; its `.md` is compared with the rendered text only. The last line of the `.md` (it says whether and by whom the contract is agreed) is not compared: `rotm.py init --template` rewrites that line alone when it sets a copied contract back to proposed.
+6. If the user asks for changes, make them in the JSON, run `rotm.py contract show "<model>" --table <t>` to print the new `.md`, show it again, and wait again. `contract agree` refuses (exit 2, nothing recorded) when the `.md` is missing, when it differs from the text rendered from the current JSON, or when `agreement.shown_sha256` differs from the current content hash: the contract changed after it was last shown. Then run `contract show`, show the user the `.md` again and record their new reply. A contract proposed before v3 has no `agreement.shown_sha256`; its `.md` is compared with the rendered text only. An `.md` written before v7 shows a minimum or maximum of 1,000 or more in the sample profile without thousands separators; v7 writes every number of the `.md` as the shortest text that gives the stored number, with thousands separators (round 6 verdict A-aera-6), so such an `.md` differs from the rendered text until `contract show` writes it again. The last line of the `.md` (it says whether and by whom the contract is agreed) is not compared: `rotm.py init --template` rewrites that line alone when it sets a copied contract back to proposed.
 7. When the user agrees, record it with their own words: `rotm.py contract agree "<model>" --table <t> --reply "<the user's reply, word for word>" --by <their name>`. A reply that agrees some tables and asks for a change in another is recorded only for the tables it agrees without change, with `--reply` set to the user's sentence or sentences about those tables, copied exactly; the other table waits for the change, `contract show` and a new reply. When the plugin's hooks are active, the contract gate checks that the reply text occurs in a message from the user in this session, and refuses the command if it does not (design 13.3). The reply must also come after the latest `contract propose` of that table and after the latest edit of `contracts/<t>.contract.json` in this session; one reply given after several proposals counts for each of those tables. A skill folder copied without the plugin has no hooks; the rule still applies to you.
 8. Only now write the SQL. `rotm.py land "<model>" --table <t> --csv <file>` checks a data file against the contract and writes `raw/<t>.csv`, `queries/<t>.sql` and `queries/<t>.pq.m` (design 15). For the product steps after that, read [excel-power-query.md](excel-power-query.md) or [google-sheets.md](google-sheets.md).
 9. Run `rotm.py contract status "<model>"` to see the state of every contract.
@@ -189,9 +268,10 @@ Analysis, which the query must not do: rates, allocations, ratios, flags, period
 - `audit` reports R-CONTRACT (error) when the raw sheet's headers differ from the contract's names or order (design 14).
 - `check` tests the raw snapshot against the contract in Python: rows, key uniqueness, nulls, types, allowed values and control totals (design 15).
 - `check --accept-refresh` tests new raw rows from a refresh against the contract, and only then records them as the new landed data (design 7.3).
-- `check --accept-refresh --control <t>.<column>=<value>` takes the source system's new total for the refreshed rows. After the rows pass, it records the accepted total in `raw/<t>.controls.json`, beside the snapshot `raw/<t>.csv`: one entry per accepted snapshot (keyed by the snapshot's digest), with the rows, the totals with the contract's tolerance, the words given and the time. The contract and its agreement are not changed. Running the same acceptance again gives the same entry.
-- A new extract with a new source total, landed from a file (for example the export of an extract refreshed in Google Sheets, [google-sheets.md](google-sheets.md#models-kept-in-google-sheets) step 4): `rotm.py land "<model>" --table <t> --csv <file> --force --control <t>.<column>=<source total>`. `land` checks the file by the rules `check --accept-refresh` applies to refreshed rows (columns, types, nulls, keys, the row count) and against the totals given. When it fits, `land` writes `raw/<t>.csv` and records the given totals for that snapshot's digest in `raw/<t>.controls.json`, with the words given, as an acceptance does. When a given total does not equal the file's sum, `land` reports L-TOTAL and writes nothing. `--control` needs `--csv`, and its table must be the table landed. Without `--control`, `land` compares the file with the control total in force.
-- The control total `check` uses for a table and column, in this order: `--control` given in this run; else the total recorded for this exact snapshot in `raw/<t>.controls.json`; else the contract's `expect.totals`. A value on the inputs sheet is never a control total, and `check` never records a value read from the workbook as an accepted total; when the inputs-sheet control cell holds another value than the control used, `check` warns D-CONTROL-INPUT. For a snapshot that has an entry in `raw/<t>.controls.json`, `build` and `land` use the accepted totals too; so a rebuild after an accepted refresh keeps the accepted total on the inputs sheet.
+- `check --accept-refresh --control <t>.<column>=<value>` takes the source system's new total for the refreshed rows. After the rows pass, it records the accepted total in `raw/<t>.controls.json`, beside the snapshot `raw/<t>.csv`: one entry per accepted snapshot (keyed by the snapshot's digest), with the rows, the totals with the contract's tolerance, the words given, the time and the hash of the agreed contract in force (`contract_sha256`). The contract and its agreement are not changed. Running the same acceptance again under the same agreement gives the same entry.
+- A new extract with a new source total, landed from a file (for example the export of an extract refreshed in Google Sheets, [google-sheets.md](google-sheets.md#models-kept-in-google-sheets) step 4): `rotm.py land "<model>" --table <t> --csv <file> --force --control <t>.<column>=<source total>`. `land` checks the file by the rules `check --accept-refresh` applies to refreshed rows (columns, types, nulls, keys, the row count) and against the totals given. When it fits, `land` writes `raw/<t>.csv` and records the given totals for that snapshot's digest in `raw/<t>.controls.json`, with the words given, as an acceptance does. When a given total does not equal the file's sum, `land` reports L-TOTAL and writes nothing. `--control` needs `--csv`, and its table must be the table landed. Without `--control`, `land` compares the file with the control total in force (the order of control totals is two bullets below; the contract's own totals are its `expect.totals`).
+- `--control` is accepted only for a column whose control total the agreed contract names: a control total is part of the agreement. For any other column `land` and `check --accept-refresh` refuse (exit 2; nothing is written or recorded). Add the total to the contract (`contract propose ... --force ... --total <column>=<source total>`), show it and get it agreed; build then writes its check `<t>_total_<column>`.
+- The control total used for a table and column is, in this order: `--control` given in this run; else the total accepted for this snapshot in `raw/<t>.controls.json` under the agreement in force; else the agreed contract's total. A total accepted under an earlier agreement (the contract was agreed again since, for example with another total) is not used: `land`, `build`, `check` and `lift` print a note that names it, and when the rows do not meet the contract's total, L-TOTAL (`land`) or D-TOTAL (`check`) names both totals. Give `--control` with the source's current total; it is recorded under the agreement in force. Each entry of `raw/<t>.controls.json` records the hash of the agreed contract it was accepted under (`contract_sha256`). An entry written before v9 has no hash; it is used only when its time is not earlier than the time of the current agreement, and not when either time is missing. Recording the same values again under the same agreement keeps the entry as it is; a record under another agreement replaces it. `contract show` and `contract agree` with unchanged content keep the entry in force. A value on the inputs sheet is never a control total, and `check` never records a value read from the workbook as an accepted total; when the inputs-sheet control cell holds another value than the control used, `check` warns D-CONTROL-INPUT. `land`, `build`, `check` and `lift` follow the same order, so a rebuild after an accepted refresh keeps the accepted total on the inputs sheet while the contract is not agreed again.
 - `build` records in each raw entry of the manifest `contract_sha256`, the hash of the agreed contract it read. When the contract is agreed again with other content, `check` and `audit` report `CT-VERSION` (error) until the data are landed again (if the rows change) and the model is rebuilt.
 - `land` warns L-PRECISION, naming the column, the first line and the count, when a value lands differently from its text: a number with more than 15 significant digits (Excel and the snapshot keep 15); a datetime whose fraction of a second was cut (never rounded up, so no time moves into the next second, day or period); a datetime whose `Z` or UTC offset was dropped (the time is landed as written: `2026-01-05T09:30:00+09:00` lands as 2026-01-05 09:30:00). `contract propose` and `land` read a date and time with the same rule, so every column that propose classifies as datetime lands. Decide with the user: round the values in the source, or land the column as text (change its type in the contract and get the contract agreed again).
 

@@ -29,6 +29,18 @@ A-aera-12): X-FUNC with the sheet, the range and the kind of rule; these formula
 X-FILTER (v6, A-aera-9): an Excel FILTER with a third argument (in Excel the value returned when no row matches,
 in Google Sheets a further condition; lib/functions.py D_FILTER) is reported at its cell (warning) and not
 rewritten. Not with --product excel.
+The same catalogue is applied to the formulas of defined names of workbook and worksheet scope (v8, A-aera-7;
+name_findings): a name used inside another name is followed (a set of visited names ends a cycle), and a
+function one product lacks is X-FUNC with the name, its scope and one cell that uses the name (first by sheet
+order, row and column; directly or through other names) or "no cell uses it". Names are reported, not rewritten.
+The argument rules of a cell (X-CONCAT for an Excel CONCAT with one argument, more than two arguments or a range
+argument; X-FILTER) also run on the formulas of data validations, conditional-format rules and defined names (v9,
+A-aera-9; argument_problems): the finding names the range or the name and has the cell finding's rule id; these
+formulas are reported, not rewritten.
+REGEXMATCH (v9, A-aera-12; regexmatch_fix): ISNUMBER(SEARCH(...)) tests whether a cell holds a piece of text without
+regard to case. compat gives it as the fix only for a pattern that is a typed text with none of ^ $ . [ ] ( ) { } *
++ ? | and the backslash; for any other pattern the fix says that a rewrite is needed and that the original rule
+stays until the rewrite is tested on examples that match and examples that do not.
 
 The writer helpers in this module (`plan_output`, `write_edits`) are also used by lib/split.py.
 """
@@ -394,10 +406,85 @@ def _filter_problems(d: str) -> list[tuple[str, str, str, str]]:
     return list(problems.values())
 
 
+def argument_problems(f: str, product: str) -> list[tuple[str, str, str, str]]:
+    """The argument rules of plan_formula, applied to formula f (file or display form) without rewriting it (v9,
+    A-aera-9): the formulas of data validations, conditional-format rules and defined names are reported, not
+    rewritten. Returns (rule, severity, message, fix) items with the rule ids and messages of a cell:
+    - X-CONCAT for an Excel CONCAT with a range argument, with an empty argument, with one argument or with more than
+      two arguments (_concat_function; a CONCAT with two single values is the form both products share);
+    - X-FILTER for a FILTER with a third argument (_filter_problems).
+    CONCATENATE is not an argument rule: it takes any number of values in both products, and a cell's CONCATENATE
+    is only rewritten by compat. Nothing with --product excel, as for a cell."""
+    if product == "excel":
+        return []
+    d = fx.display_form(f)
+    a = fx.analyze(d)
+    if not a.ok:
+        return []
+    out: list[tuple[str, str, str, str]] = []
+    if "CONCAT" in a.functions:
+        _joined, rewritable, problems = _concat_function(d)
+        out.extend(problems)
+        for what in rewritable:
+            fix = ('write it as a&"" (the same text)' if what.endswith(" 1 argument")
+                   else "join the values with & (a&b&...)")
+            out.append(("X-CONCAT", "warning", f"{what}: {CONCAT_SHEETS}", fix))
+    if "FILTER" in a.functions:
+        out.extend(_filter_problems(d))
+    return list(dict.fromkeys(out))
+
+
+# REGEXMATCH (v9, A-aera-12): ISNUMBER(SEARCH(...)) tests whether a cell holds a piece of text, without regard to
+# case. compat gives it as the fix only for a pattern that is a typed text with no regular-expression sign.
+REGEX_SIGNS = frozenset("^$.[](){}*+?|\\")
+_TYPED_TEXT = re.compile(r'"(?:[^"]|"")*"')
+_REWRITE_TAIL = ("; keep the original rule until the rewrite is tested on examples that match and examples that "
+                 "do not")
+REGEX_REWRITE = "a rewrite for this pattern is needed (it holds a regular-expression sign)" + _REWRITE_TAIL
+REGEX_REWRITE_NOT_TYPED = "a rewrite for this pattern is needed (the pattern is not a typed text)" + _REWRITE_TAIL
+
+
+def regexmatch_fix(cell: str, pattern: str) -> str:
+    """The fix for REGEXMATCH(cell, pattern), from the argument texts as the formula shows them: the SEARCH recipe
+    with the words on case for a typed text without a regular-expression sign; the rewrite text for any other
+    pattern (a regular-expression sign, a reference, a calculation)."""
+    p = pattern.strip()
+    if not _TYPED_TEXT.fullmatch(p):
+        return REGEX_REWRITE_NOT_TYPED
+    if any(ch in REGEX_SIGNS for ch in p[1:-1]):
+        return REGEX_REWRITE
+    return (f"use ISNUMBER(SEARCH({p},{cell.strip()})) in a helper column: it tests whether the cell holds {p} "
+            "without regard to case, while REGEXMATCH is case-sensitive")
+
+
+def _regexmatch_fix(f: str) -> str | None:
+    """The fix for the REGEXMATCH calls of formula f (file or display form); None when it has none. Calls with
+    different fixes are each named: 'for REGEXMATCH(A2,"x"): ...; for REGEXMATCH(B2,"^x"): ...'."""
+    d = fx.display_form(f)
+    a = fx.analyze(d)
+    if not a.ok:
+        return None
+    found: dict[tuple[str, str], None] = {}
+    for c in a.calls:
+        if c.name != "REGEXMATCH":
+            continue
+        args = [d[s:e] for s, e in c.args]
+        fix = regexmatch_fix(args[0] if args else "<cell>", args[1] if len(args) > 1 else "")
+        found.setdefault((d[c.start:c.end].strip(), fix), None)
+    if not found:
+        return None
+    fixes = list(dict.fromkeys(fix for _call, fix in found))
+    if len(fixes) == 1:
+        return fixes[0]
+    return "; ".join(f"for {call}: {fix}" for call, fix in found)
+
+
 # ----------------------------------------------------------------------------- one formula
 
-def _availability(name: str, product: str) -> tuple[str, str, str] | None:
-    """(severity, message, fix) when the function is a compatibility problem for the target products."""
+def _availability(name: str, product: str, formula: str | None = None) -> tuple[str, str, str] | None:
+    """(severity, message, fix) when the function is a compatibility problem for the target products. `formula`,
+    when given, is the formula that calls the function: for REGEXMATCH the fix is read from its pattern argument
+    (v9, A-aera-12; regexmatch_fix)."""
     info = fn.info(name)
     if info is None:
         return ("warning", f"{name} is not in the function catalogue, so its availability in "
@@ -405,6 +492,8 @@ def _availability(name: str, product: str) -> tuple[str, str, str] | None:
                 f"check that {name} exists in {_product_words(product)}, or use a catalogue function")
     src = info.availability or info.reason
     repl = f"use {info.replacement}" if info.replacement else "replace it (references/functions.md)"
+    if name == "REGEXMATCH" and formula is not None:
+        repl = _regexmatch_fix(formula) or repl
     if product in ("both", "excel") and info.excel == "no":
         return ("error", f"{name} exists in Google Sheets only, not in Excel ({src})", repl)
     if product in ("both", "sheets") and info.sheets == "no":
@@ -552,11 +641,12 @@ def plan_formula(f: str, *, sheet: str, row: int, col: int, tables: Sequence[Any
             replaced.append("X-PREFIX")
 
     # one-product functions (on the final formula)
-    final = fx.analyze(new_file if new_file is not None else f)
+    final_text = new_file if new_file is not None else f
+    final = fx.analyze(final_text)
     for name in final.functions:
         if name.startswith("_XLUDF."):
             continue
-        av = _availability(name, product)
+        av = _availability(name, product, formula=final_text)
         if av is not None:
             problems.append(("X-FUNC", *av))
 
@@ -572,16 +662,25 @@ def plan_formula(f: str, *, sheet: str, row: int, col: int, tables: Sequence[Any
 
 
 def _prefix_missing(f: str, keep: set[str] | None = None) -> bool:
-    """True when a function that needs a file prefix is stored without it; with `keep`, only a function named in
-    `keep` counts (a function a replacement removed needs no prefix)."""
-    d = fx.display_form(f)
-    a = fx.analyze(d)
-    if not a.ok:
+    """True when a function call that needs a file prefix is stored without it; with `keep`, only a function named
+    in `keep` counts (a function a replacement removed needs no prefix).
+
+    v7, A-aera-7: each call is tested by the name it is stored with, read from lib.formula's tokens of the stored
+    text (one function token per call), so a text in quotes that holds a prefixed name, or another call of the
+    same function that has the prefix, does not hide a call without it."""
+    stored = f if f.startswith("=") else "=" + f
+    if not fx.analyze(stored).ok:
         return False
-    upper = f.upper()
-    for c in a.calls:
-        prefix = fn.file_prefix(c.name)
-        if prefix and (prefix.upper() + c.name) not in upper and (keep is None or c.name in keep):
+    parsed = fx._parse(stored)
+    if parsed.tokens is None:
+        return False
+    for c in parsed.calls:
+        prefix = fn.file_prefix(c["name"])
+        if not prefix or (keep is not None and c["name"] not in keep):
+            continue
+        body = parsed.tokens[c["tok"]].text[:-1]          # the function token, e.g. "_xlfn.XLOOKUP("
+        written = body[max(body.rfind(":"), body.rfind("@"), body.rfind("!")) + 1:]
+        if not written.upper().startswith(prefix.upper()):
             return True
     return False
 
@@ -796,31 +895,195 @@ def rule_formulas(path: str | Path) -> dict[str, list[RuleFormula]]:
     return out
 
 
+RULE_NOT_REWRITTEN = "the rule is reported, not rewritten"
+_ARGUMENT_FUNCTION = {"X-CONCAT": "CONCAT", "X-FILTER": "FILTER"}
+
+
 def rule_findings(path: str | Path, product: str) -> list[common.Finding]:
-    """X-FUNC findings for functions of the validation and conditional-format formulas that one of the target
-    products lacks (or whose availability the catalogue does not confirm), with the sheet, the range and the kind
-    of rule. These formulas are reported, not rewritten (v5, A-aera-12)."""
+    """Findings for the formulas of data validations and conditional-format rules, with the sheet, the range and the
+    kind of rule; these formulas are reported, not rewritten.
+    - X-FUNC (v5, A-aera-12): a function that one of the target products lacks (or whose availability the catalogue
+      does not confirm).
+    - X-CONCAT and X-FILTER (v9, A-aera-9): the argument rules of a cell (argument_problems), with the cell
+      finding's rule id, severity and message after '<kind of rule> on <sheet>!<range>: '.
+    Each fix names where the rule is changed in Excel and ends with RULE_NOT_REWRITTEN."""
     out: list[common.Finding] = []
     for sheet, items in rule_formulas(path).items():
         for item in items:
             try:
-                a = fx.analyze(fx.display_form(item.formula))
+                d = fx.display_form(item.formula)
+                a = fx.analyze(d)
+                arguments = argument_problems(d, product)
             except Exception:  # noqa: BLE001 - a formula the tokenizer cannot read is not reported here
                 continue
             first = re.split(r"[\s:]", item.sqref.replace("$", ""), maxsplit=1)[0] or None
             where = "the Data Validation dialog" if item.kind.startswith("data") else \
                 "Home > Conditional Formatting > Manage Rules"
+            place = f"{item.kind} on {sheet}!{item.sqref}"
+            data = {"kind": item.kind, "range": item.sqref, "formula": item.formula}
             for name in a.functions:
                 if name.startswith("_XLUDF."):
                     continue
-                av = _availability(name, product)
+                av = _availability(name, product, formula=d)
                 if av is None:
                     continue
                 sev, message, fix = av
                 out.append(common.Finding(
-                    "X-FUNC", sev, f"{item.kind} on {sheet}!{item.sqref}: {message}; compat reports this formula and "
-                    "does not rewrite it", f"{fix} in the rule ({where} in Excel)", sheet=sheet, cell=first,
-                    data={"kind": item.kind, "range": item.sqref, "formula": item.formula, "function": name}))
+                    "X-FUNC", sev, f"{place}: {message}; compat reports this formula and does not rewrite it",
+                    f"in the rule ({where} in Excel): {fix}; {RULE_NOT_REWRITTEN}", sheet=sheet, cell=first,
+                    data={**data, "function": name}))
+            for rule, sev, message, fix in arguments:
+                out.append(common.Finding(
+                    rule, sev, f"{place}: {message}", f"in the rule ({where} in Excel): {fix}; {RULE_NOT_REWRITTEN}",
+                    sheet=sheet, cell=first, data={**data, "function": _ARGUMENT_FUNCTION.get(rule)}))
+    return out
+
+
+# ----------------------------------------------------------------------------- defined names (v8, A-aera-7)
+
+NAME_NOT_REWRITTEN = "the name is reported, not rewritten"
+
+_NameKey = tuple[str, "str | None"]                # (name in case-folded form, sheet of its scope or None)
+
+
+def name_findings(info: Any, product: str) -> list[common.Finding]:
+    """X-FUNC findings for the formulas of defined names (workbook and worksheet scope).
+
+    Each name's functions are read from lib.formula's parse of its formula (a name inside quotes is not a call).
+    A name used inside a name (a reference, or a call of a LAMBDA name) is followed, with a set of visited names,
+    so a cycle ends the walk with no error and no finding for the loop. A function one product lacks
+    (_availability, as for a cell) gives one finding per name and function: the name, its scope, the names it
+    goes through, and the first cell (by sheet order, row, column) whose formula uses the name directly or through
+    other names, or "no cell uses it". The finding sits at that cell. Names are never rewritten.
+
+    v9 (A-aera-9): the argument rules of a cell (argument_problems: X-CONCAT, X-FILTER) run on each name's own
+    formula; such a finding names the name that holds the call (not the names that reach it), its scope and the
+    first cell that uses it, with the cell finding's rule id, severity and message."""
+    entries: dict[_NameKey, tuple[str, str | None, str]] = {}
+    for n, value, scope in getattr(info, "defined_names", None) or []:
+        if not n or n.startswith("_xlfn.") or n.lower().startswith("_xlnm."):
+            continue                                   # hidden names Excel writes for newer functions; built-ins
+        entries[(n.casefold(), scope)] = (n, scope, str(value or ""))
+    if not entries:
+        return []
+    sheets = [s for s in info.sheets if s.kind == "worksheet"]
+    sheet_case = {s.name.casefold(): s.name for s in info.sheets}
+
+    def resolve(name: str, sheet: str | None, host_scope: str | None) -> _NameKey | None:
+        """The defined name a reference means: Sheet!Name that sheet's name; Name the host's sheet scope first."""
+        key = name.casefold()
+        if sheet is not None:
+            scoped = (key, sheet_case.get(sheet.casefold(), sheet))
+            if scoped in entries:
+                return scoped
+        elif host_scope is not None and (key, host_scope) in entries:
+            return (key, host_scope)
+        return (key, None) if (key, None) in entries else None
+
+    def used_names(a: Any, host_scope: str | None) -> tuple[list[_NameKey], list[str]]:
+        """(names a parsed formula uses, the functions it calls that are not defined names)."""
+        used: list[_NameKey] = []
+        calls: list[str] = []
+        for f in a.functions:
+            k = resolve(f, None, host_scope)
+            if k is not None:
+                if k not in used:
+                    used.append(k)
+            elif not f.startswith("_XLUDF."):
+                calls.append(f)
+        for r in a.refs:
+            if r.kind != "name" or r.workbook:
+                continue
+            k = resolve(r.a1, r.sheet, host_scope)
+            if k is not None and k not in used:
+                used.append(k)
+        return used, calls
+
+    own: dict[_NameKey, list[str]] = {}
+    uses: dict[_NameKey, list[_NameKey]] = {}
+    shown: dict[_NameKey, str] = {}
+    arguments: dict[_NameKey, list[tuple[str, str, str, str]]] = {}
+    for key, (_n, scope, value) in entries.items():
+        text = value if value.startswith("=") else "=" + value
+        uses[key], own[key] = used_names(fx.analyze(text), scope)
+        shown[key] = fx.display_form(text)
+        found = argument_problems(shown[key], product)
+        if found:
+            arguments[key] = found
+
+    def walk(start: _NameKey) -> list[tuple[_NameKey, list[_NameKey]]]:
+        """Every name reachable from `start` (itself first), each with the path to it; visited names stop a cycle."""
+        seen = {start}
+        order = [(start, [start])]
+        i = 0
+        while i < len(order):
+            k, path = order[i]
+            i += 1
+            for u in uses.get(k, []):
+                if u not in seen:
+                    seen.add(u)
+                    order.append((u, path + [u]))
+        return order
+
+    reach = {key: walk(key) for key in entries}
+    problems: dict[_NameKey, list[tuple[str, list[_NameKey], tuple[str, str, str]]]] = {}
+    for key in entries:
+        done: set[str] = set()
+        for holder, path in reach[key]:
+            for f in own[holder]:
+                if f in done:
+                    continue
+                done.add(f)
+                av = _availability(f, product, formula=shown[holder])
+                if av is not None:
+                    problems.setdefault(key, []).append((f, path, av))
+    if not problems and not arguments:
+        return []
+    # the first cell that uses each name with a problem, directly or through other names
+    covers = {key: {k for k, _p in reach[key]} for key in entries}
+    wanted = set(problems) | set(arguments)
+    relevant = {key for key in entries if covers[key] & wanted}
+    needles = {entries[k][0].upper() for k in relevant}
+    first_user: dict[_NameKey, tuple[str, str]] = {}
+    for s in sheets:
+        if len(first_user) == len(wanted):
+            break
+        for c in s.formulas():
+            if c.formula is None:
+                continue
+            upper = c.formula.upper()
+            if not any(nd in upper for nd in needles):
+                continue
+            used, _calls = used_names(fx.analyze(c.formula), s.name)
+            for u in used:
+                for k in covers.get(u, ()):
+                    if k in wanted:
+                        first_user.setdefault(k, (s.name, c.coord))
+    out: list[common.Finding] = []
+    for key in entries:
+        if key not in problems and key not in arguments:
+            continue
+        n, scope, _value = entries[key]
+        scope_text = "workbook" if scope is None else scope
+        user = first_user.get(key)
+        used_text = f"used by {user[0]}!{user[1]}" if user else "no cell uses it"
+        where = dict(sheet=user[0] if user else scope, cell=user[1] if user else None)
+        used_by = f"{user[0]}!{user[1]}" if user else None
+        for f, path, (sev, message, fix) in problems.get(key, []):
+            through = [entries[k][0] for k in path[1:]]
+            via = (f", through the name{'s' if len(through) > 1 else ''} {', '.join(through)}" if through else "")
+            out.append(common.Finding(
+                "X-FUNC", sev, f"defined name {n} ({scope_text} scope){via}: {message}; {used_text}",
+                f"in the name's formula (in Excel: Formulas > Name Manager): {fix}; {NAME_NOT_REWRITTEN}",
+                **where, data={"kind": "defined name", "defined_name": n, "scope": scope_text, "function": f,
+                               "through": through, "used_by": used_by, "formula": _value}))
+        for rule, sev, message, fix in arguments.get(key, []):        # v9, A-aera-9: argument rules
+            out.append(common.Finding(
+                rule, sev, f"defined name {n} ({scope_text} scope): {message}; {used_text}",
+                f"in the name's formula (in Excel: Formulas > Name Manager): {fix}; {NAME_NOT_REWRITTEN}",
+                **where, data={"kind": "defined name", "defined_name": n, "scope": scope_text,
+                               "function": _ARGUMENT_FUNCTION.get(rule), "through": [], "used_by": used_by,
+                               "formula": _value}))
     return out
 
 
@@ -896,6 +1159,7 @@ def plan_workbook(info: Any, *, product: str = "both", replace: bool = True) -> 
     path = getattr(info, "path", None)
     if path is not None:
         plan.findings.extend(rule_findings(path, product))     # validations and conditional formats (v5)
+    plan.findings.extend(name_findings(info, product))         # defined names (v8)
     plan.findings.extend(feature_findings(info, product))
     return plan
 

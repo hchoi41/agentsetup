@@ -30,9 +30,9 @@ The worked example of the rule-of-thumb-model skill. The question, as a user wou
 - Build refuses another value with exit 2 and writes nothing: `input 'scale' (Display scale (fixed at 1000)) holds
   <value>, outside its valid range 1000 to 1000`, followed by the input's note.
 - A model in another unit needs the labels changed. In `model.spec.json`, change:
-  - every `"unit": "KRW thousand"` (13 places: the helper columns `amount_k` and `target_k`, the blocks `actual`,
-    `target`, `variance` and `ytd`, the items `act`, `tgt`, `var` and `cum` of the block `bridge`, and the measures
-    `act`, `tgt` and `var` of the block `ytd`);
+  - every `"unit": "KRW thousand"` (15 places: the helper columns `amount_k` and `target_k`, the blocks `actual`,
+    `target`, `variance`, `pct_cell_diff` and `ytd`, the items `act`, `tgt`, `var` and `cum` of the block `bridge`,
+    the item `diff` of the block `var_pct_cell_diff`, and the measures `act`, `tgt` and `var` of the block `ytd`);
   - the labels with "(KRW thousand)" (the helper columns `amount_k`: "Amount (KRW thousand)" and `target_k`:
     "Target (KRW thousand)"), the purposes of `h_sales` ("amount in KRW thousand") and `h_target` ("target in KRW
     thousand"), and the first note of the notes sheet ("the model shows KRW thousand");
@@ -76,6 +76,26 @@ The shipped folder stays static. To land the two tables through Power Query, use
   the percentages with the whole variance total, -3,302.65 KRW thousand.
 - A wrong percentage formula fails this check: replaced by `{g:variance}-{g:variance}` (every percentage 0), the
   check shows 0 against -3,302.65 after recalculation in Excel (`scripts/tests/test_v2_landing.py`).
+- What `pct_grid_ties` does not find: a grid in which every cell holds an overall rate. Variance % times target,
+  summed, then still equals the variance total, because the overall rate times the target total is the variance
+  total. Example: every cell `IFERROR(variance total / target total, 0)` shows -1.23 % (January East should show
+  +5.41 %), and `pct_grid_ties` holds.
+- The block "Variance % check: absolute difference of % x target and variance" (`pct_cell_diff`, the last block of
+  `calc`) holds, for each region-month, `ABS(variance % x target - (target <> 0) x variance)`. The check
+  `pct_cell_ties` compares its largest value (`MAX`) with the check tolerance (0.001 KRW thousand). It finds a cell
+  whose percentage is not its own variance over its own target, so it fails for the grid of overall rates above,
+  and the master check fails with it.
+- A region-month with a target of 0 shows 0 % and gives 0 in `pct_cell_diff`: it is left out, as in
+  `pct_grid_ties`.
+- The item `var_pct` of the block `bridge` has the same check: the block "All regions by month: variance % check"
+  (`var_pct_cell_diff`, after `pct_cell_diff`) holds `ABS(var_pct x tgt - (tgt <> 0) x var)` for each month, and
+  `var_pct_cell_ties` compares its largest value with the check tolerance.
+- The year-to-date variance % of each region (measure `pct` of the summary block `ytd`) is checked on its total row
+  only (`ytd_pct_ties`). A check cannot address one measure column's cells (`{blk:<block>.<id>}` names a line item
+  of an items block only).
+- Tests (Excel): `scripts/tests/test_v7_templates.py::test_per_cell_check_fails_when_every_cell_holds_an_overall_rate`
+  (check --strict exits 1, the per-cell check fails, the summed-product check holds) and
+  `::test_per_cell_checks_hold_on_the_unchanged_copy`.
 - The check `ytd_pct_ties` ties the year-to-date variance % (the key output `pct`) to the blocks: the variance %
   times the target total equals the variance total. A target total of 0 gives 0 % (IFERROR), and the check then
   compares 0 with 0; the check divides by nothing. With every target set to 0, the model builds and every check
@@ -90,6 +110,41 @@ The shipped folder stays static. To land the two tables through Power Query, use
 - With `var_pct` replaced by `0`, `var_pct_all` fails and the master check fails after recalculation in Excel
   (`scripts/tests/test_v4_build.py::test_example_var_pct_check_fails_when_the_item_is_zero`).
 
+## Texts that follow an input
+
+The input `start_month` (First month of the model, 2026-01-31) and the timeline's `periods` (6 months, block
+`actual`) give the months of the model. When the months change, change each text below with them in
+`model.spec.json`, then rebuild, check and render.
+
+| Input | JSON path | Text |
+| --- | --- | --- |
+| `start_month` | `title` | Sales versus target by region, January to June 2026 |
+| `start_month` | `sheets[7].checks[3].label` | Cumulative variance in June equals the variance block total |
+
+- The title is shown in `cover!B1` and is the first line of this file.
+- Both contracts scope the rows of their extracts by `source.where`, and the dates in them go with `start_month`
+  and the 6 months: when the months change, both where clauses change too.
+  - `sales`: `i.posted AND i.inv_date BETWEEN '2026-01-01' AND '2026-06-30'`
+  - `target`: `t.version = 'FY2026 v3' AND t.month_end BETWEEN '2026-01-31' AND '2026-06-30'`
+- They are part of the agreed contracts, so change each as `references/column-contract.md`, "When the contract must
+  change after agreement", says (`<t>` is `sales` or `target`; `<control column>` is `amount` for `sales` and
+  `target_amount` for `target`):
+  1. `rotm.py contract propose "<model folder>" --table <t> --force --csv "<model folder>/raw/<t>.csv"` with
+     `--where "<new where clause>"` and the options that give the agreed contract's other settings back (`--key`,
+     `--grain`, `--source`, `--connector`, `--system`, `--unit`, `--type`, `--rows`, `--total`, `--purpose`); then
+     edit in the proposed JSON what propose cannot write (the source expressions and the descriptions). The
+     plugin's `templates/rolling_forecast/README.md`, "The monthly roll", step 1, gives the whole command and the
+     edits for one contract.
+  2. `rotm.py contract show "<model folder>" --table <t>`: its section "Changes since version <n>" lists the where
+     clause.
+  3. Show the user `contracts/<t>.contract.md` and record their agreement in their new words:
+     `rotm.py contract agree "<model folder>" --table <t> --reply "<the user's new words>" --by <name>`.
+  4. Land again: `rotm.py land "<model folder>" --table <t>` writes the query texts with the new where clause; then
+     land the new extract: `rotm.py land "<model folder>" --table <t> --csv "<export.csv>" --force --control
+     <t>.<control column>=<source total>`.
+  5. Change `start_month`, the timeline's `periods` and the texts above, then rebuild
+     (`rotm.py build "<model folder>" --strict --force`), check and render.
+
 ## How the example was made (the skill's procedure)
 
 | Step | Command (from the skill folder) | Result |
@@ -99,7 +154,7 @@ The shipped folder stays static. To land the two tables through Power Query, use
 | P1 | source expressions and descriptions filled in; `rotm.py contract agree ... --channel example` | agreed, marked as the example's own agreement: no user gave it |
 | P2 | `rotm.py land ... --table sales --csv data/sales.csv`, the same for `target` | `raw/*.csv` (static snapshots); `queries/*.sql` and `queries/*.pq.m`, each stamped with the agreed contract's hash |
 | P3 to P6 | `model.spec.json` written; `rotm.py build examples/sales_vs_target --strict` | `model.xlsx`, `model.manifest.json`, exit 0 |
-| P7 | `rotm.py audit ... --strict`; `rotm.py check ... --strict`; `rotm.py render .../model.xlsx` | exit 0; checks: 24 of 24 hold; alerts: 0 of 1 show a value (Excel 16.0); `reports/render/*.png` looked at |
+| P7 | `rotm.py audit ... --strict`; `rotm.py check ... --strict`; `rotm.py render .../model.xlsx` | exit 0; checks: 26 of 26 hold; alerts: 0 of 1 show a value (Excel 16.0); `reports/render/*.png` looked at |
 
 `expected.py` computes the key results from the two CSV files with the standard library alone, without the
 workbook, and writes `expected.json`; `scripts/tests/test_examples.py` compares them with the values Excel saved

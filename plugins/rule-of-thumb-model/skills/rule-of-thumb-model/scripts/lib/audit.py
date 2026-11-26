@@ -6,14 +6,29 @@ the workbook lies in a model folder (the finish-check hook reads status.json); -
 Two modes:
 - manifest mode: the workbook has a sidecar manifest written by `rotm.py build` (design 6.8). Raw sheets, helper
   columns, blocks, checks and cell types come from the manifest, and the manifest-only rules run (R-CHANGED,
-  R-CONTRACT, R-TYPE, CT-VERSION, H-GAP, H-COVERAGE, H-BEYOND, C-BLOCK, C-WIRING, W-SELF-CHECK, S-NUMFMT). Sheets the
-  manifest does not name are audited as in inferred mode. A registered check result cell that holds no formula is
-  C-MISSING (error), as the master check cell is.
+  R-CONTRACT, R-TYPE, CT-VERSION, H-GAP, H-COVERAGE, H-BEYOND, C-BLOCK, C-WIRING, W-SELF-CHECK, S-NUMFMT, S-CF). Sheets
+  the manifest does not name are audited as in inferred mode. A registered check result cell that holds no formula is
+  C-MISSING (error), as the master check cell is. S-CF (v7): any conditional-format rule, one warning per sheet,
+  because build writes none.
+- W-CHECK-GUARD (v7, r6 verdict A-aera-4): with a manifest, a registered check whose actual, expected (minimum,
+  bound), maximum or result cell calls IFERROR or IFNA; without a manifest, an inferred check cell whose outermost
+  function is IFERROR or IFNA ("(inferred)"). An error of an operand must show in the check's result.
+- v8 (r7 verdict [A-aera-5, A-aera-6]), with a manifest only: W-CHECK-ROUND (warning), a registered check whose
+  actual, expected (minimum, bound) or maximum cell calls a rounding function (ROUND_FUNCTIONS; references/checks.md
+  rule 3); V-INPUT-RANGE (error), a scalar input whose specification declares "valid" and whose saved value lies
+  outside it (check.input_range_findings, the same rule check runs).
+- v8 (r7 verdict A-aera-12): the formula rules are skipped only on a sheet the manifest registers as raw; a sheet
+  classed as raw by its name, by a query table or by --raw-sheets gets them, and R-FORMULA as well.
+- v8 (r7 verdict [C-sol-10, J-1] part 2): S-NUMFMT expects, for a header cell of a block whose rows or columns are
+  given as same_as another block, the number format of the label cell it links to (_linked_label_format).
 - inferred mode (any other workbook): raw sheets, helper columns and check cells are inferred (design 14) and
   those findings say "inferred". Styles are compared against the dictionary as a whole (its font, its two sizes,
   its fills, its font colours), not against a guessed cell type, because a wrong guess would be a false finding.
   When the workbook has inferred check cells, C-BLOCK reports each calculation block no check cell reads
-  (A-aera-11; _inferred_blocks says what a block is). A run of links (each cell holds only a reference to one
+  (A-aera-11; _inferred_blocks says what a block is). v9 (r8 verdict A-aera-11): a check also reads a block
+  through total or link cells, a cell whose formula is only SUM, SUBTOTAL (9 or 109) of references, references
+  joined by +, or one reference, followed FOLLOW_LIMIT (2) cells deep at most; no other formula is followed
+  (_total_or_link, _followed_boxes). A run of links (each cell holds only a reference to one
   cell, such as =Sheet!B2) is not a calculation block (J-3). An empty cell between two runs of one formula in a
   column is H-GAP (inferred), and H-COVERAGE counts the raw rows no helper row reads, reading every run of the
   column first (v5, A-aera-11; _inferred_coverage).
@@ -123,6 +138,11 @@ RULES: dict[str, RuleInfo] = {r.id: r for r in (
              "r4 verdict A-aera-3 and C-sol-5; design 9"),
     RuleInfo("W-SELF-CHECK", "warning", "manifest", "check whose actual and expected are the same",
              "spec 2.2 P5 (each calculation block against an independent total)"),
+    RuleInfo("W-CHECK-GUARD", "warning", "workbook", "check whose operands are wrapped in IFERROR or IFNA",
+             "r6 verdict A-aera-4; references/checks.md rule 4"),
+    RuleInfo("W-CHECK-ROUND", "warning", "manifest", "check whose actual, expected or bound cell rounds (ROUND, "
+             "ROUNDUP, ROUNDDOWN, MROUND, INT, TRUNC, CEILING, FLOOR)",
+             "r7 verdict A-aera-6; references/checks.md rule 3 (local guides L-98, confirmed)"),
     RuleInfo("C-FAIL", "error", "values", "a check holds a value other than 0",
              "design 9; guides L-38 (0 when fine, 1 when there is a problem, verified)"),
     RuleInfo("C-ALERT", "info", "values", "an alert is raised: an alert holds a value other than 0",
@@ -133,6 +153,9 @@ RULES: dict[str, RuleInfo] = {r.id: r for r in (
              "guides L-96 circular references (verified); spec 2.2 P7 (a model is verified by its calculated values)"),
     RuleInfo("V-NOT-RECALC", "info", "values", "formulas with no cached values",
              "spec 2.2 P7; openpyxl writes formulas without cached values"),
+    RuleInfo("V-INPUT-RANGE", "error", "manifest", "a scalar input's saved value outside the valid range or list "
+             "its specification declares",
+             "r7 verdict A-aera-5; references/model-spec-format.md, Inputs (valid); books B-14 (data validation)"),
     RuleInfo("S-FONT", "warning", "styles", "font name differs from the dictionary",
              "Max, spec 1.2 (Arial); guides L-61 one font (verified)"),
     RuleInfo("S-SIZE", "warning", "styles", "font size differs from the dictionary",
@@ -144,6 +167,8 @@ RULES: dict[str, RuleInfo] = {r.id: r for r in (
              "references/style_dictionary.json"),
     RuleInfo("S-NUMFMT", "warning", "manifest", "number format differs from the item's format",
              "references/style_dictionary.json number_formats"),
+    RuleInfo("S-CF", "warning", "manifest", "conditional-format rule in a built workbook",
+             "r6 verdict A-aera-11; build writes no conditional format"),
     RuleInfo("S-MERGED", "warning", "workbook", "merged cells outside raw sheets", "FAST 4.02-02 (not re-checked)"),
     RuleInfo("S-HIDDEN", "warning", "workbook", "hidden rows, columns or sheets",
              "FAST 2.01-08 (not re-checked); guides L-99 (verified); books B-55 (partly verified)"),
@@ -174,6 +199,10 @@ FAIL_TEXTS = frozenset({"FAIL", "FAILED", "ERROR", "ERR", "NG", "오류", "실�
 
 MIN_RUN = 3                 # cells: a helper column or row of formulas has at least this many (design 14)
 MIN_BLOCK = 2               # cells: an inferred calculation block for C-BLOCK has at least this many (A-aera-11)
+FOLLOW_LIMIT = 2            # total or link cells followed from a check cell's references for C-BLOCK (v9, A-aera-11)
+SUBTOTAL_SUMS = frozenset({9.0, 109.0})   # SUBTOTAL function numbers that sum (109 leaves hidden rows out)
+_READ_KINDS = frozenset({"cell", "range", "column", "row"})
+_FOLLOW_HINT = re.compile(r"^=\s*\+?\s*(?:_xlfn\.)?(?:SUM|SUBTOTAL)\(", re.I)
 DOMINANT_SHARE = 0.6        # the shared formula must hold at least this share of a run (inferred mode only)
 TOTAL_FUNCTIONS = frozenset({"SUM", "SUBTOTAL", "AGGREGATE"})
 _TOTAL_START = re.compile(r"^=\s*\+?\s*(?:_xlfn\.)?(?:SUM|SUBTOTAL|AGGREGATE)\(", re.I)
@@ -503,8 +532,10 @@ def _formula_rules(ctx: _Ctx) -> None:
     from . import formula
     s = ctx.settings
     for sheet in ctx.worksheets():
-        if sheet.name in ctx.raw_sheets:
-            continue                                   # R-FORMULA reports formulas on raw sheets
+        if ctx.manifest is not None and ctx.raw_sheets.get(sheet.name) == "manifest":
+            # v8 (r7 verdict A-aera-12): only a raw sheet the manifest registers is skipped (R-FORMULA reports any
+            # formula there); a sheet classed as raw by its name, a query table or --raw-sheets gets the rules too
+            continue
         groups: dict[str, list[Any]] = {}
         for c in sheet.formulas():
             if c.formula is None:                      # a data table {=TABLE()} has no formula text
@@ -1362,6 +1393,8 @@ def _check_rules(ctx: _Ctx) -> None:
                         "sheet (references/checks.md)", data={"inferred": True})
         if ctx.want("C-BLOCK") and checks:
             _inferred_block_rules(ctx, checks)
+        if ctx.want("W-CHECK-GUARD") and checks:
+            _inferred_guard_rule(ctx, checks)
         if ctx.want("C-FAIL") and ctx.wb.has_cached_values:
             tol = float(ctx.settings.get("check_tolerance") or 0)
             master_keys = {(c.sheet, c.coord) for c in masters}
@@ -1505,24 +1538,164 @@ def _name_values(ctx: _Ctx, name: str, sheet_name: str) -> list[str]:
     return local or [v for v, scope in found if scope is None]
 
 
+def _plain_ref(ctx: _Ctx, sheet_name: str, ref: Any) -> bool:
+    """True for a reference a total or link cell may hold (v9, A-aera-11): a cell, range, whole column or whole row
+    of this workbook, or a defined name each of whose definitions is one such reference. A structured reference,
+    an error, a reference to another workbook and a name defined by a calculation are not."""
+    if ref.workbook:
+        return False
+    if ref.kind in _READ_KINDS:
+        return True
+    if ref.kind != "name":
+        return False
+    from . import formula
+    values = _name_values(ctx, ref.a1, ref.sheet or sheet_name)
+    if not values:
+        return False
+    for value in values:
+        try:
+            a = formula.analyze("=" + value)
+        except Exception:  # noqa: BLE001 - an unreadable definition is not known to be a plain reference
+            return False
+        if not (a.ok and a.is_pure_link and a.refs[0].kind in _READ_KINDS and not a.refs[0].workbook):
+            return False
+    return True
+
+
+def _total_or_link(ctx: _Ctx, sheet_name: str, text: str | None) -> bool:
+    """True for a formula that only sums or links cells (v9, A-aera-11): SUM(<ref>, ...), SUBTOTAL(9 or 109,
+    <ref>, ...), <ref> + <ref> + ..., or one <ref>; a leading + is allowed. Each <ref> is a reference of
+    _plain_ref. Any other formula (another function or operator, a literal, parentheses, an intersection) is not:
+    C-BLOCK follows no calculation."""
+    if not text:
+        return False
+    from . import formula
+    try:
+        a = formula.analyze(text)
+    except Exception:  # noqa: BLE001 - an unreadable formula is not known to be a total
+        return False
+    if not a.ok or not a.refs or not all(_plain_ref(ctx, sheet_name, r) for r in a.refs):
+        return False
+    f = a.formula
+    if not a.calls:                                    # one reference, or references joined by +
+        if a.literals:
+            return False
+        refs = a.refs
+        between = [f[x.end:y.start].strip() for x, y in zip(refs, refs[1:])]
+        return (f[1:refs[0].start].strip() in ("", "+") and all(p == "+" for p in between)
+                and not f[refs[-1].end:].strip())
+    if len(a.calls) != 1:
+        return False
+    call = a.calls[0]
+    if call.name not in ("SUM", "SUBTOTAL") or f[1:call.start].strip() not in ("", "+") or f[call.end:].strip():
+        return False
+    args = [f[s:e].strip() for s, e in call.args]
+    if call.name == "SUBTOTAL":
+        lit = a.literals[0] if len(a.literals) == 1 else None
+        if (lit is None or lit.kind != "number" or lit.value not in SUBTOTAL_SUMS or len(args) < 2
+                or args[0] != f[lit.start:lit.end].strip()):
+            return False
+        args = args[1:]
+    elif a.literals:
+        return False
+    return len(args) == len(a.refs) and all(arg == r.text for arg, r in zip(args, a.refs))
+
+
+def _total_link_index(ctx: _Ctx, check_keys: set[tuple[str, str]]) -> dict[str, tuple[list[int], dict[int, Any]]]:
+    """The total and link cells of every worksheet (_total_or_link), by sheet in lower case: (sorted columns,
+    {column: (sorted rows, cells)}). Check cells are left out: what they read is read directly."""
+    out: dict[str, tuple[list[int], dict[int, Any]]] = {}
+    known: dict[tuple[str, str], bool] = {}
+    for sheet in ctx.worksheets():
+        by_col: dict[int, list[Any]] = {}
+        for c in sheet.formulas():
+            text = c.formula
+            if not text or (c.sheet, c.coord) in check_keys:
+                continue
+            if "(" in text and "'" not in text and not _FOLLOW_HINT.match(text):
+                continue                               # a call other than SUM or SUBTOTAL: no total
+            key = (sheet.name, ctx.rel(c))
+            hit = known.get(key)
+            if hit is None:
+                hit = known[key] = _total_or_link(ctx, sheet.name, text)
+            if hit:
+                by_col.setdefault(c.col, []).append(c)
+        if by_col:
+            cols = {col: ([c.row for c in lst], lst) for col, lst in
+                    ((col, sorted(lst, key=lambda x: x.row)) for col, lst in by_col.items())}
+            out[sheet.name.casefold()] = (sorted(cols), cols)
+    return out
+
+
+def _followed_boxes(ctx: _Ctx, direct: list[tuple[str, int, int, int, int]],
+                    check_keys: set[tuple[str, str]]) -> list[tuple[str, int, int, int, int]]:
+    """What check cells read through total or link cells (v9, A-aera-11): the references of each total or link
+    cell that a check cell reads, and of each total or link cell those references hold, FOLLOW_LIMIT cells deep at
+    most. Boxes as _ref_boxes gives them."""
+    index = _total_link_index(ctx, check_keys)
+    out: list[tuple[str, int, int, int, int]] = []
+    if not index:
+        return out
+    seen: set[tuple[str, str]] = set()
+    frontier = direct
+    for _level in range(FOLLOW_LIMIT):
+        nxt: list[tuple[str, int, int, int, int]] = []
+        for s, c1, r1, c2, r2 in frontier:
+            entry = index.get(s)
+            if entry is None:
+                continue
+            cols, by_col = entry
+            for col in cols[bisect.bisect_left(cols, c1):bisect.bisect_right(cols, c2)]:
+                rows, cells = by_col[col]
+                for cell in cells[bisect.bisect_left(rows, r1):bisect.bisect_right(rows, r2)]:
+                    key = (cell.sheet, cell.coord)
+                    if key not in seen:
+                        seen.add(key)
+                        nxt.extend(_ref_boxes(ctx, cell.sheet, cell.formula))
+        out.extend(nxt)
+        frontier = nxt
+        if not frontier:
+            break
+    return out
+
+
+def _by_sheet(boxes: Iterable[tuple[str, int, int, int, int]]) -> dict[str, list[tuple[int, int, int, int]]]:
+    out: dict[str, list[tuple[int, int, int, int]]] = {}
+    for s, c1, r1, c2, r2 in boxes:
+        out.setdefault(s, []).append((c1, r1, c2, r2))
+    return out
+
+
+def _block_read(block: _Block, boxes: dict[str, list[tuple[int, int, int, int]]]) -> bool:
+    """True when one of the boxes holds at least one cell of the block."""
+    b1, b2, b3, b4 = block.box
+    near = [x for x in boxes.get(block.sheet.casefold(), []) if x[0] <= b3 and x[2] >= b1 and x[1] <= b4 and x[3] >= b2]
+    return any(x[0] <= cell.col <= x[2] and x[1] <= cell.row <= x[3] for x in near for cell in block.cells)
+
+
 def _inferred_block_rules(ctx: _Ctx, checks: list[Any]) -> None:
     """C-BLOCK (inferred, A-aera-11): each calculation block that no inferred check cell reads. A block is read
-    when a check cell's formula refers to at least one of its cells (a range that overlaps the block counts).
+    when a check cell's formula refers to at least one of its cells (a range that overlaps the block counts), or
+    when it does so through total or link cells (v9): a cell a check cell reads whose formula only sums or links
+    cells (_total_or_link) counts as read with the cells it refers to, followed FOLLOW_LIMIT cells deep at most.
+    No other formula is followed, so a block that reaches a check only through further calculations is reported.
     Runs of links are no blocks (J-3); a note gives their count."""
     check_keys = {(c.sheet, c.coord) for c in checks}
-    boxes: dict[str, list[tuple[int, int, int, int]]] = {}
+    direct: list[tuple[str, int, int, int, int]] = []
     for c in checks:
-        if not c.formula:
-            continue
-        for s, c1, r1, c2, r2 in _ref_boxes(ctx, c.sheet, c.formula):
-            boxes.setdefault(s, []).append((c1, r1, c2, r2))
+        if c.formula:
+            direct.extend(_ref_boxes(ctx, c.sheet, c.formula))
+    boxes = _by_sheet(direct)
     blocks, link_runs = _inferred_blocks(ctx, check_keys)
-    unread = 0
+    followed: dict[str, list[tuple[int, int, int, int]]] | None = None
+    unread = through = 0
     for block in blocks:
-        reads = boxes.get(block.sheet.casefold(), [])
-        b1, b2, b3, b4 = block.box
-        near = [x for x in reads if x[0] <= b3 and x[2] >= b1 and x[1] <= b4 and x[3] >= b2]
-        if any(x[0] <= cell.col <= x[2] and x[1] <= cell.row <= x[3] for x in near for cell in block.cells):
+        if _block_read(block, boxes):
+            continue
+        if followed is None:
+            followed = _by_sheet(_followed_boxes(ctx, direct, check_keys))
+        if _block_read(block, followed):
+            through += 1
             continue
         unread += 1
         rep = block.cells[0]
@@ -1534,8 +1707,8 @@ def _inferred_block_rules(ctx: _Ctx, checks: list[Any]) -> None:
                 data={"inferred": True, "range": block.range, "first_cell": block.first, "cells": len(block.cells),
                       "formula": _short(rep.formula, 300)})
     if blocks:
-        ctx.report.note(f"inferred calculation blocks: {len(blocks):,}; {len(blocks) - unread:,} read by a check cell, "
-                        f"{unread:,} read by none (C-BLOCK)")
+        ctx.report.note(f"inferred calculation blocks: {len(blocks):,}; {len(blocks) - unread:,} read by a check cell "
+                        f"({through:,} of them through a total or link cell), {unread:,} read by none (C-BLOCK)")
     if link_runs:
         ctx.report.note(f"inferred calculation blocks: {link_runs:,} run(s) of links left out (each cell holds only a "
                         "reference to one cell, such as =Sheet!B2 or =B2; a link is not a calculation, so C-BLOCK "
@@ -1633,6 +1806,10 @@ def _manifest_check_rules(ctx: _Ctx) -> None:
                         "rebuild the workbook with rotm.py build", sheet=s, cell=coord)
     if ctx.want("W-SELF-CHECK"):
         _self_check_rule(ctx, checks)
+    if ctx.want("W-CHECK-GUARD"):
+        _check_guard_rule(ctx, checks)
+    if ctx.want("W-CHECK-ROUND"):
+        _check_round_rule(ctx, checks)
     if ctx.want("C-FAIL", "C-ALERT"):
         if not ctx.wb.has_cached_values:
             return
@@ -1712,6 +1889,179 @@ def _self_check_rule(ctx: _Ctx, checks: Sequence[dict[str, Any]]) -> None:
                 data={"check": chk.get("id"), "actual": actual.formula, "expected": expected.formula})
 
 
+# W-CHECK-GUARD (v7, r6 verdict A-aera-4; references/checks.md rule 4): an error trap inside a check turns an error
+# of its operands into a value, so the check can show a pass while its operands fail to calculate.
+GUARD_FUNCTIONS = ("IFERROR", "IFNA")
+GUARD_FIX = ("remove IFERROR or IFNA from the check; for a division that can be by zero, take the zero case on the "
+             "other side, for example --(<denominator><>0)*<numerator>")
+CHECK_MAX_COL, CHECK_RESULT_COL = 6, 9           # checks sheet columns F (Maximum) and I (Result)
+_SIDE_OF_E = {"equal": "expected", "at_most": "bound", "range": "minimum"}
+
+
+def _guards_in(text: str | None) -> list[str]:
+    """The error traps (IFERROR, IFNA) a formula calls, in first-seen order. Text inside quotes is not read."""
+    if not text or not str(text).startswith("="):
+        return []
+    from . import formula
+    try:
+        a = formula.analyze(formula.strip_xlfn(str(text)))
+    except Exception:  # noqa: BLE001 - an unreadable formula is F-PARSE's
+        return []
+    return [n for n in a.functions if n in GUARD_FUNCTIONS]
+
+
+def _outer_guard(text: str | None) -> tuple[str, str | None] | None:
+    """(IFERROR or IFNA, the text of its second argument or None) when the formula's outermost function is an error
+    trap: one call that holds the whole formula, with at most a sign (+, - or --) before it; else None."""
+    if not text or not str(text).startswith("="):
+        return None
+    from . import formula
+    t = formula.strip_xlfn(str(text))
+    try:
+        a = formula.analyze(t)
+    except Exception:  # noqa: BLE001
+        return None
+    top = [c for c in a.calls if c.level == 1]
+    if not a.ok or len(top) != 1 or top[0].name not in GUARD_FUNCTIONS:
+        return None
+    c = top[0]
+    if t[1:c.start].replace(" ", "").strip("+-") or t[c.end:].strip():
+        return None
+    fallback = t[c.args[1][0]:c.args[1][1]].strip() if len(c.args) > 1 else None
+    return c.name, fallback
+
+
+def _fallback_passes(fallback: str | None) -> bool:
+    """True when an error trap's fallback reads as a passing check: 0, FALSE, empty text, an omitted value or a
+    text that is not a failure word (such as "OK")."""
+    if fallback is None or fallback in ("", '""'):
+        return True
+    f = fallback.strip()
+    if f.upper() == "FALSE":
+        return True
+    try:
+        return float(f) == 0
+    except ValueError:
+        pass
+    if len(f) >= 2 and f[0] == f[-1] == '"':
+        return f[1:-1].strip().upper() not in FAIL_TEXTS
+    return False
+
+
+def _check_guard_rule(ctx: _Ctx, checks: Sequence[dict[str, Any]]) -> None:
+    """W-CHECK-GUARD with a manifest: each registered check (and alert) whose Actual (D), Expected, minimum or bound
+    (E), Maximum (F) or Result (I) cell on its row of the checks sheet holds a formula that calls IFERROR or IFNA.
+    An error of an operand then shows as a value, so the check can pass while the model does not calculate."""
+    for chk in checks:
+        ref = chk.get("result")
+        if not ref:
+            continue
+        s, coord, _cell = _cell_of(ctx, ref)
+        sheet = ctx.wb.sheet(s) if s else None
+        if sheet is None:
+            continue
+        try:
+            _col, row = common.split_cell(coord)
+        except ValueError:
+            continue
+        sides = [("actual", CHECK_ACTUAL_COL), (_SIDE_OF_E.get(str(chk.get("kind")), "expected"), CHECK_EXPECTED_COL)]
+        if chk.get("kind") == "range":
+            sides.append(("maximum", CHECK_MAX_COL))
+        sides.append(("result", CHECK_RESULT_COL))
+        for side, col in sides:
+            cell = sheet.at(row, col)
+            found = _guards_in(cell.formula if cell is not None else None)
+            if not found:
+                continue
+            names = " and ".join(found)
+            ctx.add("W-CHECK-GUARD", "warning", f"check {chk.get('id')} ({sheet.name}!{cell.coord}): its {side} cell "
+                    f"holds {names}; references/checks.md rule 4: an error in an operand must show in the check's "
+                    "result", GUARD_FIX + "; then rebuild with rotm.py build --force", sheet=sheet.name,
+                    cell=cell.coord, count=1,
+                    data={"check": chk.get("id"), "side": side, "functions": found, "formula": cell.formula})
+
+
+# W-CHECK-ROUND (v8, r7 verdict [A-aera-5, A-aera-6] part 2; references/checks.md rule 3): a check compares the
+# unrounded difference with the tolerance; a rounding function in an operand can round a real difference away.
+# The list of plan 5.1: the eight functions of the verdict and the newer names of CEILING and FLOOR.
+ROUND_FUNCTIONS = ("ROUND", "ROUNDUP", "ROUNDDOWN", "MROUND", "INT", "TRUNC", "CEILING", "FLOOR", "CEILING.MATH",
+                   "CEILING.PRECISE", "ISO.CEILING", "FLOOR.MATH", "FLOOR.PRECISE")
+ROUND_RULE_TEXT = "references/checks.md rule 3: a check compares the unrounded difference with the tolerance"
+ROUND_FIX = ("remove {function} from the check and compare the unrounded values with the tolerance; when a business "
+             "rule needs rounded values, round them in a block and tie that block to an independent total")
+
+
+def round_functions_in(text: str | None) -> list[str]:
+    """The rounding functions (ROUND_FUNCTIONS) a formula calls, in first-seen order, read from lib.formula's
+    tokens: a name inside quotes is not a call, and _xlfn. is removed first (FLOOR.MATH is saved as
+    _xlfn.FLOOR.MATH)."""
+    if not text:
+        return []
+    from . import formula
+    t = str(text)
+    try:
+        a = formula.analyze(formula.strip_xlfn(t if t.startswith("=") else "=" + t))
+    except Exception:  # noqa: BLE001 - an unreadable formula is F-PARSE's
+        return []
+    seen: list[str] = []
+    for n in a.functions:
+        name = str(n).upper()
+        if name in ROUND_FUNCTIONS and name not in seen:
+            seen.append(name)
+    return seen
+
+
+def _check_round_rule(ctx: _Ctx, checks: Sequence[dict[str, Any]]) -> None:
+    """W-CHECK-ROUND with a manifest: each registered check (and alert) whose Actual (D), Expected, minimum or bound
+    (E) or Maximum (F) cell on its row of the checks sheet holds a formula that calls a rounding function. One
+    finding per cell and function. The Result cell is not read: build writes it without a rounding function."""
+    for chk in checks:
+        ref = chk.get("result")
+        if not ref:
+            continue
+        s, coord, _cell = _cell_of(ctx, ref)
+        sheet = ctx.wb.sheet(s) if s else None
+        if sheet is None:
+            continue
+        try:
+            _col, row = common.split_cell(coord)
+        except ValueError:
+            continue
+        sides = [("actual", CHECK_ACTUAL_COL), (_SIDE_OF_E.get(str(chk.get("kind")), "expected"), CHECK_EXPECTED_COL)]
+        if chk.get("kind") == "range":
+            sides.append(("maximum", CHECK_MAX_COL))
+        for side, col in sides:
+            cell = sheet.at(row, col)
+            for name in round_functions_in(cell.formula if cell is not None else None):
+                ctx.add("W-CHECK-ROUND", "warning", f"check {chk.get('id')} ({sheet.name}!{cell.coord}): its {side} "
+                        f"cell holds {name}; {ROUND_RULE_TEXT}", ROUND_FIX.format(function=name), sheet=sheet.name,
+                        cell=cell.coord, count=1,
+                        data={"check": chk.get("id"), "side": side, "function": name, "formula": cell.formula})
+
+
+def _inferred_guard_rule(ctx: _Ctx, checks: list[Any]) -> None:
+    """W-CHECK-GUARD without a manifest ('(inferred)'): each inferred check cell whose outermost function is IFERROR
+    or IFNA. Cells of one sheet that hold the same relative formula are one finding with their count."""
+    groups: dict[tuple[str, str], list[tuple[Any, str, str | None]]] = {}
+    for c in checks:
+        found = _outer_guard(c.formula)
+        if found is None:
+            continue
+        groups.setdefault((c.sheet, ctx.rel(c)), []).append((c, found[0], found[1]))
+    for (sheet, _rel), items in groups.items():
+        items.sort(key=lambda x: (x[0].row, x[0].col))
+        first, name, fallback = items[0]
+        where = f"{common.quote_sheet(sheet)}!{first.coord}"
+        if len(items) > 1:
+            where += f" and {len(items) - 1:,} more cell(s) with the same formula"
+        shown = ("shows as a pass" if _fallback_passes(fallback)
+                 else f"shows as its fallback value {_short(fallback, 30)}, not as an error")
+        ctx.add("W-CHECK-GUARD", "warning", f"(inferred) {where}: the check cell's outermost function is {name}; an "
+                f"error in its operands {shown}", GUARD_FIX, sheet=sheet, cells=[x[0].coord for x in items],
+                count=len(items),
+                data={"inferred": True, "function": name, "fallback": fallback, "formula": _short(first.formula, 300)})
+
+
 # ----------------------------------------------------------------------------- values
 
 def _value_rules(ctx: _Ctx) -> None:
@@ -1736,6 +2086,35 @@ def _value_rules(ctx: _Ctx) -> None:
                 "recalculated after it was written, so error values and check results could not be read",
                 f"recalculate it in Excel: {_rotm_cmd('check', '<model>')} (or rotm.py recalc <workbook>)",
                 data={"formulas": n_formulas})
+    if ctx.manifest is not None and ctx.want("V-INPUT-RANGE"):
+        _input_range_rule(ctx)
+
+
+def _input_range_rule(ctx: _Ctx) -> None:
+    """V-INPUT-RANGE with a manifest (v8, r7 verdict [A-aera-5, A-aera-6] part 1): the saved value of each scalar
+    input whose specification declares "valid" (check.input_range_findings, the rule check runs). A constant is
+    read as stored, a formula by its cached value; a formula without a cached value is left out."""
+    from . import check
+    m = ctx.manifest or {}
+    if ctx.spec_data is None:
+        if m.get("inputs"):
+            ctx.report.note("V-INPUT-RANGE: the specification was not read, so the saved inputs were not compared "
+                            "with their valid ranges")
+        return
+
+    def read(ref: str) -> tuple[bool, Any]:
+        s, coord, cell = _cell_of(ctx, ref)
+        if s is None or ctx.wb.sheet(s) is None:
+            return False, None
+        if cell is None:
+            return True, None
+        if cell.is_formula:
+            return (cell.cached is not None), cell.cached
+        return True, cell.value
+
+    model = ctx.model_root.as_posix() if ctx.model_root is not None else "<model>"
+    for f in check.input_range_findings(ctx.spec_data, m, read, _rotm_cmd("build", model, "--force")):
+        ctx.add(f.rule, f.severity, f.message, f.fix, sheet=f.sheet, cell=f.cell, count=1, data=f.data)
 
 
 def _no_value_cells(found: Iterable[Any]) -> dict[str, list[str]]:
@@ -1886,6 +2265,24 @@ def _style_rules(ctx: _Ctx) -> None:
                         f"(colours: {color_txt})", fix, sheet=sheet.name, cell=c.coord, data={"font_color": fc})
     if ctx.manifest and ctx.want("S-NUMFMT"):
         _numfmt_rules(ctx)
+    if ctx.manifest and ctx.want("S-CF"):
+        _conditional_format_rule(ctx)
+
+
+def _conditional_format_rule(ctx: _Ctx) -> None:
+    """S-CF (v7, r6 verdict A-aera-11): with a manifest, one warning per sheet that holds conditional-format rules.
+    build writes none, so such a rule was added after the build. The style rules compare the fill stored on each
+    cell; the colour a conditional-format rule draws is not read (theme reports the rules as T-CF), so a check
+    result shown in red or green by such a rule would pass the other style rules."""
+    for s in ctx.worksheets():
+        n = int(getattr(s, "cf_count", 0) or 0)
+        if n <= 0:
+            continue
+        ctx.add("S-CF", "warning", f"sheet {s.name} holds {n:,} conditional-format rule(s); build writes none, so "
+                "they were added after the build; the audit does not read the colours they draw",
+                "remove the rules (Home > Conditional Formatting > Clear Rules > Clear Rules from Entire Sheet) and "
+                "rebuild; a check result shows OK or FAIL by its number format", sheet=s.name, count=1,
+                data={"rules": n})
 
 
 def _size_txt(size: Any) -> str:
@@ -1995,6 +2392,12 @@ def _header_formats(ctx: _Ctx) -> tuple[dict[tuple[str, str], tuple[str, str]], 
     the header row over the body): the same with month for an ISO date. These are the keys build.py _dim_labels
     and _dim_headers compute for kind 'in'.
 
+    v8 (r7 verdict [C-sol-10, J-1] part 2): a header cell of a block whose rows or columns are given as same_as
+    another block expects the format of the label cell it links to (_linked_label_format, as build.py resolves it:
+    the chain of same_as to its end; a timeline gives month; an input list the format above; values rows general;
+    values columns their node's format, else month for an ISO date, else general; a format on the same_as node
+    wins).
+
     Returns (expected, also, unread): expected maps (sheet, coord) to (format, why); also maps a cell whose key is
     text to General, which shows a text item the same way, so a header of a text list may hold either format;
     unread lists the header cells of such blocks when the specification (or the list) could not be read."""
@@ -2022,10 +2425,10 @@ def _header_formats(ctx: _Ctx) -> tuple[dict[tuple[str, str], tuple[str, str]], 
         for mb in entry.get("blocks") or []:
             places: list[tuple[str, int, str]] = []          # (coord, item index, "rows" or "cols")
             try:
-                if mb.get("rows_kind") == "in" and mb.get("shape") != "items" and mb.get("labels"):
+                if mb.get("rows_kind") in ("in", "same_as") and mb.get("shape") != "items" and mb.get("labels"):
                     c1, r1, _c2, r2 = common.range_bounds(mb["labels"])
                     places += [(common.a1(c1, r), r - r1, "rows") for r in range(r1, r2 + 1)]
-                if mb.get("cols_kind") == "in" and mb.get("shape") != "measures" and mb.get("header_row"):
+                if mb.get("cols_kind") in ("in", "same_as") and mb.get("shape") != "measures" and mb.get("header_row"):
                     b1, _r1, b2, _r2 = common.range_bounds(mb["body"])
                     places += [(common.a1(c, int(mb["header_row"])), c - b1, "cols") for c in range(b1, b2 + 1)]
             except (ValueError, TypeError):
@@ -2033,6 +2436,23 @@ def _header_formats(ctx: _Ctx) -> tuple[dict[tuple[str, str], tuple[str, str]], 
             block = spec_blocks.get(str(mb.get("id")))
             for coord, k, axis in places:
                 key = (entry["name"], coord)
+                if mb.get(f"{axis}_kind") == "same_as":
+                    # v8 ([C-sol-10, J-1] part 2): the format of the label cell it links to
+                    linked = _linked_label_format(spec_blocks, lists, str(mb.get("id")), axis, k)
+                    if linked is None:
+                        unread.append(key)
+                        continue
+                    fkey, target = linked
+                    try:
+                        fmt = d.number_format(str(fkey))
+                    except common.RotmError:
+                        unread.append(key)
+                        continue
+                    expected[key] = (fmt, f"{'row' if axis == 'rows' else 'column'} headers that link to the labels "
+                                          f"of block '{target}' ({fkey})")
+                    if fkey == "text":
+                        also[key] = d.number_format("general")
+                    continue
                 node = (block or {}).get(axis)
                 item = lists.get(str(node.get("in"))) if isinstance(node, dict) else None
                 values = item.get("values") if item else None
@@ -2052,6 +2472,66 @@ def _header_formats(ctx: _Ctx) -> tuple[dict[tuple[str, str], tuple[str, str]], 
                 if fkey == "text":
                     also[key] = d.number_format("general")
     return expected, also, unread
+
+
+def _label_format_key(spec_blocks: dict[str, Any], lists: dict[str, Any], block_id: str, axis: str, k: int,
+                      seen: tuple[str, ...] = ()) -> str | None:
+    """The format key of the k-th row label (axis 'rows') or column header ('cols') of a specification block, as
+    build.py _dim_labels and _dim_headers give it: items and measures general; no cols (one column 'Value')
+    general; values rows general (the row_header cell type's format); values cols the node's format, else month
+    for an ISO date, else general; an input
+    list the node's format, else the list's, else date or month for an ISO date, else general; a timeline the node's
+    format, else month; same_as the node's own format, else the linked block's key (followed to the end of the
+    chain). None when it cannot be read (an unknown block or list, an index past the end, a cycle)."""
+    if block_id in seen:
+        return None
+    b = spec_blocks.get(block_id)
+    if not isinstance(b, dict):
+        return None
+    if (axis == "rows" and b.get("items") is not None) or (axis == "cols" and b.get("measures") is not None):
+        return "general"
+    node = b.get(axis)
+    if node is None:
+        return "general" if axis == "cols" else None
+    if not isinstance(node, dict):
+        return None
+    fmt = node.get("format")
+    when_date = "date" if axis == "rows" else "month"
+    if "values" in node:
+        values = node.get("values")
+        if not isinstance(values, list) or k >= len(values):
+            return None
+        if axis == "rows":
+            # build.py writes a values row label with the row_header cell type, whose format is General
+            # (build._Compiler._write_block, _label_formats; v8 request v8_P3 R1)
+            return "general"
+        iso = isinstance(values[k], str) and bool(_ISO_DATE_RE.match(values[k]))
+        return fmt or (when_date if iso else "general")
+    if "in" in node:
+        item = lists.get(str(node.get("in")))
+        values = item.get("values") if item else None
+        if not isinstance(values, list) or k >= len(values):
+            return None
+        iso = isinstance(values[k], str) and bool(_ISO_DATE_RE.match(values[k]))
+        return fmt or item.get("format") or (when_date if iso else "general")
+    if "timeline" in node:
+        return fmt or "month"
+    if "same_as" in node:
+        return fmt or _label_format_key(spec_blocks, lists, str(node.get("same_as")), axis, k, seen + (block_id,))
+    return None
+
+
+def _linked_label_format(spec_blocks: dict[str, Any], lists: dict[str, Any], block_id: str, axis: str,
+                         k: int) -> tuple[str, str] | None:
+    """(format key, the block it links to) for the k-th header cell of a block whose `axis` is given as same_as
+    another block: the key of the label cell it links to (_label_format_key), unless the same_as node gives its
+    own format. None when the block's axis is not same_as or the key cannot be read."""
+    b = spec_blocks.get(block_id)
+    node = b.get(axis) if isinstance(b, dict) else None
+    if not isinstance(node, dict) or "same_as" not in node:
+        return None
+    key = _label_format_key(spec_blocks, lists, block_id, axis, k)
+    return (key, str(node["same_as"])) if key else None
 
 
 # ----------------------------------------------------------------------------- workbook rules
@@ -2225,10 +2705,10 @@ FAMILIES: tuple[tuple[str, Callable[[_Ctx], None], frozenset[str]], ...] = (
     ("inferred consistency", _inferred_consistency, frozenset({"H-INCONSISTENT", "B-INCONSISTENT",
                                                                  "H-COVERAGE", "H-GAP"})),
     ("check", _check_rules, frozenset({"C-MISSING", "C-BLOCK", "C-WIRING", "C-FAIL", "C-ALERT", "W-SELF-CHECK",
-                                       "C-RECOMPUTE"})),
-    ("value", _value_rules, frozenset({"V-ERROR", "V-NOT-RECALC"})),
+                                       "C-RECOMPUTE", "W-CHECK-GUARD", "W-CHECK-ROUND"})),
+    ("value", _value_rules, frozenset({"V-ERROR", "V-NOT-RECALC", "V-INPUT-RANGE"})),
     ("no-value", _no_value_rules, frozenset({"V-NO-VALUE"})),
-    ("style", _style_rules, frozenset({"S-FONT", "S-SIZE", "S-FILL", "S-FONTCOLOR", "S-BOLD", "S-NUMFMT"})),
+    ("style", _style_rules, frozenset({"S-FONT", "S-SIZE", "S-FILL", "S-FONTCOLOR", "S-BOLD", "S-NUMFMT", "S-CF"})),
     ("workbook", _workbook_rules, frozenset({"S-MERGED", "S-HIDDEN", "W-CALCMODE", "W-ITERATE", "X-FEATURE"})),
 )
 

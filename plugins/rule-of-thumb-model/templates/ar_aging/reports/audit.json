@@ -4,7 +4,7 @@
  "version": "0.1.0",
  "command": "audit",
  "target": "model.xlsx",
- "at": "2026-11-26T03:53:28+09:00",
+ "at": "2026-11-26T09:16:38+09:00",
  "strict": true,
  "exit_code": 0,
  "status": "pass",
@@ -43,8 +43,8 @@
    "raw_open_items": "manifest"
   },
   "sheets": 8,
-  "cells": 4659,
-  "formula_cells": 3117,
+  "cells": 5151,
+  "formula_cells": 3597,
   "has_cached_values": true,
   "rules_run": [
    "formula",
@@ -60,6 +60,6 @@
    "workbook"
   ],
   "selected_rules": null,
-  "sha256": "61d606617e14d56722263786d9b668d070eaedcc2ce737d9528e568dfb61521b"
+  "sha256": "a03dbc2cac5cf121615f80f5e3a0c4b0d32b9138e7753ed70cc28c79807a128e"
  }
 }

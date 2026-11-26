@@ -23,6 +23,12 @@ Owner: M5. Standard library only (openpyxl is not needed here).
   header is a reserved keyword or not a plain identifier, and notes a column named like a helper column build
   adds (N-HELPER-NAME; build refuses it) (round 3 verdict, A-aera-11 and A-aera-12).
 - `remove` moves the files of a table that is no longer wanted into MODEL/removed/ (J-4).
+- v7 (round 6 verdict, C-sol-8): `propose --csv` records on every column the sample header it was read from
+  (`csv_header`, trimmed); `land --csv` then accepts a CSV whose header line holds those headers, each once, in any
+  order. The .md shows the column "CSV header" and a note under "Points to confirm" when a header differs from its
+  destination name; otherwise the .md has no such column, as in v6. A-aera-6: every number of the .md is the
+  shortest text that gives the stored number, with thousands separators (_num; the sample profile's minimum and
+  maximum too, _stat).
 
 Sources of the rules: Max's words, spec Part 1 section 1.2 ("coordinate and agree with the user, what columns will
 be pulled into in which shapes"); the field list of spec 2.2 P1 (name, type, unit, grain, key, null rule, source,
@@ -380,26 +386,37 @@ def clean_name(header: str, index: int) -> str:
     return name[:41]
 
 
-def _read_csv_rows(csv_path: Path, max_rows: int) -> tuple[list[str], list[list[str]], int]:
-    """(header, up to max_rows data rows, total data rows). Empty lines are skipped. Raises common.Refusal for a
-    file that is missing, not UTF-8, empty or not comma-separated."""
+def _read_csv_rows(csv_path: Path, max_rows: int) -> tuple[list[str], list[list[str]], int, list[int], list[int]]:
+    """(header, up to max_rows data rows, total data rows, the physical line of each row returned, the lines of the
+    records of only delimiters). Records whose cells are all blank are left out of the rows and the total, as in v7.
+    v8 (r7 verdict A-aera-8 and C-sol-2): the file is read as land reads it (land.csv_records: strict quoting; a
+    quoted field still open at the end of the file, or another quoting error, is a refusal naming its line), and
+    the records of only delimiters (',,': every field empty; land refuses them) are counted with their lines.
+    Raises common.Refusal for a file that is missing, not UTF-8, empty or not comma-separated."""
+    from . import land
     if not csv_path.is_file():
         raise common.Refusal(f"{csv_path.as_posix()}: CSV file not found", fix="give the path of an existing sample CSV")
     try:
         with open(csv_path, encoding="utf-8-sig", newline="") as f:
-            reader = csv.reader(f)
-            header = next(reader, None)
-            if header is None:
+            records = land.csv_records(f, name=csv_path.name)
+            first = next(records, None)
+            if first is None:
                 raise common.Refusal(f"{csv_path.name}: the file is empty",
                                      fix="give a CSV with a header row and at least one data row")
+            header = first[1]
             rows: list[list[str]] = []
+            lines: list[int] = []
+            only_delimiters: list[int] = []
             total = 0
-            for row in reader:
+            for line, row in records:
+                if land.is_only_delimiters(row):
+                    only_delimiters.append(line)
                 if not any(c.strip() for c in row):
                     continue
                 total += 1
                 if len(rows) < max_rows:
                     rows.append(row)
+                    lines.append(line)
     except UnicodeDecodeError as exc:
         raise common.Refusal(f"{csv_path.name}: not UTF-8 text ({exc.reason} at byte {exc.start})",
                              fix="save the CSV as UTF-8 (in Excel: Save As > CSV UTF-8 (Comma delimited))") from None
@@ -415,32 +432,49 @@ def _read_csv_rows(csv_path: Path, max_rows: int) -> tuple[list[str], list[list[
                 raise common.Refusal(f"{csv_path.name}: the header has one column and contains {name}; "
                                      "the file is not comma-separated",
                                      fix="save it with commas between the fields (design section 4)")
-    return header, rows, total
+    return header, rows, total, lines, only_delimiters
 
 
 def profile_csv(csv_path: str | Path, *, max_rows: int = PROFILE_MAX_ROWS) -> dict[str, Any]:
     """Profile a sample CSV: per column the proposed name, inferred type, null count, distinct count, minimum,
     maximum, sum and examples; the key candidates; the row count. The numbers describe the sample only."""
     p = common.native_path(csv_path)
-    header, rows, total = _read_csv_rows(Path(p), max_rows)
+    header, rows, total, lines, only_delimiters = _read_csv_rows(Path(p), max_rows)
     notes: list[str] = []
     names: list[str] = []
     used: set[str] = set()
+    repeated: list[bool] = []
     for i, h in enumerate(header):
         name = clean_name(h, i)
         base, k = name, 2
         while name.lower() in used:
             name = f"{base[:38]}_{k}"
             k += 1
-        if name != (h or "").strip():
-            if base != name:
+        repeated.append(base != name)
+        used.add(name.lower())
+        names.append(name)
+    # v8 (r7 verdict A-aera-4): no destination name may be another column's sample header, else a header line
+    # could be read by the names or by the sample headers with other columns
+    renamed = _rename_header_clashes(header, names, used)
+    for i, h in enumerate(header):
+        name = names[i]
+        if i in renamed:
+            old, j = renamed[i]
+            notes.append(f"header {i + 1} ('{h}'): named '{name}', not '{old}', because '{old}' is the sample header "
+                         f"of column {j + 1}; a destination name that is another column's sample header would let "
+                         "land read a header line either way")
+        elif name != (h or "").strip():
+            if repeated[i]:
                 notes.append(f"header {i + 1} ('{h}') repeats an earlier header: named '{name}'")
             elif (h or "").strip():
                 notes.append(f"header {i + 1} ('{h}') is not a valid column name: named '{name}'")
             else:
                 notes.append(f"header {i + 1} is empty: named '{name}'")
-        used.add(name.lower())
-        names.append(name)
+    if only_delimiters:
+        shown = ", ".join(str(x) for x in only_delimiters[:5]) + (", ..." if len(only_delimiters) > 5 else "")
+        notes.append(f"{len(only_delimiters)} record(s) hold only delimiters (every field empty): "
+                     f"{'line' if len(only_delimiters) == 1 else 'lines'} {shown}; land refuses them, because the "
+                     "first column, which is never null, is empty in them; remove them from the extract")
     width = len(header)
     short_rows = sum(1 for r in rows if len(r) < width)
     long_rows = sum(1 for r in rows if len(r) > width and any(c.strip() for c in r[width:]))
@@ -466,7 +500,75 @@ def profile_csv(csv_path: str | Path, *, max_rows: int = PROFILE_MAX_ROWS) -> di
                      "nulls": nulls, "non_null": len(values) - nulls, "distinct": len(distinct),
                      "examples": list(distinct)[:3], "_values": values, "_distinct": list(distinct)})
     return {"csv": Path(p).as_posix(), "csv_name": Path(p).name, "header": header, "names": names, "columns": cols,
-            "rows": total, "profiled_rows": len(rows), "truncated": total > len(rows), "notes": notes}
+            "rows": total, "profiled_rows": len(rows), "truncated": total > len(rows), "notes": notes,
+            "lines": lines, "only_delimiters_lines": only_delimiters}
+
+
+def _rename_header_clashes(header: Sequence[str], names: list[str], used: set[str]) -> dict[int, tuple[str, int]]:
+    """Give a column whose derived name is another column's sample header (trimmed) the first free name
+    <name>_<k>, k = 1, 2, ..., that is no column's name (upper and lower case alike) and no other column's sample
+    header (v8, r7 verdict A-aera-4). Changes `names` and `used` in place; returns {column index: (the name it
+    would have had, index of the column whose header it is)}."""
+    stripped = [(h or "").strip() for h in header]
+    out: dict[int, tuple[str, int]] = {}
+    for i, name in enumerate(names):
+        clash = next((j for j, s in enumerate(stripped) if j != i and s == name), None)
+        if clash is None:
+            continue
+        others = {s for j, s in enumerate(stripped) if j != i}
+        k = 1
+        new = f"{name[:38]}_{k}"
+        while new.lower() in used or new in others:
+            k += 1
+            new = f"{name[:38]}_{k}"
+        used.discard(name.lower())
+        used.add(new.lower())
+        names[i] = new
+        out[i] = (name, clash)
+    return out
+
+
+def header_name_pairs(columns: Any) -> list[tuple[str, str, str]]:
+    """(column a, column b, header) for each column a whose sample header (csv_header, trimmed) is the destination
+    name of another column b (v8, r7 verdict A-aera-4): a header line could then be read by the names or by the
+    sample headers, with other columns. `columns` is a contract or its list of columns."""
+    cols = columns.get("columns") if isinstance(columns, dict) else columns
+    cols = [c for c in (cols or []) if isinstance(c, dict)]
+    out: list[tuple[str, str, str]] = []
+    for a in cols:
+        h = a.get("csv_header")
+        if not isinstance(h, str):
+            continue
+        h = h.strip()
+        for b in cols:
+            if b is not a and b.get("name") == h and b.get("name") != a.get("name"):
+                out.append((str(a.get("name")), str(b.get("name")), h))
+    return out
+
+
+def header_name_refusal(contract: dict[str, Any], *, written: str = "nothing was recorded") -> common.Refusal | None:
+    """The refusal of a contract with header_name_pairs (v8, r7 verdict A-aera-4), or None. contract show and
+    contract agree end the message with 'nothing was recorded', land with 'nothing was written'."""
+    pairs = header_name_pairs(contract)
+    if not pairs:
+        return None
+    said = "; ".join(f"column '{a}' has the sample header '{h}', which is the destination name of column '{b}'"
+                     for a, b, h in pairs)
+    targets = list(dict.fromkeys(b for _a, b, _h in pairs))
+    which = (f"the destination column '{targets[0]}'" if len(targets) == 1 else
+             "the destination columns " + ", ".join(f"'{b}'" for b in targets[:-1]) + f" and '{targets[-1]}'")
+    return common.Refusal(f"contract '{contract.get('table')}': {said}, so a header line could be read by either; "
+                          f"{written}",
+                          fix=f"rename {which}, or remove the csv_header entries (contract propose --force with "
+                              "--columns), then run contract show and get the contract agreed again")
+
+
+def refuse_header_name_pairs(contract: dict[str, Any], *, written: str = "nothing was recorded") -> None:
+    """Raise header_name_refusal(contract) when there is one (contract show, contract agree and land call it before
+    anything else they do with the contract)."""
+    refusal = header_name_refusal(contract, written=written)
+    if refusal is not None:
+        raise refusal
 
 
 def _typed_column(col: dict[str, Any], ctype: str) -> tuple[list[Any], int]:
@@ -575,9 +677,11 @@ def _unique(columns: Sequence[list[Any]]) -> bool:
     return True
 
 
-def _repeats(columns: Sequence[list[Any]]) -> list[tuple[int, int, str]]:
+def _repeats(columns: Sequence[list[Any]], lines: Sequence[int] | None = None) -> list[tuple[int, int, str]]:
     """(earlier line, line, key text) for every sample row whose key equals an earlier row's key (lines of the CSV
-    file: the header is line 1). Rows with an empty key part are skipped."""
+    file: the header is line 1; `lines`, the physical line of each sample row (profile_csv, v8), else the row's
+    index plus 2). Rows with an empty key part are skipped."""
+    line_of = (lambda i: lines[i]) if lines is not None else (lambda i: i + 2)
     seen: dict[tuple[Any, ...], int] = {}
     out: list[tuple[int, int, str]] = []
     for i, tup in enumerate(zip(*columns)):
@@ -585,7 +689,7 @@ def _repeats(columns: Sequence[list[Any]]) -> list[tuple[int, int, str]]:
             continue
         key = _key_text(tup)
         if key in seen:
-            out.append((seen[key] + 2, i + 2, " + ".join(value_text(v) for v in tup)))
+            out.append((line_of(seen[key]), line_of(i), " + ".join(value_text(v) for v in tup)))
         else:
             seen[key] = i
     return out
@@ -642,6 +746,24 @@ def _column_proposal(col: dict[str, Any], ctype: str, *, in_key: bool, unit: str
             "null_rule": null_rule or ("never" if col["nulls"] == 0 else "allowed"),
             "allowed": allowed, "source_expression": source_identifier((col["header"] or "").strip() or col["name"]),
             "observed": _observed(col, ctype)}
+
+
+def headers_differ(columns: Sequence[dict[str, Any]]) -> bool:
+    """True when a column records a sample header (csv_header, v7 C-sol-8) other than its destination name."""
+    return any(isinstance(c.get("csv_header"), str) and c["csv_header"] != c["name"] for c in columns)
+
+
+def sample_header_note(table: str, columns: Sequence[dict[str, Any]]) -> str | None:
+    """The note under 'Points to confirm' when a sample header differs from its destination name and land can read
+    the columns by their sample headers (land.sample_headers), else None (v7, C-sol-8)."""
+    from . import land
+    headers = land.sample_headers(columns)
+    if headers is None or not headers_differ(columns):
+        return None
+    pairs = ", ".join(f"'{h}' -> {c['name']}" for h, c in zip(headers, columns))
+    return (f"land --csv accepts a CSV whose header line holds these sample headers, each once, in any order: {pairs}; "
+            f"or the destination names in the contract's order; land writes raw/{table}.csv with the destination "
+            "names")
 
 
 def source_identifier(header: str) -> str:
@@ -736,7 +858,7 @@ def _fmt_int(n: int) -> str:
 # ----------------------------------------------------------------------------- versions
 
 _CONTENT_KEYS = ("grain", "key", "columns", "expect", "source", "refresh")
-_COLUMN_FIELDS = ("type", "unit", "null_rule", "known_nulls", "allowed", "source_expression", "format")
+_COLUMN_FIELDS = ("type", "unit", "null_rule", "known_nulls", "allowed", "source_expression", "format", "csv_header")
 
 
 def _agreed_content(contract: dict[str, Any]) -> dict[str, Any]:
@@ -785,7 +907,12 @@ def changes_between(old: dict[str, Any], new: dict[str, Any]) -> list[str]:
         if o is None:
             continue
         for f in _COLUMN_FIELDS:
-            if o.get(f) != c.get(f):
+            before, after = o.get(f), c.get(f)
+            if f == "csv_header" and (before is None or after is None):
+                # v7 (C-sol-8): a column without a sample header shows its name as the header; only a header
+                # that differs from what the earlier version showed is a change
+                before, after = name if before is None else before, name if after is None else after
+            if before != after:
                 out.append(f"column {name} {f}: {_brief(o.get(f))} -> {_brief(c.get(f))}")
     if [c["name"] for c in old.get("columns") or [] if c["name"] in new_cols] != \
             [c["name"] for c in cur.get("columns") or [] if c["name"] in old_cols]:
@@ -906,6 +1033,8 @@ def propose(model_root: str | Path, table: str, *, csv: str | Path | None = None
         for c, t in zip(profile["columns"], final_types):
             proposal = _column_proposal(c, t, in_key=c["name"] in chosen_key, unit=unit_map.get(c["name"]),
                                         null_rule=null_map.get(c["name"]))
+            # v7 (C-sol-8): the sample header the column was read from; it moves with the column below
+            proposal["csv_header"] = (c["header"] or "").strip()
             if dic is not None and t in ("integer", "number"):
                 fmt, why = proposed_format(_typed_column(c, t)[0], t, dic)
                 proposal["format"] = fmt
@@ -970,7 +1099,7 @@ def propose(model_root: str | Path, table: str, *, csv: str | Path | None = None
     if profile is not None and _split_list(key):
         typed_key = [_typed_column(profile["columns"][names.index(k)], cols[names.index(k)]["type"])[0] for k in chosen_key]
         if profile["profiled_rows"] and not _unique(typed_key):
-            repeats_found = _repeats(typed_key)
+            repeats_found = _repeats(typed_key, profile.get("lines"))
             if not repeats_found:
                 notes.append(f"the key {' + '.join(chosen_key)} has empty values in the sample; every key column "
                              "needs a value in every row: say which columns identify one row")
@@ -986,7 +1115,8 @@ def propose(model_root: str | Path, table: str, *, csv: str | Path | None = None
             obs_nulls = (c.get("observed") or {}).get("nulls", 0)
             if not obs_nulls or c["name"] in chosen_key:
                 continue
-            lines_txt = ", ".join(str(i + 2) for i, v in enumerate(profile["columns"][names.index(c["name"])]["_values"])
+            lines_txt = ", ".join(str(profile["lines"][i])
+                                  for i, v in enumerate(profile["columns"][names.index(c["name"])]["_values"])
                                   if is_null(v) or str(v).strip() == "")
             lines_txt = ", ".join(lines_txt.split(", ")[:5])
             if c["name"] in known_map:
@@ -1042,6 +1172,10 @@ def propose(model_root: str | Path, table: str, *, csv: str | Path | None = None
             raise common.Refusal(f"every column of '{table}' has nulls in the sample, but the first column must never "
                                  "be null (it decides which raw rows exist)",
                                  fix="give a column that is never null, e.g. --null <column>=never, or a better sample")
+    # v7 (C-sol-8): the header line land --csv accepts when a sample header differs from its destination name.
+    note = sample_header_note(table, cols)
+    if note:
+        notes.append(note)
     # Units still missing.
     no_unit = [c["name"] for c in cols if c["type"] in ("integer", "number") and not c.get("unit")]
     if no_unit:
@@ -1156,6 +1290,8 @@ def propose(model_root: str | Path, table: str, *, csv: str | Path | None = None
             agreement["history"] = history
     contract["agreement"] = agreement
     agreement["shown_sha256"] = shown_hash(contract)    # the .md below is rendered from this content (C-sol-3)
+    if header_name_pairs(contract):           # v8 (A-aera-4): profile_csv names the columns so that none is made
+        raise common.RotmError(header_name_refusal(contract, written="nothing was written").line())  # pragma: no cover
     schemas.require_valid(contract, "contract", cpath.name)
     common.write_json(cpath, contract)
     write_md(root, contract)
@@ -1171,14 +1307,33 @@ def _cell(value: Any) -> str:
     return text.replace("|", "\\|").replace("\n", " ")
 
 
+SCIENTIFIC_BELOW = 0.000001     # _num writes a number of smaller size in scientific notation (r6 verdict A-aera-6)
+
+
 def _num(value: Any) -> str:
+    """A number of the contract .md, written so that the stored value can be read back from the text (round 6
+    verdict, A-aera-6): integers and whole floats below 1e15 with thousands separators (1,234,567); other floats as
+    the shortest text that gives the same float (repr), with thousands separators in the whole part (1,234,567.5;
+    0.1234567), and in scientific notation, as repr writes it, when the size is below 0.000001 (4.2e-07)."""
     if isinstance(value, bool) or value is None:
         return str(value)
     if isinstance(value, int) or (isinstance(value, float) and value.is_integer() and abs(value) < 1e15):
         return f"{int(value):,}"
     if isinstance(value, float):
-        return f"{value:,.6f}".rstrip("0").rstrip(".")
+        if not math.isfinite(value) or 0 < abs(value) < SCIENTIFIC_BELOW:
+            return repr(value)
+        from decimal import Decimal
+        return format(Decimal(repr(value)), ",f")
     return str(value)
+
+
+def _stat(value: Any) -> Any:
+    """The minimum or maximum of the sample profile: a number as _num writes it, like every other number of the .md
+    (the shortest text that reads back as the stored number, with thousands separators; r6 verdict A-aera-6, done in
+    full by the v7 integrator). Other values (a date, a text) are returned as given."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return value
+    return _num(value)
 
 
 def render_md(contract: dict[str, Any]) -> str:
@@ -1202,14 +1357,20 @@ def render_md(contract: dict[str, Any]) -> str:
         lines.append(f"- Proposal: {contract['description']}")
     if contract.get("version"):
         lines.append(f"- Version: {contract['version']}")
-    lines += ["", "| # | Column | Type | Unit | Format | Null rule | Allowed values | Source expression | Description |",
-              "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+    # v7 (C-sol-8): the column "CSV header" only when a sample header differs from its destination name, so the
+    # .md of every other contract (the shipped ones included) is as in v6
+    shown_headers = headers_differ(contract["columns"])
+    lines += ["", "| # | Column | " + ("CSV header | " if shown_headers else "") + "Type | Unit | Format | Null rule | "
+              "Allowed values | Source expression | Description |",
+              "| --- | --- | " + ("--- | " if shown_headers else "") + "--- | --- | --- | --- | --- | --- | --- |"]
     for i, c in enumerate(contract["columns"], 1):
         unit = c.get("unit")
         if not unit:
             unit = "?" if c["type"] in ("integer", "number") else None
         allowed = ", ".join(value_text(a) for a in c["allowed"]) if c.get("allowed") else None
-        lines.append(f"| {i} | {_cell(c['name'])} | {c['type']} | {_cell(unit)} | {_cell(c.get('format') or 'default')} "
+        header = f"{_cell(c.get('csv_header'))} | " if shown_headers else ""
+        lines.append(f"| {i} | {_cell(c['name'])} | {header}{c['type']} | {_cell(unit)} | "
+                     f"{_cell(c.get('format') or 'default')} "
                      f"| {c['null_rule']} | {_cell(allowed)} | {_cell(c.get('source_expression'))} | "
                      f"{_cell(c.get('description'))} |")
     lines.append("")
@@ -1256,7 +1417,7 @@ def render_md(contract: dict[str, Any]) -> str:
             ex = ", ".join(o.get("examples") or [])
             off = f" ({o['off_type']} not {c['type']})" if o.get("off_type") else ""
             lines.append(f"| {_cell(c['name'])} | {_num(o.get('sample_rows', 0))} | {_num(o.get('nulls', 0))}{off} | "
-                         f"{_num(o.get('distinct', 0))} | {_cell(o.get('min'))} | {_cell(o.get('max'))} | "
+                         f"{_num(o.get('distinct', 0))} | {_cell(_stat(o.get('min')))} | {_cell(_stat(o.get('max')))} | "
                          f"{_cell(_num(o['sum']) if 'sum' in o else None)} | {_cell(ex)} |")
     notes = contract.get("notes") or []
     if notes:
@@ -1580,6 +1741,7 @@ def agree(model_root: str | Path, table: str, *, reply: str, by: str, channel: s
         raise common.Refusal(f"contracts/{table}.contract.json is not valid; nothing was recorded", details=problems,
                              fix=f"correct it, or propose it again with rotm.py contract propose \"{model}\" --table "
                                  f"{table} --force")
+    refuse_header_name_pairs(data)          # v8 (r7 verdict A-aera-4): nothing is recorded
     text = (reply or "").strip()
     if not text:
         raise common.Refusal("--reply is empty: an agreement is recorded only with the user's own words",
@@ -1694,6 +1856,7 @@ def show(model_root: str | Path, table: str) -> tuple[str, bool]:
     if state == "invalid" or data is None:
         raise common.Refusal(f"contracts/{table}.contract.json is not valid", details=problems,
                              fix="correct the keys named below, or propose it again with --force")
+    refuse_header_name_pairs(data)          # v8 (r7 verdict A-aera-4): no .md is written, nothing is recorded
     text = render_md(data)
     path = md_path(root, table)
     current = path.read_text(encoding="utf-8") if path.is_file() else None

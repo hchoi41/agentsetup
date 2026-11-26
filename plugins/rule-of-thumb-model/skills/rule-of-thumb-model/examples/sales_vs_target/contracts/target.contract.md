@@ -24,7 +24,7 @@ Sample profile (describes the sample only; these numbers are not controls):
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | region | 24 | 0 | 4 | - | - | - | East, North, South |
 | month_end | 24 | 0 | 6 | 2026-01-31 | 2026-06-30 | - | 2026-01-31, 2026-02-28, 2026-03-31 |
-| target_amount | 24 | 0 | 14 | 3000000 | 23000000 | 268,000,000 | 12000000, 15000000, 13000000 |
+| target_amount | 24 | 0 | 14 | 3,000,000 | 23,000,000 | 268,000,000 | 12000000, 15000000, 13000000 |
 
 Points to confirm:
 

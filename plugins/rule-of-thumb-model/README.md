@@ -69,7 +69,7 @@ these extracts").
 | `/rule-of-thumb-model:trace` | lists in words the chain from one cell back to the raw rows |
 | `/rule-of-thumb-model:split` | rewrites one over-limit formula as helper cells, values unchanged after recalculation |
 | `/rule-of-thumb-model:lift` | writes a Python script that reproduces every helper column and ties out to the workbook |
-| `/rule-of-thumb-model:diff` | lists the formulas, inputs and outputs that changed between two versions |
+| `/rule-of-thumb-model:diff` | lists the formulas, inputs and outputs that changed between two versions; `diff` reports `saved_values_compared` (both files hold values saved by Excel) and `recalculated` (true only when `reports/status.json` of each file's model folder records a passing `check` or `recalc` of that file's current version); for a workbook set to manual calculation it prints a note that names the file; while that file's version has no passing `check` or `recalc` on record, the note says that its saved values may be out of date and to run `rotm.py recalc` on both files before the diff. |
 | `/rule-of-thumb-model:document` | writes the model's map: sheets, inputs, helper columns, checks, contracts |
 | `/rule-of-thumb-model:rule-of-thumb-model` | the main skill: the full procedure |
 
@@ -87,7 +87,7 @@ The hooks act only inside a model folder: a folder holding `rotm_model.json`, wh
 | contract gate | PreToolUse on Write, Edit, MultiEdit, Bash, PowerShell | SQL or Power Query text (`queries/<t>.sql`, `queries/<t>.pq.m`) while table t's contract is not agreed; any other `.sql` or `.m` file in the model folder; a text edit of an agreed contract or one that would mark it agreed; `rotm.py contract agree` with a `--reply` that reads as a refusal (a negative first word, or a negated agreement anywhere), or holds a word that refuses or stops (reject, decline and refuse (also rejected, rejection, declined, refused, refusal); hold off and hold on; a negation before run, proceed, start, land, continue or go ahead (do not run the query yet); please wait, wait until and wait for (no need to wait is not a stop); 거절, 반려, 거부, 보류, 기다려, 하지 마; no list of words is required in an agreement, and the reply need not name the table), or asks for a change (change, rename, remove, drop, replace, switch, fix, correct, revise, modify; 바꿔, 변경해, 수정해, 고쳐; not when negated, such as "no changes"), or postpones the decision with no agreement (will review, review it later or tomorrow, get back to you, need to check or look first, not yet, let me check; 나중에, 내일, 검토 후, 확인해 볼게, 아직: no agreement was given, wait for the user's reply), or is only a question (every sentence a question and no statement: answer the question and wait for the user's reply), with a reply the user never typed (when the reply is part of a longer user message, the sentences that hold it and the whole message are read for a refusal in the same way; a refusing sentence that names another table than the one given with `--table` does not count against this table), or with a reply typed before the latest `contract propose` or edit of that table's contract (checked against the session transcript when it can be read); proposing and agreeing in one command |
 | raw-sheet guard | PreToolUse on Write, Edit, MultiEdit, NotebookEdit, Bash, PowerShell | a text-tool edit of `raw/*` or of a workbook; a shell write into `raw/`; a shell command other than `rotm.py` that copies onto an existing workbook, redirects into or saves a model workbook. A copy command (`cp`, `copy`, `Copy-Item`, `xcopy`, `robocopy`, Python's `shutil` copy) to a new workbook name that does not exist yet is let through |
 | audit on write | PostToolUse and PostToolUseFailure on Bash, PowerShell | runs `rotm.py audit <workbook> --strict` on each workbook a command changed; findings are shown to the agent (up to 15 lines), a clean audit is one line. The line says `(recalculated)` when the model's `reports/status.json` holds a passing `check` or `recalc` record that recalculated the workbook's current version (the same sha256), and otherwise `(the audit read the saved values; recalculation was not verified by this hook)` |
-| finish check | Stop | when the session wrote a workbook that has no clean strict audit or no passing `check` of its current version, the first stop is refused once; the refusal of the recalculation part is lifted when the last message says "not recalculated"; the next stop always goes through, and while the workbook is still unverified it shows the user one line (`systemMessage`): `rule-of-thumb-model finish check: not verified at the end of the session: <workbook>: <what is missing>.` |
+| finish check | Stop | when the session wrote a workbook that has no clean strict audit or no passing `check` of its current version, the first stop is refused once; the refusal of the recalculation part is lifted when the last message says "not recalculated"; the next stop always goes through, and while the workbook is still unverified it shows the user one line (`systemMessage`): `rule-of-thumb-model finish check: not verified at the end of the session: <workbook>: <what is missing>.` A stop let through because the last message says "not recalculated" is remembered for each such workbook's sha256: a later stop in the same session does not refuse again for a workbook unchanged since that message; a workbook written after it is judged again. A passing audit or check counts only while `raw/` and the agreed contracts of the model folder are as they were when it ran (each `audit`, `check` and `recalc` record in `reports/status.json` holds their fingerprint, `inputs`): after a landing or a new agreement the stop is refused once, and the refusal names the table and the command that brings the workbook up to date (`build`, or `check --refresh` for a table loaded by a query). |
 
 - Not a security boundary: a hook whose own script fails lets the action through and prints one line,
   `rule-of-thumb-model hook <name>: internal error (<type>); the action was let through.`
@@ -202,23 +202,38 @@ Claude Code reads. The scripts' own refusals still apply there (`land` and `buil
 
 ## What is and is not verified
 
-The build PC: Windows 11, Python 3.14, openpyxl 3.1.5, Excel 16.0. Version v6 of 2026-11-26.
+The build PC: Windows 11, Python 3.14, openpyxl 3.1.5, Excel 16.0. Version v9 of 2026-11-26.
 
-- The runs made on the final v6 files are listed in the first subsection.
-- An item of the verified list holds for v6 only when the tests it names passed in one of those runs.
+- The runs made on the final v9 files are listed in the first subsection.
+- An item of the verified list holds for v9 only when the tests it names passed in one of those runs.
 
-### Runs on the final v6 files
+### Runs on the final v9 files
 
-- The whole pytest suite without Excel, from the skill folder (`ROTM_NO_EXCEL=1 python -P -X utf8 -B -m pytest scripts/tests -q -p no:cacheprovider -rfE`), with the default temporary folder: exit 0; 2,821 passed, 168 skipped (159 Excel tests, 7 checks that need `ROTM_SOURCE_TREE` and the 2 document tests that wait for this list), 0 failed; 2026-11-26, 05:13 to 05:21 KST.
-- The same suite with `--basetemp` set to a folder inside the skill folder (removed afterwards): exit 0; 2,821 passed, 168 skipped, 0 failed; 2026-11-26, 05:05 to 05:12 KST.
-- The same suite with `--basetemp` set to a folder whose path is 150 characters long: exit 0; 2,821 passed, 168 skipped, 0 failed; 2026-11-26, 05:13 to 05:21 KST.
-- The Excel tests of the 42 test files that hold Excel tests: those of the modules changed in v6, and those of lift and document, whose Excel tests build models with the changed modules (`python -P -X utf8 -B -m pytest <the 42 files> -m excel -q -p no:cacheprovider -rfE`, Excel 16.0): 158 passed, 1 failed; 2026-11-26, 04:03 to 05:01 KST. The failed test, `test_v2_preservation.py::test_excel_split_on_a_volatile_workbook_passes_and_states_the_count`, gave split a nested IF chain that v6 refuses (a part in a branch of two IFs); its fixture formula was changed to one whose deep part lies in the condition of IF, and the 6 Excel tests of that file then passed: 2026-11-26, 05:13 to 05:16 KST. No other test file and no code changed after the first run started.
-- `rotm.py selftest --quick`: exit 0; steps pytest (2,821 passed, 168 skipped, without Excel), examples (6 folders built and audited in strict mode) and portable (324 files, no hit) passed; 2026-11-26, 05:13 to 05:21 KST.
-- Selftest step `f02_skill_alone`, run alone (the skill folder copied alone into an empty folder; its `selftest --quick` without Excel; then `templates/starter` built and audited in strict mode there): passed; in the copy pytest gave 2,437 passed, 497 skipped, 0 failed; 2026-11-26, 05:13 to 05:19 KST.
-- Selftest step `f27_power_query`, run alone with Excel (a Power Query table over a local CSV: 60 rows, then 75, then 40, then a rebuild): passed in 117 s; 2026-11-26, 04:00 to 04:02 KST.
-- `rotm.py lift <copy> --run` on copies of the six shipped folders: exit 0 each; 20,584 compared cells, each ties out; 2026-11-26, 04:02:23 to 04:02:29 KST.
-- The worked example, `ar_aging` and `price_volume_mix` built again after their display scale was fixed at 1000 (`contract show`, `land`, `build --strict --force`, `audit --strict`, `check --strict` with Excel, `audit --strict`, `render`): every step exit 0; checks 24, 13 and 14 of as many hold; 2026-11-26, 03:53:01 to 03:53:59 KST.
-- Not run by the builder: the full `rotm.py selftest --strict` (its steps recalc, render, orphans and f08a_existing were not run); the orchestrator runs it on the snapshot.
+- The whole pytest suite without Excel, from the skill folder (`ROTM_NO_EXCEL=1 python -P -X utf8 -B -m pytest
+  scripts/tests -q -p no:cacheprovider -rfE`), three runs one after another: first with `--basetemp` set to a folder
+  whose path is 150 characters long (removed from its place afterwards, before the next run started): exit 0; 3,383
+  passed, 222 skipped, 0 failed; 2026-11-26, 20:51 to 21:03 KST.
+- The same suite with the default temporary folder: exit 0; 3,383 passed, 222 skipped (213 Excel test items, 7 checks
+  that need `ROTM_SOURCE_TREE` and the 2 document tests that wait for this list), 0 failed; 2026-11-26, 21:03 to 21:15
+  KST.
+- The same suite with `--basetemp` set to a folder inside the skill folder and `-rs`, last (removed from the skill
+  folder afterwards by moving it out of the plugin; no other run of the suite ran at the same time): exit 0; 3,383
+  passed, 222 skipped, 0 failed; 2026-11-26, 22:07 to 22:19 KST.
+- The Excel tests of the 58 test files that hold Excel tests (the modules changed in v9 are used by almost every one
+  of them: workbook, diff, schemas, controls, land, build, check, lift, criteria, compat, functions, audit,
+  modelfolder, classify and the hooks) (`python -P -X utf8 -B -m pytest <the 58 files> -m excel -q -p no:cacheprovider
+  -rfE`, Excel 16.0): exit 0; 213 passed, 0 failed; 2026-11-26, 20:53 to 22:07 KST.
+- `rotm.py selftest --quick`: exit 0; steps pytest (3,383 passed, 222 skipped, without Excel), examples (6 folders
+  built and audited in strict mode) and portable (361 files, no hit) passed; 2026-11-26, 20:53 to 21:06 KST.
+- Selftest step `f02_skill_alone`, run alone (the skill folder copied alone into an empty folder; its `selftest
+  --quick` without Excel; then `templates/starter` built and audited in strict mode there): passed; in the copy pytest
+  gave 2,871 passed, 643 skipped, 0 failed; 2026-11-26, 20:53 to 21:02 KST.
+- Selftest step `f27_power_query`, run alone with Excel (a Power Query table over a local CSV: 60 rows, then 75, then
+  40, then a rebuild): passed in 137 s; 2026-11-26, 20:51 to 20:53 KST.
+- `rotm.py lift <copy> --run` on copies of the six shipped folders: exit 0 each; 21,160 compared cells, each ties out;
+  2026-11-26, 20:53:42 to 20:53:48 KST.
+- Not run by the builder: the full `rotm.py selftest --strict` (its steps recalc, render, orphans and f08a_existing
+  were not run); the orchestrator runs it on the snapshot.
 
 ### Verified, with the tests that show it
 
@@ -228,12 +243,15 @@ The build PC: Windows 11, Python 3.14, openpyxl 3.1.5, Excel 16.0. Version v6 of
   total, `build --strict` and `check --strict` exit 0, the inputs sheet holds the accepted total, and the spend
   block's total equals the total computed in Python from the new CSV. Tests:
   `test_v2_core.py::test_power_query_raw_table_keeps_its_formats_through_attach_growth_and_shrink`,
-  `test_v2_raw_layer.py` and selftest step `f27_power_query` (run alone on the final v6 files, in the runs above).
-- The acceptance rules of a refresh (rows landed after the workbook's rows are not accepted, nothing is accepted when
-  `--refresh` did not run, the inputs sheet is never a control total, a contract agreed again fails `check` and
-  `audit` with `CT-VERSION` until the rebuild): `test_v3_raw.py::test_accept_refresh_after_land_force_keeps_the_csv`
-  (Excel), `::test_accept_refresh_without_excel_accepts_nothing`, `::test_inputs_sheet_value_is_not_a_control`
-  (Excel), `::test_contract_agreed_again_fails_check_and_audit_until_rebuild`.
+  `test_v2_raw_layer.py` and selftest step `f27_power_query` (run alone on the final v9 files, in the runs above).
+- The acceptance rules of a refresh (nothing is accepted while `raw/<t>.csv` was landed after the workbook was last
+  written, nothing is accepted when `--refresh` did not run, the inputs sheet is never a control total, a contract
+  agreed again fails `check` and `audit` with `CT-VERSION` until the rebuild):
+  `test_v3_raw.py::test_accept_refresh_after_land_force_keeps_the_csv` (Excel),
+  `::test_accept_refresh_without_excel_accepts_nothing`, `::test_inputs_sheet_value_is_not_a_control` (Excel),
+  `::test_contract_agreed_again_fails_check_and_audit_until_rebuild`,
+  `test_v8_check.py::test_acceptance_after_a_later_landing_is_refused` (Excel),
+  `test_v8_check.py::test_acceptance_with_a_manifest_digest_mismatch_accepts_nothing_without_excel`.
 - The empty table (a header-only CSV under a contract agreed with `--allow-empty`; through Power Query 1 row, then 0,
   then 1): `test_v3_raw.py::test_header_only_csv_builds_audits_and_checks`,
   `test_v3_raw.py::test_empty_table_through_power_query_one_zero_one` (Excel).
@@ -255,8 +273,8 @@ The build PC: Windows 11, Python 3.14, openpyxl 3.1.5, Excel 16.0. Version v6 of
   match position outside the INDEX range, the host's value is the original's and no helper holds an error value that
   the guard hid): `test_v5_tools.py::test_guarded_lookup_split_keeps_the_result_of_the_original` (Excel, 10 cases),
   `test_v4_split.py::test_guarded_lookup_split_keeps_the_missing_key_result` (Excel).
-- `lift` after an accepted refresh (the control total of the snapshot from `raw/<t>.controls.json`; `lift --run`
-  ties out): `test_v3_lift.py::test_lift_ties_out_after_an_accepted_refresh_with_a_new_control` (Excel).
+- `lift` after an accepted refresh (the control total accepted for the snapshot under the agreement in force, from
+  `raw/<t>.controls.json`; `lift --run` ties out): `test_v3_lift.py::test_lift_ties_out_after_an_accepted_refresh_with_a_new_control` (Excel).
 - `V-NO-VALUE` for a volatile formula (`=IF(TODAY()>1,"","later")` saved by Excel is not reported; a circular pair
   still is): `test_v3_core.py::test_volatile_empty_text_is_not_v_no_value` (Excel).
 - Data that breaks its contract: rows the user accepts are landed as known exceptions and the workbook's key and null
@@ -274,7 +292,7 @@ The build PC: Windows 11, Python 3.14, openpyxl 3.1.5, Excel 16.0. Version v6 of
 - Landing an export with a source total (v5: `land --force --control <t>.<column>=<source total>` lands an export
   with more rows and one with fewer rows, each with a changed total, and records the total for that snapshot; a
   workbook copy that stands in for a download then passes `check --strict`; a wrong total gives `L-TOTAL` and
-  nothing is written; a later build takes the recorded total):
+  nothing is written; a later build under the same agreement takes the recorded total):
   `test_v5_land.py::test_export_with_more_rows_and_a_new_total_lands_and_checks`,
   `test_v5_land.py::test_export_with_fewer_rows_and_a_new_total_lands_and_checks`,
   `test_v5_land.py::test_wrong_control_is_l_total_and_writes_nothing`,
@@ -320,6 +338,96 @@ The build PC: Windows 11, Python 3.14, openpyxl 3.1.5, Excel 16.0. Version v6 of
   `test_v6_audit.py::test_escaped_hyphens_in_a_date_format_are_equal`,
   `test_v6_audit.py::test_theme_number_formats_after_an_excel_save_leaves_no_residual` (Excel),
   `test_v6_audit.py::test_shipped_models_audit_strict`.
+- Landing a CSV by its source headers (v7): a CSV whose header holds the sample headers the contract recorded
+  (`Order ID,Order Date,Net Sales`) lands as it is, and `raw/<t>.csv` gets the destination names in the contract's
+  order; a missing, extra or repeated header is `L-COLUMNS` and nothing is written; plain headers and contracts
+  without `csv_header` behave as in v6; the shipped contracts keep their hash and snapshot, and each `.md` is the
+  text rendered from its JSON:
+  `test_v7_contract.py::test_csv_with_spaced_headers_lands_by_its_sample_headers`,
+  `test_v7_contract.py::test_sample_header_landing_refuses_a_missing_extra_or_repeated_header`,
+  `test_v7_contract.py::test_plain_headers_land_as_before`,
+  `test_v7_contract.py::test_contract_without_csv_header_refuses_a_differing_header`,
+  `test_v7_contract.py::test_shipped_contracts_keep_their_hash_md_and_snapshot`.
+- The ar_aging over-90 measure (v7): with the last bucket changed to start at 121 days, the "Over 90 days" total
+  still equals the open amounts more than 90 days past due computed from the CSV, and `build --strict` and
+  `check --strict` (Excel) exit 0; the shipped bucket lists give the shipped value; the cutoff input is fixed at
+  90 days: `test_v7_templates.py::test_ar_aging_over90_follows_the_cutoff_when_the_last_bucket_changes` (Excel),
+  `test_v7_templates.py::test_ar_aging_shipped_lists_give_the_shipped_over90` (Excel),
+  `test_v7_templates.py::test_ar_aging_cutoff_input_is_fixed_at_90`.
+- The hooks on a bare folder name (v7): a model folder named by a bare folder name, by `./name` or by its full
+  path gets the same contract gate, audit on write and finish check; a bare word that names no model folder gives
+  no hook output: `test_v7_hooks.py::test_agreement_guard_refuses_an_untyped_reply`,
+  `test_v7_hooks.py::test_audit_on_write_reports_after_a_build`,
+  `test_v7_hooks.py::test_finish_check_refuses_once_for_an_unverified_workbook`,
+  `test_v7_hooks.py::test_a_bare_word_that_is_no_model_folder_gives_no_output`.
+- The kept copy of a workbook with a live query (v7): a rebuild whose query source cannot be read keeps the earlier
+  workbook with its query table and its manifest as `.bak_` copies, which `W-PQ-NOT-ATTACHED` names; a successful
+  rebuild leaves no copy; a rebuild without Excel keeps them; the hooks do not act on them:
+  `test_v7_build.py::test_failed_attach_keeps_the_earlier_workbook_and_manifest` (Excel),
+  `test_v7_build.py::test_successful_rebuild_leaves_no_kept_copy` (Excel),
+  `test_v7_build.py::test_rebuild_without_excel_keeps_the_copies` (Excel for the set-up),
+  `test_v7_build.py::test_hooks_do_not_act_on_the_kept_copies`.
+- The monthly roll check of rolling_forecast (v8): the shipped inputs hold every check, `closed_months_landed`
+  included; with the inputs rolled to 4 or to 8 actual months and the landed rows unchanged, `check --strict` (Excel)
+  exits 1 and `closed_months_landed` is the only failing error check; with rows for the closed month landed by the
+  commands of the template's README section "The monthly roll", `build --strict` and `check --strict` exit 0 and the
+  month's actual total equals the sum computed from the CSV; with `closed_months_no_sales` set to 1 and no new rows,
+  `check --strict` exits 0: `test_v8_templates.py::test_rolling_forecast_shipped_inputs_hold_every_check` (Excel),
+  `test_v8_templates.py::test_rolling_forecast_roll_without_new_rows_fails_the_landed_months_check` (Excel),
+  `test_v8_templates.py::test_rolling_forecast_roll_with_new_rows_holds_and_shows_the_closed_month` (Excel),
+  `test_v8_templates.py::test_rolling_forecast_closed_month_without_sales_passes_with_the_input_set` (Excel).
+- Records of only delimiters and open quotes in a CSV (v8): a record that holds only delimiters is refused by
+  `land --csv` with its line and nothing is written; a blank line is skipped as before; a quoted field still open at
+  the end of the file is refused with the line where it starts; a CSV in the form Excel saves lands; the six shipped
+  folders land with the same digests: `test_v8_land.py::test_record_of_only_delimiters_is_refused_with_its_line`,
+  `test_v8_land.py::test_blank_line_is_skipped_as_before`,
+  `test_v8_land.py::test_open_quote_at_the_end_is_refused_with_its_line`,
+  `test_v8_land.py::test_csv_in_excel_form_lands`,
+  `test_v8_land.py::test_shipped_folders_land_with_the_same_digests`.
+- Saved inputs outside their valid range (v8): a display scale saved as 1 in a copy of the worked example makes
+  `check --strict` and `audit --strict` exit 1 with `V-INPUT-RANGE`, which names the cell, the value and the range;
+  the six shipped models give none: `test_v8_check.py::test_saved_scale_outside_its_range_fails_check_and_audit`
+  (Excel), `test_v8_check.py::test_shipped_models_give_no_input_range_finding`.
+- A query attached by hand that reads another query (v8): with Excel, a rebuild carries the staging query that the
+  hand query reads as a connection-only query (its M text in `queries/<name>.hand.pq.m`, its name in the report), and
+  after a change of the source a refresh reaches an output cell; a query attached by hand that holds all its steps
+  itself is carried over as in v7: `test_v8_build.py::test_rebuild_carries_a_staging_query_a_hand_query_reads`
+  (Excel), `test_v8_build.py::test_self_contained_hand_query_is_carried_as_in_v7` (Excel).
+- An accepted control total bound to its agreement (v9): after the contract is agreed again with another total, a
+  total recorded earlier for the snapshot (by `land --control` or by `check --accept-refresh --control`) is not
+  used: landing the same extract without `--control` reports `L-TOTAL` with both totals and writes nothing, the
+  rebuilt total check expects the new contract's total and `check --strict` does not exit 0; `land --force
+  --control` with the rows' true sum records the new agreement's hash and the model passes again; an entry made
+  under the agreement in force still applies; an entry written before v9 applies only when it is not earlier than
+  the agreement; `contract show` and `contract agree` with unchanged content keep the entry:
+  `test_v9_controls.py::test_land_control_record_is_not_used_after_a_new_agreement`,
+  `::test_acceptance_record_is_not_used_after_a_new_agreement` (Excel),
+  `::test_build_and_check_use_the_new_contract_total_after_a_new_agreement` (Excel),
+  `::test_land_force_control_after_a_new_agreement_records_the_new_hash` (Excel),
+  `::test_entry_under_the_agreement_in_force_still_applies`,
+  `::test_entry_without_hash_applies_only_when_not_earlier_than_the_agreement`,
+  `::test_show_and_agree_with_unchanged_content_keep_the_entry`.
+- The self-mismatch finding for labels that hold ~* or ~? (v9): categories that hold `~*` and `~?`, each with
+  amounts that add to zero over the months, make `build --strict` and `check --strict` (Excel) give `D-CRITERIA`
+  (reason `self_mismatch`) with the label and its first raw row and not exit 0; the helper keys that replace `~`,
+  `*` and `?` by fixed texts on both sides pass and give the sums computed in Python; a label with `~` and no
+  wildcard, ordinary labels and the shipped models give none:
+  `test_v9_criteria.py::test_tilde_wildcard_labels_netting_to_zero_fail_build_and_check` (Excel),
+  `::test_helper_keys_for_tilde_labels_pass_and_equal_python` (Excel),
+  `::test_tilde_without_wildcard_ordinary_labels_and_shipped_models_give_no_self_mismatch`.
+- The refusal of --control for a column without a contract total (v9): `land --csv --force --control` and
+  `check --accept-refresh --control` for a column whose contract names no control total exit 2 and write or record
+  nothing; with the total in the agreed contract the same landing passes and build writes the check
+  `<t>_total_<column>`: `test_v9_land.py::test_control_without_a_contract_total_is_refused_by_land`,
+  `::test_control_without_a_contract_total_is_refused_by_accept_refresh`,
+  `::test_contracted_total_lands_and_build_writes_its_check`.
+- A pass made stale by a later landing in the finish check (v9): a landing or a new agreement after a passing audit
+  and check makes the finish check refuse the stop once, naming the table and the command that brings the workbook
+  up to date; after the rebuild, its audit and its check the stop goes through; a session without a landing after
+  the pass behaves as in v8:
+  `test_v9_hooks.py::test_landing_after_the_pass_is_refused_once_naming_the_table_and_the_rebuild` (Excel),
+  `::test_contract_agreed_again_after_the_pass_makes_it_stale`,
+  `::test_session_without_a_landing_after_the_pass_behaves_as_in_v8`.
 
 ### Not verified
 
@@ -332,6 +440,11 @@ The build PC: Windows 11, Python 3.14, openpyxl 3.1.5, Excel 16.0. Version v6 of
   the copy pass (`test_v6_audit.py::test_shorter_extract_repair_passes_check_and_audit`,
   `test_v6_audit.py::test_zero_row_repair_passes_check_and_audit`; with Excel,
   `test_v6_integrator.py::test_repaired_download_passes_check_with_excel`).
+- The redirect of the formulas with Find and replace in Google Sheets
+  (`skills/rule-of-thumb-model/references/google-sheets.md`, "Cutover when the extract is on a new sheet"): not run
+  in Google Sheets.
+- A model that uses a function only Google Sheets has: it is audited and not recalculated (`X-SHEETS-ONLY`); no
+  Google Sheets session calculated it.
 - The GoogleSQL that `land` writes to `queries/<t>.sql`, quoted identifiers included, was not run against BigQuery.
 - A Power Query refresh against a database (only against a local file), and the `--pq-source database` template (it
   quotes column names for its connector; no database was reached).

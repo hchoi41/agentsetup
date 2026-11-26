@@ -1,9 +1,9 @@
 {
  "rotm_manifest": 1,
  "plugin_version": "0.1.0",
- "built_at": "2026-11-26T03:53:21+09:00",
+ "built_at": "2026-11-26T09:16:31+09:00",
  "spec": "model.spec.json",
- "spec_sha256": "290aa4cef18d59765b12d75708ffc646c91fe420b34261027f634faa726f9dad",
+ "spec_sha256": "6521fac92d7ae292afed415403b2806ed8d2dcc580666f00b7c65a31ad6ec79e",
  "dictionary_sha256": "4fdc5e5739af4964b0652d11f313f996ac67880477916c6799763e60e942e400",
  "dictionary_applied": [],
  "workbook": "model.xlsx",
@@ -154,7 +154,7 @@
      "id": "bucket_no",
      "col": "I",
      "kind": "derived",
-     "formula": "=MATCH(H2,inputs!$D$22:$D$26,1)",
+     "formula": "=MATCH(H2,inputs!$D$23:$D$27,1)",
      "header": "bucket_no",
      "format": "integer",
      "label": "Bucket number"
@@ -163,7 +163,7 @@
      "id": "bucket",
      "col": "J",
      "kind": "derived",
-     "formula": "=INDEX(inputs!$D$30:$D$34,I2)",
+     "formula": "=INDEX(inputs!$D$31:$D$35,I2)",
      "header": "bucket",
      "format": "text",
      "label": "Bucket",
@@ -179,8 +179,26 @@
      "label": "Open amount (KRW thousand)"
     },
     {
-     "id": "dup",
+     "id": "over90_k",
      "col": "L",
+     "kind": "derived",
+     "formula": "=IF(H2>inputs!$D$8,G2,0)/inputs!$D$7",
+     "header": "over90_k",
+     "format": "amount1",
+     "label": "Open amount more than 90 days past due (KRW thousand)"
+    },
+    {
+     "id": "not_due_k",
+     "col": "M",
+     "kind": "derived",
+     "formula": "=IF(H2<=0,G2,0)/inputs!$D$7",
+     "header": "not_due_k",
+     "format": "amount1",
+     "label": "Open amount 0 or fewer days past due (KRW thousand)"
+    },
+    {
+     "id": "dup",
+     "col": "N",
      "kind": "dup",
      "formula": "=--(SUMPRODUCT(--EXACT(C$2:C2,C2))>1)*B2",
      "header": "dup",
@@ -310,14 +328,15 @@
  "inputs": {
   "as_of": "inputs!D6",
   "scale": "inputs!D7",
-  "customers": "inputs!D11:D18",
-  "bucket_from": "inputs!D22:D26",
-  "bucket_names": "inputs!D30:D34",
-  "open_items_rows_min": "inputs!D38",
-  "open_items_rows_max": "inputs!D39",
-  "open_items_total_open_amount": "inputs!D40",
-  "open_items_tol_open_amount": "inputs!D41",
-  "check_tolerance": "inputs!D42"
+  "over90_days": "inputs!D8",
+  "customers": "inputs!D12:D19",
+  "bucket_from": "inputs!D23:D27",
+  "bucket_names": "inputs!D31:D35",
+  "open_items_rows_min": "inputs!D39",
+  "open_items_rows_max": "inputs!D40",
+  "open_items_total_open_amount": "inputs!D41",
+  "open_items_tol_open_amount": "inputs!D42",
+  "check_tolerance": "inputs!D43"
  },
  "cells": {
   "overdue.over90": "summary!G15",
@@ -484,7 +503,7 @@
     "summary!G15",
     "h_open_items"
    ],
-   "label": "Over-90 total equals the open amount of invoices in the last bucket",
+   "label": "Over-90 total equals the open amount more than 90 days past due",
    "severity": "error",
    "result_formula": "=--(ABS(G17)>H17)"
   }
@@ -517,143 +536,143 @@
     "heading"
    ],
    [
-    "B5:B7",
+    "B5:B8",
     "label"
    ],
    [
-    "B9",
+    "B10",
     "heading"
    ],
    [
-    "B10:E10",
+    "B11:E11",
     "col_header"
    ],
    [
-    "B11:B18",
+    "B12:B19",
     "row_header"
    ],
    [
-    "C11:C18",
+    "C12:C19",
     "unit"
    ],
    [
-    "D11:D18",
+    "D12:D19",
     "label"
    ],
    [
-    "E11:E18",
+    "E12:E19",
     "note"
    ],
    [
-    "B20",
+    "B21",
     "heading"
    ],
    [
-    "B21:E21",
+    "B22:E22",
     "col_header"
    ],
    [
-    "B22:B36",
+    "B23:B37",
     "row_header"
    ],
    [
-    "C22:C29",
+    "C23:C30",
     "unit"
-   ],
-   [
-    "D22",
-    "input"
-   ],
-   [
-    "E22:E26",
-    "note"
    ],
    [
     "D23",
-    "calc"
+    "input"
    ],
    [
-    "D24",
-    "import"
-   ],
-   [
-    "D25",
-    "check"
-   ],
-   [
-    "D26",
-    "master_check"
-   ],
-   [
-    "D27:E27",
+    "E23:E27",
     "note"
    ],
    [
-    "D28",
-    "col_header"
+    "D24",
+    "calc"
    ],
    [
-    "E28:E36",
+    "D25",
+    "import"
+   ],
+   [
+    "D26",
+    "check"
+   ],
+   [
+    "D27",
+    "master_check"
+   ],
+   [
+    "D28:E28",
     "note"
    ],
    [
     "D29",
-    "row_header"
+    "col_header"
    ],
    [
-    "C30:D30",
-    "unit"
-   ],
-   [
-    "C31:C36",
-    "unit"
-   ],
-   [
-    "D31",
-    "raw"
-   ],
-   [
-    "D32",
-    "title"
-   ],
-   [
-    "D33",
-    "heading"
-   ],
-   [
-    "D34",
-    "total"
-   ],
-   [
-    "D35",
-    "output"
-   ],
-   [
-    "D36",
-    "label"
-   ],
-   [
-    "B38",
-    "heading"
-   ],
-   [
-    "B39:B43",
-    "row_header"
-   ],
-   [
-    "C39:C43",
-    "unit"
-   ],
-   [
-    "E39:E43",
+    "E29:E37",
     "note"
    ],
    [
-    "B45",
+    "D30",
+    "row_header"
+   ],
+   [
+    "C31:D31",
+    "unit"
+   ],
+   [
+    "C32:C37",
+    "unit"
+   ],
+   [
+    "D32",
+    "raw"
+   ],
+   [
+    "D33",
+    "title"
+   ],
+   [
+    "D34",
     "heading"
    ],
    [
-    "B46:B50",
+    "D35",
+    "total"
+   ],
+   [
+    "D36",
+    "output"
+   ],
+   [
+    "D37",
+    "label"
+   ],
+   [
+    "B39",
+    "heading"
+   ],
+   [
+    "B40:B44",
+    "row_header"
+   ],
+   [
+    "C40:C44",
+    "unit"
+   ],
+   [
+    "E40:E44",
+    "note"
+   ],
+   [
+    "B46",
+    "heading"
+   ],
+   [
+    "B47:B53",
     "label"
    ]
   ],
@@ -679,115 +698,115 @@
     "col_header"
    ],
    [
-    "B6:B7",
+    "B6:B8",
     "row_header"
    ],
    [
-    "C6:C7",
+    "C6:C8",
     "unit"
    ],
    [
-    "D6:D7",
+    "D6:D8",
     "input"
    ],
    [
-    "E6:E7",
+    "E6:E8",
     "note"
    ],
    [
-    "B9",
+    "B10",
     "heading"
    ],
    [
-    "B10:E10",
+    "B11:E11",
     "col_header"
    ],
    [
-    "B11:B18",
+    "B12:B19",
     "row_header"
    ],
    [
-    "C11:C18",
+    "C12:C19",
     "unit"
    ],
    [
-    "D11:D18",
+    "D12:D19",
     "input"
    ],
    [
-    "E11",
+    "E12",
     "note"
    ],
    [
-    "B20",
+    "B21",
     "heading"
    ],
    [
-    "B21:E21",
+    "B22:E22",
     "col_header"
    ],
    [
-    "B22:B26",
+    "B23:B27",
     "row_header"
    ],
    [
-    "C22:C26",
+    "C23:C27",
     "unit"
    ],
    [
-    "D22:D26",
+    "D23:D27",
     "input"
    ],
    [
-    "E22",
+    "E23",
     "note"
    ],
    [
-    "B28",
+    "B29",
     "heading"
    ],
    [
-    "B29:E29",
+    "B30:E30",
     "col_header"
    ],
    [
-    "B30:B34",
+    "B31:B35",
     "row_header"
    ],
    [
-    "C30:C34",
+    "C31:C35",
     "unit"
    ],
    [
-    "D30:D34",
+    "D31:D35",
     "input"
    ],
    [
-    "E30",
+    "E31",
     "note"
    ],
    [
-    "B36",
+    "B37",
     "heading"
    ],
    [
-    "B37:E37",
+    "B38:E38",
     "col_header"
    ],
    [
-    "B38:B42",
+    "B39:B43",
     "row_header"
    ],
    [
-    "C38:C42",
+    "C39:C43",
     "unit"
    ],
    [
-    "D38:D42",
+    "D39:D43",
     "input"
    ],
    [
-    "E38:E42",
+    "E39:E43",
     "note"
    ]
   ],
@@ -803,11 +822,11 @@
   ],
   "h_open_items": [
    [
-    "A1:L1",
+    "A1:N1",
     "col_header"
    ],
    [
-    "A2:L241",
+    "A2:N241",
     "calc"
    ]
   ],
@@ -1027,19 +1046,19 @@
     "col_header"
    ],
    [
-    "B6:B7",
+    "B6:B8",
     "row_header"
    ],
    [
-    "C6:C7",
+    "C6:C8",
     "unit"
    ],
    [
-    "D6:E7",
+    "D6:E8",
     "note"
    ]
   ]
  },
  "outside_checks": [],
- "formula_cells": 3117
+ "formula_cells": 3597
 }

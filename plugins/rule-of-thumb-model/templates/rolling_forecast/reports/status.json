@@ -12,43 +12,43 @@
    },
    "build": {
     "exit_code": 0,
-    "sha256": "e3fbd6688a26809f205fd85f26191f4cd32e1eeff41a2261d08835c17f447a30",
+    "sha256": "a71682713585ba022f85438949c83d87ebcd4e4cfe2c66f46d53334ef49f3abb",
     "errors": 0,
     "warnings": 0,
     "strict": true,
-    "spec_sha256": "7cd189f71afdb9fafd6ddb9a5c48fe59458b4352b0e14c0fc46c0ef6424ad9c5",
-    "at": "2026-11-25T23:25:35+09:00"
+    "spec_sha256": "b84e58b65ac95afbcf85198df0488da43126f7539909e316e581c18f5cee0612",
+    "at": "2026-11-26T14:51:31+09:00"
    },
    "audit": {
-    "at": "2026-11-25T23:25:48+09:00",
+    "at": "2026-11-26T14:51:38+09:00",
     "exit_code": 0,
     "strict": true,
-    "sha256": "b74ec26c748cd9d3fbbc326e80798d89f0b06db58ddb9cbe4c6c9318ddcf53c3",
+    "sha256": "c127ac3aca0ddd1f9a743617eb8bed0eb37535d6b10dd128072833e5917cf4a4",
     "errors": 0,
     "warnings": 0,
     "info": 0
    },
    "check": {
-    "at": "2026-11-25T23:25:38+09:00",
+    "at": "2026-11-26T14:51:32+09:00",
     "exit_code": 0,
     "strict": true,
-    "input_sha256": "e3fbd6688a26809f205fd85f26191f4cd32e1eeff41a2261d08835c17f447a30",
-    "output_sha256": "b74ec26c748cd9d3fbbc326e80798d89f0b06db58ddb9cbe4c6c9318ddcf53c3",
+    "input_sha256": "a71682713585ba022f85438949c83d87ebcd4e4cfe2c66f46d53334ef49f3abb",
+    "output_sha256": "c127ac3aca0ddd1f9a743617eb8bed0eb37535d6b10dd128072833e5917cf4a4",
     "recalculated": true,
     "refreshed": false,
-    "checks": 16,
+    "checks": 18,
     "failed": 0,
     "alerts": 0,
     "alerts_shown": 0,
     "master": 0,
     "errors": 0,
     "warnings": 0,
-    "line": "checks: 16 of 16 hold"
+    "line": "checks: 18 of 18 hold"
    },
    "render": {
-    "at": "2026-11-25T23:25:49+09:00",
+    "at": "2026-11-26T14:51:39+09:00",
     "exit_code": 0,
-    "sha256": "b74ec26c748cd9d3fbbc326e80798d89f0b06db58ddb9cbe4c6c9318ddcf53c3",
+    "sha256": "c127ac3aca0ddd1f9a743617eb8bed0eb37535d6b10dd128072833e5917cf4a4",
     "files": [
      "reports/render/cover.png",
      "reports/render/inputs.png",

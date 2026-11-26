@@ -78,8 +78,12 @@ def test_accept_refresh_after_land_force_keeps_the_csv(tmp_path: Path) -> None:
     landed = manifest.raw_sheet(manifest.load_manifest(root / "model.xlsx"), "sales")["digest"]
     rep = check.check_model(root, accept_refresh=True, strict=True)
     assert rep.exit_code == 1, lines(rep)
-    newer = [f for f in rep.findings if f.rule == "R-CHANGED" and "rows landed after that" in f.message]
-    assert newer and "nothing was accepted and raw/sales.csv was not changed" in newer[0].message
+    # v8 (r7 verdict A-aera-1): at an acceptance this case gets the text of a snapshot landed after the workbook was
+    # last written (the text "rows landed after that" stays for a check without --accept-refresh)
+    newer = [f for f in rep.findings if f.rule == "R-CHANGED"
+             and "raw/sales.csv was landed after the workbook was last written" in f.message]
+    assert newer and "nothing was accepted, and raw/sales.csv, raw/sales.controls.json and the manifest were not " \
+                     "changed" in newer[0].message
     assert "--refresh" in newer[0].fix and "build" in newer[0].fix
     assert "R-ACCEPTED" not in rules(rep)
     assert snap.read_bytes() == before[snap.as_posix()]
@@ -88,7 +92,8 @@ def test_accept_refresh_after_land_force_keeps_the_csv(tmp_path: Path) -> None:
 
 def test_accept_refresh_without_excel_accepts_nothing(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("ROTM_NO_EXCEL", "1")
-    m = tc.make_model(tmp_path / "a", 10, capacity=12, landing="power_query")
+    # v9 (r8 verdict A-aera-4): --control needs a control total named by the contract
+    m = tc.make_model(tmp_path / "a", 10, capacity=12, total=_total(10), landing="power_query")
     snap, ctl_file = m.root / "raw" / "sales.csv", controls.path(m.root, "sales")
     watched = (snap, ctl_file, manifest.manifest_path(m.wb))
     # (a) rows a refresh saved earlier (openpyxl stands in): --refresh asked for, and it cannot run

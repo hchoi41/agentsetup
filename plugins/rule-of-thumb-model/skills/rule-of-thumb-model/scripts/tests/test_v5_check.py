@@ -402,17 +402,19 @@ def test_changed_result_formula_is_c_recompute(tmp_path: Path) -> None:
     man = without_formula_fields(manifest.load_manifest(root / "model.xlsx"))
     entry = next(c for c in man["checks"] if c["id"] == "sales_total_amount")
     entry["result_formula"] = "=--(ABS(G6)>H6)"
-    man["master_formula"] = "=--(OR(SUM(I5:I28)>0,COUNT(I5:I28)<>COUNTA(B5:B28)))"
+    # v7 integrator: the last check row follows the worked example's error checks (26 in v7: rows 5 to 30)
+    last = 4 + len([c for c in man["checks"] if c.get("severity", "error") == "error"])
+    man["master_formula"] = f"=--(OR(SUM(I5:I{last})>0,COUNT(I5:I{last})<>COUNTA(B5:B{last})))"
     assert recompute.check_findings(root / "model.xlsx", man) == []
     # the Result formula changed (its saved value still follows from its operands), the master formula too
     patch_cells(root / "model.xlsx", "checks", {"I6": ("--(ABS(G6)>H6+1)", "0", None),
-                                               "C2": ("--(SUM(I5:I28)>0)", "0", None)})
+                                               "C2": (f"--(SUM(I5:I{last})>0)", "0", None)})
     found = recompute.check_findings(root / "model.xlsx", man)
     msgs = sorted(f.message for f in found)
     assert msgs == sorted([
         f"check 'sales_total_amount' (checks!I6): its formula =--(ABS(G6)>H6+1) differs from the formula build wrote "
         f"({entry['result_formula']})",
-        f"the master check checks!C2: its formula =--(SUM(I5:I28)>0) differs from the formula build wrote "
+        f"the master check checks!C2: its formula =--(SUM(I5:I{last})>0) differs from the formula build wrote "
         f"({man['master_formula']})"]), msgs
     # a manifest without the fields: the recomputation only (the saved values agree), no finding
     plain = without_formula_fields(manifest.load_manifest(root / "model.xlsx"))

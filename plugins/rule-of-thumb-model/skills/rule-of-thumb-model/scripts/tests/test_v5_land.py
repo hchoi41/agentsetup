@@ -204,7 +204,9 @@ def _land_with_control(copy: Path, export: Path, total: int, tmp_path: Path) -> 
     assert entry["given"] == [given], entry
     assert entry["rows"] == report["data"]["rows"]
     assert entry["totals"] == [{"column": "amount", "value": total, "tolerance": 0}], entry
-    assert controls.totals_for(copy, "lines", digest) == entry["totals"]
+    agreed = common.read_json(copy / "contracts" / "lines.contract.json")         # v9: under the agreement in force
+    assert entry["contract_sha256"] == agreed["agreement"]["contract_sha256"]
+    assert controls.totals_for(copy, "lines", digest, agreed) == entry["totals"]
     notes = "\n".join(report["notes"])
     assert (f"recorded the source total amount = {land._fmt(total)} for this snapshot in raw/lines.controls.json "
             f"(given: '{given}')") in notes, notes

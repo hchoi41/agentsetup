@@ -51,7 +51,6 @@ NAME = "contract_gate"
 SQL_RE = re.compile(r"^queries/(?P<t>[^/]+?)(?:\.sql|\.pq\.m)$", re.IGNORECASE)
 CONTRACT_RE = re.compile(r"^contracts/(?P<t>[^/]+)\.contract\.json$", re.IGNORECASE)
 AGREED_RE = re.compile(r"""status['"]?\s*\]?\s*[:=]\s*['"]agreed['"]""")   # JSON, or Python dict code
-PROPOSE_FLAGS = ("--force", "--allow-empty")    # options of rotm.py contract that take no value
 
 
 def _q(path: Path) -> str:
@@ -158,16 +157,9 @@ def _is_contract_action(seg: hl.Segment, action: str) -> bool:
 
 
 def _dir_arg(args: list[str]) -> str | None:
-    """The model folder argument of `contract <action> DIR ...`: the first argument after the action that is not
-    an option or an option's value."""
-    i = 2
-    while i < len(args):
-        a = args[i]
-        if a.startswith("--"):
-            i += 1 if "=" in a or a in PROPOSE_FLAGS else 2
-            continue
-        return a
-    return None
+    """The model folder argument of `contract <action> DIR ...`, read by the subcommand table of _hooklib
+    (ROTM_ARGS, v7 C-sol-1), the same reading that puts the folder in Context.roots."""
+    return hl.rotm_call("rotm.py", args).positionals.get("dir")
 
 
 def _same_model(seg: hl.Segment, root: Path | None) -> bool:

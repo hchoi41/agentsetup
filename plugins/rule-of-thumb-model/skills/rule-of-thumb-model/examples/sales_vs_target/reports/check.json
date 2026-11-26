@@ -4,7 +4,7 @@
  "version": "0.1.0",
  "command": "check",
  "target": "model.xlsx",
- "at": "2026-11-26T03:53:03+09:00",
+ "at": "2026-11-26T14:51:51+09:00",
  "strict": true,
  "exit_code": 0,
  "status": "pass",
@@ -15,7 +15,7 @@
  },
  "findings": [],
  "notes": [
-  "recalculated in Excel 16.0 and saved; Excel PID 58196 closed",
+  "recalculated in Excel 16.0 and saved; Excel PID 76796 closed",
   "raw_sales: 600 data rows, unchanged since landing (digest equals the manifest)",
   "raw_target: 24 data rows, unchanged since landing (digest equals the manifest)",
   "check sales_rows OK (checks!I5): Rows of raw_sales lie within the contract's range; actual 600, range 1 to 5,000",
@@ -42,9 +42,11 @@
   "check pct_grid_ties OK (checks!I26): Variance % times target, summed, equals the variance (target not 0); actual -3,302.65, expected -3,302.65, tolerance 0.001",
   "check var_pct_all OK (checks!I27): All regions by month: variance % times target equals the variance (target not 0); actual -3,302.65, expected -3,302.65, tolerance 0.001",
   "check pct_cells OK (checks!I28): Variance % cells that are not numbers; actual 0",
-  "check far_below OK (checks!I32): Region-months below target by more than the alert input; actual 0",
+  "check pct_cell_ties OK (checks!I29): Largest per-cell difference of variance % x target and variance (target not 0); actual 0, expected 0.001",
+  "check var_pct_cell_ties OK (checks!I30): All regions by month: largest difference of variance % x target and variance; actual 0, expected 0.001",
+  "check far_below OK (checks!I34): Region-months whose variance % is below the alert input; actual 0",
   "master check checks!C2 = 0 (OK)",
-  "checks: 24 of 24 hold; alerts: 0 of 1 show a value"
+  "checks: 26 of 26 hold; alerts: 0 of 1 show a value"
  ],
  "verified": {
   "recalculated": true,
@@ -53,9 +55,9 @@
  "data": {
   "recalculated": true,
   "refreshed": false,
-  "input_sha256": "42e86707f9e027f74d95d61f07ec9439989371b96d86b77d5b6f410f654262d0",
-  "output_sha256": "d30dc593148c67c957e50fc5c31569b52bd47b9bff40eb33c9d36af6707439b7",
-  "excel_pid": 58196,
+  "input_sha256": "99b765df2b9204e11c38430dc31ec224cfadeda273f32374e06731be00fc3980",
+  "output_sha256": "b3d258f46477b86ed91a3c4dc95219b37c859808b3a465da11c542116d80d01f",
+  "excel_pid": 76796,
   "checks": [
    {
     "id": "sales_rows",
@@ -394,11 +396,39 @@
     "tolerance": null
    },
    {
+    "id": "pct_cell_ties",
+    "kind": "at_most",
+    "label": "Largest per-cell difference of variance % x target and variance (target not 0)",
+    "severity": "error",
+    "result_ref": "checks!I29",
+    "result": 0,
+    "state": "pass",
+    "actual": 1.1368683772161603e-13,
+    "expected": 0.001,
+    "max": null,
+    "difference": null,
+    "tolerance": null
+   },
+   {
+    "id": "var_pct_cell_ties",
+    "kind": "at_most",
+    "label": "All regions by month: largest difference of variance % x target and variance",
+    "severity": "error",
+    "result_ref": "checks!I30",
+    "result": 0,
+    "state": "pass",
+    "actual": 2.2737367544323206e-13,
+    "expected": 0.001,
+    "max": null,
+    "difference": null,
+    "tolerance": null
+   },
+   {
     "id": "far_below",
     "kind": "zero",
-    "label": "Region-months below target by more than the alert input",
+    "label": "Region-months whose variance % is below the alert input",
     "severity": "alert",
-    "result_ref": "checks!I32",
+    "result_ref": "checks!I34",
     "result": 0,
     "state": "pass",
     "actual": 0,

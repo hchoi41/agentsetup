@@ -1,0 +1,3 @@
+# Keep every file byte for byte as committed (the plugin hashes and compares shipped files, and some hold CR bytes); write shell scripts with LF line ends, which bash needs.
+* -text
+*.sh text eol=lf

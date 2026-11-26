@@ -7,7 +7,8 @@
 - C-sol-15: SKILL.md states the render limits that lib/excel.py uses, and what to do beyond them.
 - O-1 and O-3: README uses placeholders for every install path; no SKILL.md, hooks.json, hook script or library
   script holds an absolute path that the plugin uses at run time.
-- J-5 (v3, J-7; v4, J-3): SKILL.md and README list the same runs made on the final v4 files.
+- J-5 (v3, J-7; v4 to v6, J-3; v7, J-6; v8, J-2; v9, J-2): SKILL.md and README list the same runs made on the
+  final v9 files.
 
 Run from the skill folder: python -P -X utf8 -B -m pytest scripts/tests/test_v2_docs.py -q -p no:cacheprovider
 """
@@ -286,13 +287,13 @@ def test_every_hook_command_starts_from_the_plugin_root() -> None:
         assert all(s.startswith("${CLAUDE_PLUGIN_ROOT}/hooks/") for s in scripts), cmd
 
 
-# ----------------------------------------------------------------------------- J-5, v3 J-7, v4 to v6 J-3: one statement of the runs
+# ----------------------------------------------------------------------------- J-5, v3 J-7, v4 to v6 J-3, v7 J-6, v8 and v9 J-2: one statement of the runs
 
-RUNS_HEADING = "### Runs on the final v6 files"
+RUNS_HEADING = "### Runs on the final v9 files"
 
 
 def _run_bullets(text: str) -> list[str]:
-    """The bullets of the subsection 'Runs on the final v6 files' of 'What is and is not verified', each as one
+    """The bullets of the subsection 'Runs on the final v9 files' of 'What is and is not verified', each as one
     line (continuation lines joined)."""
     section = _section(text, "## What is and is not verified")
     assert RUNS_HEADING in section, f"'What is and is not verified' has no subsection '{RUNS_HEADING}'"
@@ -308,9 +309,9 @@ def _run_bullets(text: str) -> list[str]:
 
 @pytest.mark.skipif(not HAS_PLUGIN, reason="skill copied without its plugin")
 def test_skill_md_and_readme_state_the_same_selftest_run() -> None:
-    """v3, J-7; v4 to v6, J-3: SKILL.md and README.md list the same runs made on the final v6 files (equal lists
-    of bullets)."""
+    """v3, J-7; v4 to v6, J-3; v7, J-6; v8 and v9, J-2: SKILL.md and README.md list the same runs made on the final
+    v9 files (equal lists of bullets)."""
     skill = _run_bullets(_skill_md())
     readme = _run_bullets((PLUGIN / "README.md").read_text(encoding="utf-8"))
-    assert skill, "SKILL.md states no run made on the final v6 files"
+    assert skill, "SKILL.md states no run made on the final v9 files"
     assert skill == readme

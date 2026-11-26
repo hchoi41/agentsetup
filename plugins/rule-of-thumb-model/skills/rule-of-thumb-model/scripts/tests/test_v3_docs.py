@@ -7,7 +7,8 @@ is there, and that the texts the round removes are gone:
   or pytest; `rotm.py selftest` without pytest prints one line and exits 3).
 - [J-7]: SKILL.md and README.md "What is and is not verified": no v2 run statement; the items of the verified list
   name their tests. v4 (J-3): the subsection "Runs on the final v3 files" became "Runs on the final v4 files";
-  v5 and v6 (J-3): it became "Runs on the final v5 files", then "Runs on the final v6 files".
+  v5 and v6 (J-3): it became "Runs on the final v5 files", then "Runs on the final v6 files"; v7 (J-6): "Runs on
+  the final v7 files"; v8 (J-2): "Runs on the final v8 files"; v9 (J-2): "Runs on the final v9 files".
 - v4 (A-aera-7): the first check's template list is the list of templates present (the skill copied alone lists
   its own starter only).
 - The documents of the other entries of the round (contract, landing, raw layer, checks, build, hooks, templates).
@@ -219,20 +220,27 @@ def test_no_v2_run_statement_is_carried_over(path: Path) -> None:
 
 @pytest.mark.parametrize("path", _verified_files(), ids=lambda p: p.name)
 def test_the_v3_runs_subsection_is_replaced_by_the_v4_one(path: Path) -> None:
-    """v4 to v6, J-3: the runs on the final v3, v4 and v5 files are not carried over; the subsection names the v6
-    files and holds the v6 placeholder or the integrator's dated runs (test_v6_docs.py checks its contents)."""
+    """v4 to v6, J-3; v7, J-6; v8 and v9, J-2: the runs on the final v3 to v8 files are not carried over; the
+    subsection names the v9 files and holds the integrator's line or the integrator's dated runs (test_v9_docs.py
+    checks its contents)."""
     section = _verified(path)
     assert "### Runs on the final v3 files" not in section
     assert "### Runs on the final v4 files" not in section
     assert "### Runs on the final v5 files" not in section
-    assert "### Runs on the final v6 files" in section
-    runs = _flat(_section(section, "### Runs on the final v6 files"))
+    assert "### Runs on the final v6 files" not in section
+    assert "### Runs on the final v7 files" not in section
+    assert "### Runs on the final v8 files" not in section
+    assert "### Runs on the final v9 files" in section
+    runs = _flat(_section(section, "### Runs on the final v9 files"))
     assert P_RUNS not in runs and P_RUNS.replace("v3", "v4") not in runs, f"{path.name}: an earlier placeholder is left"
-    assert "Integrator: replace this line with the runs on the final v5 files." not in runs, \
-        f"{path.name}: the v5 placeholder is left"
-    assert "Integrator: replace this line with the runs on the final v6 files." in runs \
+    for old in ("v5", "v6", "v7"):
+        assert f"Integrator: replace this line with the runs on the final {old} files." not in runs, \
+            f"{path.name}: the {old} placeholder is left"
+    assert "Integrator: write here the runs made on the final v8 files (plan section 8)." not in runs, \
+        f"{path.name}: the v8 line is left"
+    assert "Integrator: write here the runs made on the final v9 files (plan section 8)." in runs \
         or re.search(r"20\d\d-\d\d-\d\d", runs), \
-        f"{path.name}: the subsection holds neither the placeholder nor a dated run"
+        f"{path.name}: the subsection holds neither the integrator's line nor a dated run"
 
 
 @pytest.mark.parametrize("path", _verified_files(), ids=lambda p: p.name)

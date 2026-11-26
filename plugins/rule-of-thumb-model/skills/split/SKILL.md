@@ -38,13 +38,20 @@ command too. Then `<SKILL_DIR>/references/helper-patterns.md`.
    - any other over-long formula (one function call with many arguments, a chain of `*`, `&` or a comparison at the
      top level, one pair of parentheses around everything): split writes nothing and exits 1 with the error
      `SPLIT-SHAPE`, which names the shape; apply the pattern by hand (`<SKILL_DIR>/references/helper-patterns.md`,
-     H10).
+     H10);
+   - in every part that moves to a helper, `ROW()` and `COLUMN()` without an argument are written with the original
+     cell as their argument (`COLUMN()` of `Scenarios!D2` becomes `COLUMN(Scenarios!D2)` on `split_helpers`), so the
+     helper gives the cell's row or column also after an input changes, and a call that cannot be written so is
+     `SPLIT-GUARD`, which names the call, with nothing written.
 5. The cells split writes on `split_helpers` get the style dictionary's look: the heading of each helper column
    the `col_header` look, the helper formulas the `calc` look, in the dictionary's font at the size of a helpers
    sheet (Arial, 8 points, in the plugin dictionary). The strict audit's style rules (`S-FONT`, `S-SIZE`, `S-FILL`, `S-FONTCOLOR`, `S-BOLD`) pass
    for them. Cells of an existing `split_helpers` sheet that split does not write keep their look.
 6. split recalculates both files in Excel and requires every value unchanged; any other difference is
    `W-UNINTENDED` and nothing is written. `SPLIT-NONE`: the formula is within both limits; nothing written.
+   Formatted text inside a cell (rich text, in shared or inline strings) is a part openpyxl drops: split then
+   writes through Excel, which keeps it, or without Excel exits 3 with nothing written, and the comparison
+   includes the formatted runs of every other text cell.
 7. A part that sits inside IFERROR or IFNA is never moved into a helper on its own, because the helper could show
    an error that the guard hid:
    - a guarded lookup, `IFERROR(INDEX(<range>,MATCH(<key>,<keys>,0)),<value>)` or the same with IFNA, is written

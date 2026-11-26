@@ -4,7 +4,8 @@ Owner: M3. Refuses (exit 2) unless the table's contract is agreed.
 
 - `land DIR --table T` (no CSV): writes queries/T.sql (GoogleSQL for Connected Sheets, shaped to the contract) and
   queries/T.pq.m (Power Query M over raw/T.csv), so the SQL exists before any data does (P1 then P2).
-- `land DIR --table T --csv FILE`: validates FILE against the contract (column names and order, types, nulls,
+- `land DIR --table T --csv FILE`: validates FILE against the contract (the header line: the contract's names in
+  the contract's order, or the sample headers the contract recorded, v7 C-sol-8, see validate_rows; types, nulls,
   allowed values, key uniqueness, text length, row count, control totals). Any failure is an error finding and
   nothing is written. Otherwise writes raw/T.csv normalised (UTF-8 without BOM, comma, header row, ISO dates, "."
   decimal, empty field = null; the same text the raw digest is computed over), the query texts, and the new digest
@@ -43,6 +44,38 @@ Owner: M3. Refuses (exit 2) unless the table's contract is agreed.
 - v6 (r5 verdict C-sol-6): after rows are landed into a model whose workbook has a manifest, a number column whose
   values hold more decimals than the column's number format (the manifest's formats) shows gets the information
   finding I-HIDDEN-DECIMALS (check.hidden_decimal_findings); no format is changed.
+- v7 (r6 verdict C-sol-8): `--csv` (also with --force and --control) accepts two header lines: the contract's names
+  in the contract's order, or, when every column records the sample header it was proposed from (csv_header), each
+  of those headers exactly once, in any order, after trimming, and no other column. In the second form the columns
+  are read by their headers, raw/T.csv gets the names in the contract's order and a note lists each header with
+  its name. Any other header is L-COLUMNS, nothing written; the fix names both forms (one form for a contract
+  without csv_header, as in v6).
+- v7 (r6 verdict J-4): every land run on a model folder notes the files in raw/ that land did not write
+  (raw_files_note). `--csv MODEL/raw/T.csv` reads the whole file before anything is written, and the snapshot is
+  written to a temporary file moved over the target, so a refused landing leaves the file byte for byte.
+- v8 (r7 verdict A-aera-8 and C-sol-2): `--csv` is read with csv.reader(strict=True) (csv_records). Only a
+  physically blank line is skipped; a record of only delimiters (',,': every field empty) is validated like any
+  other row, with its physical line, so L-NULL (the first column is never null), L-KEY, L-FIELDS and the row count
+  see it, and the findings that name its line say so and give the fix to remove it from the extract. A quoted field
+  still open at the end of the file is refused (exit 2, nothing written) with the line where the field starts; any
+  other quoting error is refused with its line. Every line a finding names is the physical line of the file (a line
+  break inside quotes and a blank line count).
+- v8 (r7 verdict A-aera-4): a contract in which one column's sample header (csv_header) is another column's
+  destination name is refused before anything is written (contract.refuse_header_name_pairs), with --csv, --force
+  and --control and without --csv, because a header line could be read either way.
+- v9 (r8 verdict [A-aera-2, C-sol-1]): The control total used for a table and column is, in this order: --control
+  given in this run; else the total accepted for this snapshot in raw/<t>.controls.json under the agreement in
+  force; else the agreed contract's total. A total accepted under an earlier agreement (the contract was agreed
+  again since, for example with another total) is not used: land prints a note that names it, and when the rows do
+  not meet the contract's total, L-TOTAL names both totals. Give --control with the source's current total; it is
+  recorded under the agreement in force (the entry stores agreement.contract_sha256; lib.controls).
+- v9 (r8 verdict A-aera-4): --control is accepted only for a column whose control total the agreed contract names
+  (a control total is part of the agreement); for any other column land and check --accept-refresh refuse (exit 2;
+  nothing is written or recorded; refuse_uncontracted_control).
+- v9 (r8 verdict A-aera-7): key uniqueness and the count of agreed key repeats are decided on the key values as
+  raw/<t>.csv stores them (snapshot_text of each key part). Two source values that become one stored value (a
+  number cut to 15 significant digits, a datetime cut to the second) are L-KEY naming both lines, both original
+  values and the stored value; nothing is written.
 """
 from __future__ import annotations
 
@@ -57,7 +90,7 @@ import shutil
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 from . import common
 
@@ -299,7 +332,89 @@ def _root(model_root: str | Path) -> Path:
 
 # ----------------------------------------------------------------------------- reading and validating a CSV
 
-def _read_csv(path: Path, encoding: str, delimiter: str) -> tuple[list[str], list[list[str]]]:
+OPEN_QUOTE_MESSAGE = ("{file}: line {line}: a quoted field starts here and its closing quote is missing at the end of "
+                      "the file; nothing was written")
+OPEN_QUOTE_FIX = "close the quote in the source export, or export the file again"
+QUOTING_MESSAGE = "{file}: line {line}: {why}; nothing was written"
+QUOTING_FIX = "export the file again as CSV UTF-8"
+ONLY_DELIMITERS_FIX = "remove the records whose fields are all empty from the extract ({lines})"
+
+
+class _LineTap:
+    """The lines a csv.reader reads, kept from the start of the current record (v8, r7 verdict A-aera-8 and
+    C-sol-2): on an open quote at the end of the file they give the line where the quoted field starts."""
+
+    def __init__(self, lines: Any) -> None:
+        self._it = iter(lines)
+        self.kept: list[str] = []
+
+    def __iter__(self) -> "_LineTap":
+        return self
+
+    def __next__(self) -> str:
+        line = next(self._it)
+        self.kept.append(line)
+        return line
+
+
+def _open_quote_line(lines: Sequence[str], first: int, delimiter: str) -> int:
+    """The line of the quote that opens the field still open at the end of the file: `lines` are the lines of the
+    last record, the first of them is line `first` (the rules of csv.reader: a quote opens a quoted field only as
+    the field's first character; two quotes inside one stand for one quote)."""
+    state, opened = "start", first
+    for n, line in enumerate(lines, start=first):
+        for ch in line:
+            if state == "quoted":
+                if ch == '"':
+                    state = "quote"
+            elif state == "quote":
+                state = "quoted" if ch == '"' else "start" if ch in (delimiter, "\r", "\n") else "field"
+            elif ch in (delimiter, "\r", "\n"):
+                state = "start"
+            elif state == "start" and ch == '"':
+                state, opened = "quoted", n
+            else:
+                state = "field"
+    return opened
+
+
+def csv_records(lines: Any, *, name: str, delimiter: str = ",") -> Any:
+    """(line, fields) for each record of a CSV, read with csv.reader(strict=True) (v8, r7 verdict A-aera-8 and
+    C-sol-2). `line` is the physical line where the record starts (line 1 is the first line; a line break inside
+    quotes and a blank line count). A physically blank line is a record without a field ([]); the caller decides
+    what to do with it. A quoted field still open at the end of the file is a refusal naming the line where that
+    field starts; any other quoting error is a refusal naming its line. `lines` iterates the text's lines with
+    their line ends (a file opened with newline='', or io.StringIO(text, newline=''))."""
+    tap = _LineTap(lines)
+    reader = csv.reader(tap, delimiter=delimiter, strict=True)
+    while True:
+        tap.kept = []
+        start = reader.line_num + 1
+        try:
+            row = next(reader)
+        except StopIteration:
+            return
+        except csv.Error as exc:
+            why = str(exc)
+            if why == "unexpected end of data":
+                raise common.Refusal(OPEN_QUOTE_MESSAGE.format(file=name, line=_open_quote_line(tap.kept, start,
+                                                                                               delimiter)),
+                                     fix=OPEN_QUOTE_FIX) from None
+            raise common.Refusal(QUOTING_MESSAGE.format(file=name, line=max(reader.line_num, start), why=why),
+                                 fix=QUOTING_FIX) from None
+        yield start, row
+
+
+def is_only_delimiters(row: Sequence[str]) -> bool:
+    """True for a record that has fields and every field is empty (',,' or '""'): not a blank line, so it is
+    validated as a row (v8, r7 verdict A-aera-8 and C-sol-2)."""
+    return bool(row) and all(c == "" for c in row)
+
+
+def _read_csv(path: Path, encoding: str, delimiter: str) -> tuple[list[str], list[list[str]], list[int]]:
+    """(header, records, the physical line of each record). Only a physically blank line is skipped (v8, r7
+    verdict A-aera-8 and C-sol-2): a record of only delimiters is returned like any other and validate_rows checks
+    it. Quoting errors are refusals (csv_records)."""
     if not path.is_file():
         raise common.Refusal(f"{path.as_posix()}: CSV file not found", fix="check the path given to --csv")
     try:
@@ -316,13 +431,12 @@ def _read_csv(path: Path, encoding: str, delimiter: str) -> tuple[list[str], lis
                              fix="close the program that holds it") from None
     if text.startswith("﻿"):
         text = text[1:]
-    reader = csv.reader(io.StringIO(text, newline=""), delimiter=delimiter)
-    rows = list(reader)
-    if not rows:
+    records = list(csv_records(io.StringIO(text, newline=""), name=path.name, delimiter=delimiter))
+    if not records:
         raise common.Refusal(f"{path.name} is empty", fix="land a CSV with a header row")
-    header = [h.strip() for h in rows[0]]
-    body = [r for r in rows[1:] if any(c != "" for c in r)]
-    return header, body
+    header = [h.strip() for h in records[0][1]]
+    kept = [(line, r) for line, r in records[1:] if r]       # a physically blank line has no field
+    return header, [r for _line, r in kept], [line for line, _r in kept]
 
 
 def key_tuple(parts: Any) -> tuple[Any, ...]:
@@ -341,41 +455,133 @@ def _utf16_len(text: str) -> int:
 
 
 def _accepted_totals(model_root: Path, table: str, names: list[str], types: list[str],
-                     typed: list[tuple[Any, ...]]) -> tuple[list[dict[str, Any]] | None, str]:
-    """(totals, digest): the control totals accepted for exactly these rows in raw/<table>.controls.json
-    (lib.controls, written by check --accept-refresh --control), or None."""
+                     typed: list[tuple[Any, ...]],
+                     contract: dict[str, Any]) -> tuple[list[dict[str, Any]] | None, str, dict[str, Any] | None]:
+    """(totals, digest, stale entry): the control totals accepted for exactly these rows in
+    raw/<table>.controls.json (lib.controls, written by check --accept-refresh --control or land --control) under
+    the agreement in force of `contract` (v9, r8 verdict [A-aera-2, C-sol-1]: controls.lookup), or None; the stale
+    entry is the one recorded for these rows under an earlier agreement (not used), or None."""
     from . import controls, manifest
     if not controls.path(model_root, table).is_file():
-        return None, ""
+        return None, "", None
     digest = manifest.raw_digest(names, [[snapshot_text(v, types[i]) for i, v in enumerate(r)] for r in typed], types)
-    found = controls.totals_for(model_root, table, digest)
-    if isinstance(found, dict):                 # tolerate a record in place of its totals list
-        found = found.get("totals")
-    return (list(found) if found is not None else None), digest
+    found, stale = controls.lookup(model_root, table, digest, contract)
+    return (list(found) if found is not None else None), digest, stale
+
+
+def sample_headers(columns: Any) -> list[str] | None:
+    """The sample headers of a contract's columns (csv_header, written by contract propose --csv; v7, r6 verdict
+    C-sol-8), trimmed, in the contract's order; None when a column records none or two columns record the same one,
+    so that land cannot read the columns by them. `columns` is a contract or its list of columns."""
+    cols = columns["columns"] if isinstance(columns, dict) else columns
+    found = [c.get("csv_header") for c in cols]
+    if not found or any(not isinstance(h, str) for h in found):
+        return None
+    found = [h.strip() for h in found]
+    return found if len(set(found)) == len(found) else None
+
+
+def _sample_order(contract: dict[str, Any], header: list[str]) -> list[int] | None:
+    """For each contract column, the index of its sample header in `header` (trimmed), when the header holds every
+    sample header exactly once and no other column (v7, C-sol-8); else None."""
+    samples = sample_headers(contract)
+    trimmed = [h.strip() for h in header]
+    if samples is None or len(trimmed) != len(samples) or sorted(trimmed) != sorted(samples):
+        return None
+    return [trimmed.index(s) for s in samples]
+
+
+def _columns_fix(contract: dict[str, Any], names: list[str]) -> str:
+    """The fix of L-COLUMNS: the header lines land --csv accepts (both forms when the contract records sample
+    headers, v7 C-sol-8; the v6 text otherwise)."""
+    samples = sample_headers(contract)
+    if samples is None:
+        return f"land a CSV whose header is exactly: {', '.join(names)}; or propose the contract again"
+    return (f"land a CSV whose header line is exactly: {', '.join(names)} (the contract's order); or one that holds "
+            f"each sample header once, in any order: {', '.join(_in_quotes(h) for h in samples)}; or propose the "
+            "contract again")
+
+
+def _in_quotes(text: str) -> str:
+    """A header in a message: in single quotes."""
+    return f"'{text}'"
+
+
+def _only_delimiters(found: Sequence[int], empty_lines: set[int], other_fix: str) -> tuple[str, str, list[int]]:
+    """(message tail, fix, lines) of a finding whose lines `found` include records of only delimiters (v8, r7
+    verdict A-aera-8 and C-sol-2): the tail names those lines; the fix says to remove them from the extract, followed
+    by `other_fix` for the finding's other lines. A finding without such a record keeps its text and fix."""
+    hit = sorted({x for x in found if x in empty_lines})
+    if not hit:
+        return "", other_fix, []
+    listed = ", ".join(str(x) for x in hit[:MAX_EXAMPLES]) + (", ..." if len(hit) > MAX_EXAMPLES else "")
+    if len(hit) == 1:
+        tail, where = f" (line {listed} holds only delimiters: every field is empty)", f"line {listed}"
+    else:
+        tail, where = f" (lines {listed} hold only delimiters: every field is empty)", f"lines {listed}"
+    fix = ONLY_DELIMITERS_FIX.format(lines=where)
+    if other_fix and any(x not in empty_lines for x in found):
+        fix += "; for the other lines: " + other_fix
+    return tail, fix, hit
 
 
 def validate_rows(contract: dict[str, Any], header: list[str], body: list[list[str]], report: Any,
                   *, source: str, model_root: str | Path | None = None, controls: dict[str, float] | None = None,
-                  totals_used: list[dict[str, Any]] | None = None) -> list[tuple[Any, ...]] | None:
+                  totals_used: list[dict[str, Any]] | None = None,
+                  by_sample_headers: bool = False,
+                  lines: Sequence[int] | None = None) -> list[tuple[Any, ...]] | None:
     """Check the rows against the contract; add error findings to `report`. Returns the typed rows, or None
     when the header itself is wrong (nothing else can be checked). With `model_root`, the control totals accepted
     for exactly these rows (raw/<table>.controls.json) are checked in place of the contract's (A-aera-7).
     `controls` ({column: source total}, land --control, v5 A-aera-6 and C-sol-3) take the place of the contract's
     or the accepted total of their columns, with the contract's tolerance of that total (0 when the contract has
     none); a sum that does not meet one is L-TOTAL. When `totals_used` is a list, the totals the rows were
-    compared with ({"column", "value", "tolerance"}) are appended to it."""
+    compared with ({"column", "value", "tolerance"}) are appended to it.
+    `by_sample_headers` (land --csv; v7, r6 verdict C-sol-8): a header that is not the destination names but holds
+    each sample header the contract records (csv_header) exactly once, after trimming, and no other column is read
+    by that mapping: the rows are checked and returned in the contract's column order, and a note lists each
+    header with its destination name. raw/<table>.csv itself is read without it (its header is the names).
+    `lines` (v8, r7 verdict A-aera-8 and C-sol-2): the physical CSV line of each row of `body` (_read_csv), named in
+    the findings; without it a row's line is its index plus 2, the line of a file without blank lines and without a
+    line break inside quotes. A row of only delimiters (is_only_delimiters) is checked like any other row: the
+    findings that name its line (L-FIELDS, L-NULL, L-KEY) end with '(line <n> holds only delimiters: every field is
+    empty)' and their fix says to remove such records from the extract. No contract can land one: the first column
+    is never null and cannot have known_nulls (lib.schemas)."""
     cols = contract["columns"]
     names = [c["name"] for c in cols]
     table = contract["table"]
+    order = _sample_order(contract, header) if by_sample_headers and header != names else None
+    if order is not None:
+        width = len(names)
+        body = [[row[i] for i in order] if len(row) == width else row for row in body]
+        pairs = ", ".join(f"{_in_quotes(header[i].strip())} -> {n}" for i, n in zip(order, names))
+        report.note(f"{source}: the header holds the contract's sample headers; columns read by them: {pairs}; "
+                    f"raw/{table}.csv has the contract's names in the contract's order")
+        if isinstance(getattr(report, "data", None), dict):
+            report.data["read_by_sample_headers"] = [{"header": header[i].strip(), "column": n}
+                                                     for i, n in zip(order, names)]
+        header = list(names)
     if header != names:
+        twice = sorted({h for h in header if header.count(h) > 1})
+        twice_text = ("given twice: " + ", ".join(_in_quotes(h) for h in twice)) if twice else ""
         if sorted(header) == sorted(names):
             report.error("L-COLUMNS", f"{source}: the columns are the contract's but in another order: "
-                         f"{', '.join(header)}", f"write them in the contract's order: {', '.join(names)} (change the "
-                         "SELECT list)", data={"expected": names, "found": header})
+                         f"{', '.join(header)}",
+                         (f"write them in the contract's order: {', '.join(names)} (change the SELECT list)"
+                          if sample_headers(contract) is None else _columns_fix(contract, names)),
+                         data={"expected": names, "found": header})
         else:
-            missing = [n for n in names if n not in header]
-            extra = [h for h in header if h not in names]
-            case = [h for h in extra if h.lower() in {n.lower() for n in names}]
+            samples = sample_headers(contract)
+            # against the sample headers when the header holds more of them than of the destination names
+            if samples is not None and sum(h in samples for h in header) > sum(h in names for h in header):
+                missing = [_in_quotes(s) for s in samples if s not in header]
+                extra = [_in_quotes(h) for h in dict.fromkeys(header) if h not in samples]
+                case = [_in_quotes(h) for h in dict.fromkeys(header)
+                        if h not in samples and h.lower() in {s.lower() for s in samples}]
+            else:
+                missing = [n for n in names if n not in header]
+                extra = [h for h in header if h not in names]
+                case = [h for h in extra if h.lower() in {n.lower() for n in names}]
             msg = f"{source}: the header does not match contract '{table}'"
             parts = []
             if missing:
@@ -384,8 +590,9 @@ def validate_rows(contract: dict[str, Any], header: list[str], body: list[list[s
                 parts.append("not in the contract " + ", ".join(extra))
             if case:
                 parts.append("names differ only in upper and lower case: " + ", ".join(case))
-            report.error("L-COLUMNS", msg + " (" + "; ".join(parts) + ")",
-                         f"land a CSV whose header is exactly: {', '.join(names)}; or propose the contract again",
+            if twice_text:
+                parts.append(twice_text)
+            report.error("L-COLUMNS", msg + " (" + "; ".join(parts) + ")", _columns_fix(contract, names),
                          data={"expected": names, "found": header})
         return None
     width = len(names)
@@ -397,8 +604,10 @@ def validate_rows(contract: dict[str, Any], header: list[str], body: list[list[s
     digits: dict[int, list[str]] = {}
     too_long: dict[int, list[str]] = {}
     precision: dict[tuple[int, str], list[Any]] = {}     # (column, reason) -> [count, first line, text, landed]
+    line_of = list(lines) if lines is not None else [ri + 2 for ri in range(len(body))]
+    empty_lines = {line_of[ri] for ri, row in enumerate(body) if is_only_delimiters(row)}
     for ri, row in enumerate(body):
-        line = ri + 2
+        line = line_of[ri]
         if len(row) != width:
             bad_width.append(line)
             continue
@@ -429,10 +638,11 @@ def validate_rows(contract: dict[str, Any], header: list[str], body: list[list[s
             vals.append(v)
         typed.append(tuple(vals))
     if bad_width:
+        tail, fix, hit = _only_delimiters(bad_width, empty_lines, "quote fields that hold the delimiter, and give "
+                                          "every row one value per contract column")
         report.error("L-FIELDS", f"{source}: {len(bad_width)} row(s) do not have {width} fields (lines "
-                     f"{', '.join(str(x) for x in bad_width[:MAX_EXAMPLES])})",
-                     "quote fields that hold the delimiter, and give every row one value per contract column",
-                     count=len(bad_width))
+                     f"{', '.join(str(x) for x in bad_width[:MAX_EXAMPLES])}){tail}", fix,
+                     count=len(bad_width), **({"data": {"only_delimiters_lines": hit}} if hit else {}))
     for ci, probs in type_bad.items():
         c = cols[ci]
         report.error("L-TYPE", f"{source}: column {c['name']} (type {c['type']}): {len(probs)} value(s) do not "
@@ -449,13 +659,18 @@ def validate_rows(contract: dict[str, Any], header: list[str], body: list[list[s
                         "rows are landed and the workbook's null check counts them",
                         data={"column": c["name"], "nulls": len(lines), "known": known})
             continue
+        others = sum(1 for x in lines if x not in empty_lines)
+        tail, fix, hit = _only_delimiters(
+            lines, empty_lines,
+            "fill the value in the source query (COALESCE only if the user agreed a default); or, to land "
+            "the rows as delivered and keep the null check, agree the empty cells as known "
+            f"(contract propose --force ... --known-nulls {c['name']}={others}); or agree null_rule "
+            "'allowed' (no null check)")
         report.error("L-NULL", f"{source}: column {c['name']} is never null by contract but is empty on "
                      f"{len(lines)} row(s) ({where_lines})"
-                     + (f"; the contract agrees only {known} as known" if known else ""),
-                     "fill the value in the source query (COALESCE only if the user agreed a default); or, to land "
-                     "the rows as delivered and keep the null check, agree the empty cells as known "
-                     f"(contract propose --force ... --known-nulls {c['name']}={len(lines)}); or agree null_rule "
-                     "'allowed' (no null check)", count=len(lines), data={"column": c["name"]})
+                     + (f"; the contract agrees only {known} as known" if known else "") + tail,
+                     fix, count=len(lines),
+                     data={"column": c["name"], **({"only_delimiters_lines": hit} if hit else {})})
     for ci, vals in not_allowed.items():
         c = cols[ci]
         report.error("L-ALLOWED", f"{source}: column {c['name']} holds {len(vals)} value(s) outside the allowed "
@@ -486,18 +701,35 @@ def validate_rows(contract: dict[str, Any], header: list[str], body: list[list[s
     if bad_width:
         return typed
     # key uniqueness: exact, case-sensitive equality (common.key_tuple), the rule of check's D-KEY, lift and the
-    # workbook's dup helper (a later row whose key equals an earlier row's key counts once)
+    # workbook's dup helper (a later row whose key equals an earlier row's key counts once). v9 (r8 verdict
+    # A-aera-7): decided on the key values as raw/<table>.csv stores them (snapshot_text of each key part), so the
+    # repeats land counts are the ones check and the workbook count; two source values that the snapshot stores as
+    # one value (a number cut to 15 significant digits, a datetime cut to the second) are L-KEY, nothing written.
     key_idx = [names.index(k) for k in contract["key"]]
     seen: dict[tuple[Any, ...], int] = {}
+    first_of: dict[tuple[Any, ...], int] = {}          # stored key -> row index of its first row
     dups: list[str] = []
     pairs: list[str] = []
+    dup_lines: list[int] = []          # both lines of each repeat, for the records of only delimiters (v8)
+    empty_repeats = 0
+    merged: list[tuple[int, int]] = []                  # (first row index, row index): equal only when stored
     for ri, row in enumerate(typed):
-        k = key_tuple(row[i] for i in key_idx)
+        k = key_tuple(None if row[i] is None else snapshot_text(row[i], cols[i]["type"]) for i in key_idx)
         if k in seen:
-            dups.append(f"lines {seen[k]} and {ri + 2}: {', '.join(str(row[i]) for i in key_idx)}")
-            pairs.append(f"{seen[k]} and {ri + 2}")
+            fi = first_of[k]
+            if key_tuple(_source_key_part(body[ri][i], cols[i]["type"], row[i]) for i in key_idx) != \
+                    key_tuple(_source_key_part(body[fi][i], cols[i]["type"], typed[fi][i]) for i in key_idx):
+                merged.append((fi, ri))
+                continue
+            dups.append(f"lines {seen[k]} and {line_of[ri]}: {', '.join(str(row[i]) for i in key_idx)}")
+            pairs.append(f"{seen[k]} and {line_of[ri]}")
+            dup_lines += [x for x in (seen[k], line_of[ri]) if x not in dup_lines]
+            empty_repeats += line_of[ri] in empty_lines
         else:
-            seen[k] = ri + 2
+            seen[k] = line_of[ri]
+            first_of[k] = ri
+    if merged:
+        _merged_keys(report, source, table, contract, cols, key_idx, body, typed, line_of, merged)
     if dups:
         known = (expect_of(contract).get("key_repeats") or {}).get("max", 0)
         if known and len(dups) <= known:
@@ -507,14 +739,19 @@ def validate_rows(contract: dict[str, Any], header: list[str], body: list[list[s
                         data={"repeats": len(dups), "known": known})
         else:
             shown = "; ".join(pairs[:MAX_EXAMPLES]) + ("; ..." if len(pairs) > MAX_EXAMPLES else "")
+            key_fix = (f"show the user the rows on lines {shown} of {source} and look at them together: if the "
+                       "user accepts them as they are, agree them as known exceptions (contract propose --force "
+                       f"... --key-repeats {len(dups) - empty_repeats}, then show the contract and record the user's "
+                       "reply); otherwise have the source corrected. Do not remove or merge rows to make the key "
+                       "unique")
+            if empty_repeats == len(dups):
+                tail, fix, hit = _only_delimiters(dup_lines, empty_lines, "")
+            else:
+                tail, fix, hit = _only_delimiters(dup_lines, empty_lines, key_fix)
             report.error("L-KEY", f"{source}: {len(dups)} row(s) repeat an earlier key ({', '.join(contract['key'])}): "
                          f"{'; '.join(dups[:MAX_EXAMPLES])}"
-                         + (f"; the contract agrees only {known} as known" if known else ""),
-                         f"show the user the rows on lines {shown} of {source} and look at them together: if the "
-                         "user accepts them as they are, agree them as known exceptions (contract propose --force "
-                         f"... --key-repeats {len(dups)}, then show the contract and record the user's reply); "
-                         "otherwise have the source corrected. Do not remove or merge rows to make the key unique",
-                         count=len(dups))
+                         + (f"; the contract agrees only {known} as known" if known else "") + tail,
+                         fix, count=len(dups), **({"data": {"only_delimiters_lines": hit}} if hit else {}))
     # rows
     expect = contract.get("expect", {})
     n = len(typed)
@@ -530,19 +767,26 @@ def validate_rows(contract: dict[str, Any], header: list[str], body: list[list[s
         report.error("L-EMPTY", f"{source}: no data rows", "land a non-empty extract, or agree refresh.allow_empty "
                      "true in the contract")
     # control totals (from the source side, design 5): the exact sum of the landed text against the total with its
-    # tolerance and nothing else (common.control_total_ok, A-aera-4). The totals accepted for exactly these rows by
-    # check --accept-refresh --control (raw/<table>.controls.json) take the place of the contract's (A-aera-7).
+    # tolerance and nothing else (common.control_total_ok, A-aera-4). The order (lib.controls, ORDER): --control of
+    # this run; else the totals accepted for exactly these rows in raw/<table>.controls.json under the agreement in
+    # force (A-aera-7; v9, r8 verdict [A-aera-2, C-sol-1]); else the contract's. An entry for these rows accepted
+    # under an earlier agreement is not used: one note names it, and L-TOTAL against the contract's total names it.
+    from . import controls as controls_mod
     totals = list(expect.get("totals", []))
     given = dict(controls or {})
     whose = "the contract's"
+    stale: dict[str, Any] | None = None
     if model_root is not None:
-        accepted, digest = _accepted_totals(Path(model_root), table, names, [c["type"] for c in cols], typed)
+        accepted, digest, stale = _accepted_totals(Path(model_root), table, names, [c["type"] for c in cols], typed,
+                                                   contract)
         if accepted is not None:
             totals = accepted
             whose = f"the accepted (raw/{table}.controls.json)"
             if any(t["column"] not in given for t in accepted):
                 report.note(f"control totals: the ones accepted for these rows ({digest[:19]}...) in "
-                            f"raw/{table}.controls.json, in place of the contract's")
+                            f"raw/{table}.controls.json under the agreement in force, in place of the contract's")
+        elif stale is not None:
+            report.note(controls_mod.stale_note(table, stale, contract, given=list(given)))
     if given:
         # v5 (A-aera-6, C-sol-3): the source totals given with land --control, with the contract's tolerance
         tol_of = {x["column"]: x.get("tolerance", 0) or 0 for x in expect.get("totals", [])}
@@ -568,12 +812,83 @@ def validate_rows(contract: dict[str, Any], header: list[str], body: list[list[s
                          data={"column": t["column"], "sum": float(total), "expected": t["value"], "tolerance": tol,
                                "difference": float(diff), "given": True})
             continue
+        tail = controls_mod.stale_tail(stale, t["column"])
+        extra: dict[str, Any] = {}
+        fix = "find the missing or extra rows in the source query, or agree the new control total"
+        if tail:
+            # v9 (r8 verdict [A-aera-2, C-sol-1] (3)): both totals and the way on
+            extra = {"stale_accepted": controls_mod.stale_value(stale, t["column"]),
+                     "stale_accepted_at": (stale or {}).get("at")}
+            fix = controls_mod.stale_fix(table, t["column"], Path(model_root).as_posix() if model_root is not None
+                                         else "<model folder>")
         report.error("L-TOTAL", f"{source}: the sum of {t['column']} is {_fmt(total)}; {whose} control "
-                     f"total is {_fmt(t['value'])} (tolerance {_fmt(tol)}; difference {_fmt(diff)})",
-                     "find the missing or extra rows in the source query, or agree the new control total",
+                     f"total is {_fmt(t['value'])} (tolerance {_fmt(tol)}; difference {_fmt(diff)}){tail}",
+                     fix,
                      data={"column": t["column"], "sum": float(total), "expected": t["value"], "tolerance": tol,
-                           "difference": float(diff)})
+                           "difference": float(diff), **extra})
     return typed
+
+
+MERGED_KEY_FIX = ("make the key column type text in the contract (identifiers are text), show the contract and get it "
+                  "agreed, then land again")
+
+
+def _source_key_part(text: str, col_type: str, value: Any) -> Any:
+    """A key part as the source gives it, before the snapshot's cut (v9, r8 verdict A-aera-7): a number as the exact
+    decimal of its text (so 1.0 and 1 are one value and 1.123456789012341 and 1.123456789012342 are two); a datetime
+    with the fraction of a second and the UTC offset its text holds; any other type as parsed."""
+    t = (text or "").strip()
+    if value is None or not t:
+        return value
+    if col_type == "number":
+        from decimal import Decimal, InvalidOperation
+        try:
+            return Decimal(t)
+        except InvalidOperation:
+            return value
+    if col_type == "datetime":
+        m = _DT_RE.match(t)
+        if m:
+            fraction = (m.group(7) or "").rstrip("0")
+            zone = (m.group(8) or "").strip().upper()
+            zone = "+0000" if zone in ("Z", "UTC") else zone.replace(":", "")
+            if fraction or zone:
+                return ("datetime", value, fraction, zone)
+    return value
+
+
+def _merged_keys(report: Any, source: str, table: str, contract: dict[str, Any], cols: list[dict[str, Any]],
+                 key_idx: list[int], body: list[list[str]], typed: list[tuple[Any, ...]], line_of: list[int],
+                 merged: list[tuple[int, int]]) -> None:
+    """L-KEY (v9, r8 verdict A-aera-7) for rows whose keys differ in the source and are one key as raw/<table>.csv
+    stores them: names both lines, both original values, the stored value and the cut that made them equal."""
+    def original(ri: int) -> str:
+        return ", ".join(str(body[ri][i]).strip() for i in key_idx)
+
+    def stored(ri: int) -> str:
+        return ", ".join("" if typed[ri][i] is None else snapshot_text(typed[ri][i], cols[i]["type"]) for i in key_idx)
+
+    fi, ri = merged[0]
+    reasons: list[str] = []
+    for i in key_idx:
+        if key_tuple([_source_key_part(body[fi][i], cols[i]["type"], typed[fi][i])]) == \
+                key_tuple([_source_key_part(body[ri][i], cols[i]["type"], typed[ri][i])]):
+            continue
+        if cols[i]["type"] == "datetime":
+            whys = precision_changes(body[fi][i], "datetime") + precision_changes(body[ri][i], "datetime")
+            reasons += [PRECISION_REASONS[w] for w in dict.fromkeys(whys)]
+        else:
+            reasons.append(f"the snapshot keeps {EXCEL_DIGITS} significant digits")
+    why = "; ".join(dict.fromkeys(reasons)) or f"the snapshot keeps {EXCEL_DIGITS} significant digits"
+    more = [f"{line_of[a]} and {line_of[b]}" for a, b in merged[1:]]
+    tail = ""
+    if more:
+        tail = "; also lines " + "; ".join(more[:MAX_EXAMPLES]) + ("; ..." if len(more) > MAX_EXAMPLES else "")
+    report.error("L-KEY", f"{source}: lines {line_of[fi]} and {line_of[ri]}: the key values '{original(fi)}' and "
+                 f"'{original(ri)}' are stored as '{stored(ri)}' in raw/{table}.csv ({why}), so the rows repeat a key "
+                 f"({', '.join(contract['key'])}){tail}", MERGED_KEY_FIX, count=len(merged),
+                 data={"merged": [{"lines": [line_of[a], line_of[b]], "values": [original(a), original(b)],
+                                   "stored": stored(b)} for a, b in merged[:20]]})
 
 
 def _fmt(x: Any) -> str:
@@ -610,11 +925,11 @@ def read_snapshot(model_root: str | Path, table: str) -> RawTable:
     if not path.is_file():
         raise common.Refusal(f"raw/{table}.csv not found: raw table '{table}' has not been landed",
                              fix=f"land it with rotm.py land \"{root.as_posix()}\" --table {table} --csv <file>")
-    header, body = _read_csv(path, "utf-8-sig", ",")
+    header, body, lines = _read_csv(path, "utf-8-sig", ",")
     probe = common.Report("land", path.as_posix())
     known = {k: v for k, v in expect_of(contract).items() if k == "key_repeats"}
     typed = validate_rows({**contract, "expect": known, "refresh": {"allow_empty": True}}, header, body, probe,
-                          source=f"raw/{table}.csv")
+                          source=f"raw/{table}.csv", lines=lines)
     if typed is None or probe.counts()["errors"]:
         first = next((f for f in probe.findings if f.severity == "error"), None)
         raise common.Refusal(f"raw/{table}.csv does not fit its contract: {first.message if first else 'header'}",
@@ -1089,10 +1404,63 @@ def _workbook_of(root: Path) -> Path:
 CONTROL_NEEDS_CSV = "--control needs --csv: a source total belongs to the extract landed with it"
 
 
-def given_controls(table: str, contract: dict[str, Any], items: Any) -> tuple[dict[str, float], dict[str, str]]:
+def _written_by_land(name: str, tables: Sequence[str]) -> bool:
+    """True for a name land writes in raw/: <t>.csv and <t>.controls.json of a table with a contract, and the
+    temporary files it writes them through (<t>.csv.tmp; <t>.controls.json.<random>.tmp)."""
+    from . import controls
+    for t in tables:
+        snap, ctl = f"{t}.csv", f"{t}{controls.SUFFIX}"
+        if name in (snap, ctl, snap + ".tmp") or (name.startswith(ctl + ".") and name.endswith(".tmp")):
+            return True
+    return False
+
+
+def raw_files_note(root: Path) -> str | None:
+    """The note 'files in raw/' (v7, r6 verdict J-4): the files and folders in <model>/raw/ that land did not write,
+    or None when there are none. raw/ holds only the snapshots land writes."""
+    from . import modelfolder
+    raw = root / "raw"
+    if not raw.is_dir():
+        return None
+    tables = modelfolder.tables(root)
+    try:
+        entries = sorted(raw.iterdir(), key=lambda p: p.name.lower())
+    except OSError:
+        return None
+    other = [p.name + ("/" if p.is_dir() else "") for p in entries if not (p.is_file() and _written_by_land(p.name, tables))]
+    if not other:
+        return None
+    return (f"raw/ holds {len(other)} file(s) that land did not write: {', '.join(other)}. raw/ holds only the "
+            "snapshots land writes (raw/<t>.csv and raw/<t>.controls.json); copy a file of your own to "
+            f"{root.as_posix()}/data/ and land it from there, and name the files left in raw/ in the report")
+
+
+UNCONTRACTED_CONTROL = ("--control {item}: the agreed contract of '{table}' names no control total for column "
+                        "'{column}'; a control total is part of the agreement; nothing was {done}")
+UNCONTRACTED_CONTROL_FIX = ("add the total to the contract (rotm.py contract propose \"{model}\" --table {table} --force "
+                            "... --total {column}=<source total>), show it to the user and get it agreed; build then "
+                            "writes its check {table}_total_{column}")
+
+
+def refuse_uncontracted_control(item: str, table: str, column: str, contract: dict[str, Any], *, model: str,
+                                done: str = "written") -> None:
+    """v9 (r8 verdict A-aera-4): --control is accepted only for a column whose control total the agreed contract
+    names (expect.totals): a control total is part of the agreement. common.Refusal (exit 2) otherwise; `done` is
+    'written' (land) or 'recorded' (check --accept-refresh)."""
+    named = {t.get("column") for t in (contract.get("expect") or {}).get("totals") or []}
+    if column in named:
+        return
+    raise common.Refusal(UNCONTRACTED_CONTROL.format(item=item, table=table, column=column, done=done),
+                         fix=UNCONTRACTED_CONTROL_FIX.format(model=model, table=table, column=column))
+
+
+def given_controls(table: str, contract: dict[str, Any], items: Any, *,
+                   model: str = "<model folder>") -> tuple[dict[str, float], dict[str, str]]:
     """The --control texts of land (v5, A-aera-6 and C-sol-3) as ({column: source total}, {column: the text as
     typed}). The syntax is check's (check.parse_controls: TABLE.COLUMN=VALUE); TABLE must be the table landed, and
-    COLUMN a number or integer column of its contract, the rule of check --control. common.Refusal otherwise."""
+    COLUMN a number or integer column of its contract, the rule of check --control, whose control total the agreed
+    contract names (v9, r8 verdict A-aera-4: refuse_uncontracted_control). common.Refusal otherwise (nothing is
+    written)."""
     from . import check
     values: dict[str, float] = {}
     texts: dict[str, str] = {}
@@ -1113,6 +1481,7 @@ def given_controls(table: str, contract: dict[str, Any], items: Any) -> tuple[di
         if cols[col] not in ("integer", "number"):
             raise common.Refusal(f"--control {item}: column '{col}' has type {cols[col]}; a control total needs a "
                                  "number column", fix="choose an integer or number column")
+        refuse_uncontracted_control(str(item), table, col, contract, model=model)
         values[col] = float(value)
         texts[col] = str(item)
     return values, texts
@@ -1133,18 +1502,25 @@ def land_csv(model_root: str | Path, table: str, csv_path: str | Path, *, force:
     L-TOTAL and nothing is written."""
     from . import controls as controls_mod
     from . import manifest, modelfolder
+    from . import contract as contract_mod
     root = _root(model_root)
     contract = _contract(root, table)
-    given, given_texts = given_controls(table, contract, controls)
+    # v8 (r7 verdict A-aera-4): a sample header that is another column's name is refused before anything is written
+    contract_mod.refuse_header_name_pairs(contract, written="nothing was written")
+    given, given_texts = given_controls(table, contract, controls, model=root.as_posix())
     if given:
         controls_mod.load(root, table)      # an invalid controls file is a refusal before anything is written
     plans = plan_queries(root, table, contract, rewrite=rewrite_queries, keep=keep_queries, pq_source=pq_source)
     src = Path(os.path.abspath(common.native_path(csv_path)))
     report = common.Report("land", src.as_posix())
-    header, body = _read_csv(src, encoding, delimiter)
+    raw_note = raw_files_note(root)          # v7 (J-4): before anything is written
+    if raw_note:
+        report.note(raw_note)
+    # the whole file is read before anything is written, also when it is raw/<table>.csv itself (v7, J-4)
+    header, body, lines = _read_csv(src, encoding, delimiter)
     used: list[dict[str, Any]] = []
     typed = validate_rows(contract, header, body, report, source=src.name, model_root=root, controls=given,
-                          totals_used=used)
+                          totals_used=used, by_sample_headers=True, lines=lines)
     snap = root / "raw" / f"{table}.csv"
     types = [c["type"] for c in contract["columns"]]
     names = [c["name"] for c in contract["columns"]]
@@ -1157,8 +1533,10 @@ def land_csv(model_root: str | Path, table: str, csv_path: str | Path, *, force:
     def record_given() -> None:
         if not given:
             return
+        # v9 (r8 verdict [A-aera-2, C-sol-1] (1)): recorded under the agreement in force
         controls_mod.record_acceptance(root, table, digest=digest, rows=len(typed), totals=used,
-                                       given=list(given_texts.values()))
+                                       given=list(given_texts.values()),
+                                       contract_sha256=controls_mod.agreement_hash(contract))
         for col, value in given.items():
             report.note(f"recorded the source total {col} = {_fmt(value)} for this snapshot in "
                         f"raw/{table}.controls.json (given: '{given_texts[col]}')")
@@ -1450,10 +1828,15 @@ def run_land(args: argparse.Namespace) -> int:
                                  f"<export> --force --control {table}.<column>=<source total>")
     if not args.csv:
         # every land call checks the query files first (A-aera-2): a refusal here writes nothing
+        from . import contract as contract_mod
         report = common.Report("land", root.as_posix())
         contract = _contract(root, table)
+        contract_mod.refuse_header_name_pairs(contract, written="nothing was written")     # v8 (A-aera-4)
         plans = plan_queries(root, table, contract, rewrite=args.rewrite_queries, keep=keep,
                              pq_source=args.pq_source)
+        raw_note = raw_files_note(root)      # v7 (J-4)
+        if raw_note:
+            report.note(raw_note)
         written = apply_query_plans(plans, root, contract, report)
         kept = [p for p in plans if p.action == "keep"]
         report.data.update({"table": table, "written": [common.relpath_posix(p, root) for p in written],

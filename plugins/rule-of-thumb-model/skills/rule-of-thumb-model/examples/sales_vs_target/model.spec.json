@@ -18,7 +18,7 @@
     {"id": "start_month", "label": "First month of the model", "value": "2026-01-31", "type": "date", "unit": "date", "source": "task.md"},
     {"id": "scale", "label": "Display scale (fixed at 1000)", "value": 1000, "type": "number", "format": "count", "unit": "KRW per unit shown", "source": "task.md", "valid": {"min": 1000, "max": 1000},
      "note": "Fixed: every unit label of an amount in this example is in KRW thousand; the sales and the targets are landed in KRW and divided by this scale. A model in another unit needs the labels changed (task.md)."},
-    {"id": "alert_below", "label": "Alert when a region-month is below target by more than", "value": -0.15, "type": "number", "format": "rate", "unit": "% of target", "source": "task.md", "valid": {"min": -1, "max": 0}},
+    {"id": "alert_below", "label": "Alert when monthly variance % is below", "value": -0.15, "type": "number", "format": "rate", "unit": "% of target", "source": "task.md", "valid": {"min": -1, "max": 0}},
     {"id": "regions", "kind": "list", "label": "Regions", "values": ["East", "North", "South", "West"], "format": "text", "source": "contract sales, allowed values of region"}
    ]
   },
@@ -72,6 +72,14 @@
      {"id": "var_pct", "label": "Variance % of target", "unit": "%", "format": "rate", "expr": "IFERROR({r:var}/{r:tgt},0)"},
      {"id": "cum", "label": "Cumulative variance", "unit": "KRW thousand", "expr": "{prev}+{r:var}", "first": "{r:var}", "key": true,
       "note": "running sum of the monthly variance"}
+    ]},
+    {"id": "pct_cell_diff", "title": "Variance % check: absolute difference of % x target and variance", "unit": "KRW thousand", "format": "amount2",
+     "rows": {"same_as": "actual", "label": "Region"}, "cols": {"same_as": "actual"},
+     "cell": "ABS({g:variance_pct}*{g:target}-({g:target}<>0)*{g:variance})"},
+    {"id": "var_pct_cell_diff", "title": "All regions by month: variance % check", "cols": {"same_as": "actual"}, "items": [
+     {"id": "diff", "label": "Absolute difference", "unit": "KRW thousand", "format": "amount2",
+      "expr": "ABS({b:bridge.var_pct}*{b:bridge.tgt}-({b:bridge.tgt}<>0)*{b:bridge.var})",
+      "note": "variance % x target less variance, as an absolute value; a month with a target of 0 gives 0"}
     ]}
    ]
   },
@@ -112,7 +120,13 @@
      "note": "Reads the items var_pct, tgt and var of the block bridge by id, so the check follows them when the items are reordered. A month with a target of 0 shows 0 % (IFERROR) and is left out: its product is 0 and its variance is not counted."},
     {"id": "pct_cells", "format": "count", "kind": "zero", "label": "Variance % cells that are not numbers",
      "actual": "ROWS({blk:variance_pct})*COLUMNS({blk:variance_pct})-COUNT({blk:variance_pct})"},
-    {"id": "far_below", "format": "count", "kind": "zero", "severity": "alert", "label": "Region-months below target by more than the alert input",
+    {"id": "pct_cell_ties", "format": "factor", "kind": "at_most", "label": "Largest per-cell difference of variance % x target and variance (target not 0)",
+     "actual": "MAX({blk:pct_cell_diff})", "bound": "{in:check_tolerance}",
+     "note": "A region-month with a target of 0 shows 0 % and gives 0 here, so it is left out, as in pct_grid_ties."},
+    {"id": "var_pct_cell_ties", "format": "factor", "kind": "at_most", "label": "All regions by month: largest difference of variance % x target and variance",
+     "actual": "MAX({blk:var_pct_cell_diff})", "bound": "{in:check_tolerance}",
+     "note": "A month with a target of 0 shows 0 % and gives 0 here, so it is left out, as in var_pct_all."},
+    {"id": "far_below", "format": "count", "kind": "zero", "severity": "alert", "label": "Region-months whose variance % is below the alert input",
      "actual": "COUNTIF({blk:variance_pct},\"<\"&{in:alert_below})"}
    ]
   },
@@ -122,7 +136,7 @@
    "notes": [
     {"text": "Amounts are net of VAT, in KRW; the model shows KRW thousand (display scale on inputs).", "source": "contract sales, column amount"},
     {"text": "Targets are the FY2026 v3 plan.", "source": "contract target, source where"},
-    {"text": "A region-month with a target of 0 shows a variance % of 0 % (IFERROR in the variance % grid); the check pct_grid_ties leaves it out. In this extract every region-month has a target above 0.", "source": "checks pct_grid_ties"},
+    {"text": "A region-month with a target of 0 shows a variance % of 0 % (IFERROR in the variance % grid); the checks pct_grid_ties and pct_cell_ties leave it out. In this extract every region-month has a target above 0.", "source": "checks pct_grid_ties, pct_cell_ties"},
     {"text": "Lines without a product code (27 of 600 in this extract) count in the regional totals.", "source": "contract sales, column product"},
     {"text": "Every raw row is covered by a helper row; after a refresh with more rows, run rotm.py check and, if it reports uncovered rows, rotm.py extend.", "source": "SKILL.md, After a refresh"}
    ]

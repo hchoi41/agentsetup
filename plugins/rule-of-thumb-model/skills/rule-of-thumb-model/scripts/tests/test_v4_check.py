@@ -179,7 +179,9 @@ def _remove_query_table(wb: Path, cell: str | None = None, value=None) -> None:
 
 def test_changed_rows_without_a_live_query_table_are_refused(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("ROTM_NO_EXCEL", "1")
-    m = tc.make_model(tmp_path, 10, landing="power_query", query_table=True)
+    # v9 (r8 verdict A-aera-4): --control needs a control total named by the contract
+    m = tc.make_model(tmp_path, 10, total=sum(100 + 7.5 * i for i in range(10)), landing="power_query",
+                      query_table=True)
     assert check.query_tables(m.wb) == {"raw_sales": "q_sales"}
     _remove_query_table(m.wb, "A2", "new-extract-001")
     assert check.query_tables(m.wb) == {}
@@ -201,7 +203,8 @@ def test_changed_rows_without_a_live_query_table_are_refused(tmp_path: Path, mon
 
 def test_controls_are_not_recorded_without_a_live_query_table(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("ROTM_NO_EXCEL", "1")
-    m = tc.make_model(tmp_path, 10, landing="power_query", query_table=True)
+    m = tc.make_model(tmp_path, 10, total=sum(100 + 7.5 * i for i in range(10)), landing="power_query",
+                      query_table=True)                          # v9 (A-aera-4): a contracted total
     _remove_query_table(m.wb)
     ctl = controls.path(m.root, "sales")
     total = sum(100 + 7.5 * i for i in range(10))
@@ -222,7 +225,8 @@ def _agree_again(root: Path, table: str, edit) -> None:
 
 def test_contract_agreed_again_accepts_nothing_without_excel(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("ROTM_NO_EXCEL", "1")
-    m = tc.make_model(tmp_path, 10, capacity=12, landing="power_query", query_table=True)
+    m = tc.make_model(tmp_path, 10, capacity=12, total=sum(100 + 7.5 * i for i in range(10)), landing="power_query",
+                      query_table=True)                          # v9 (A-aera-4): a contracted total
     tc.rewrite_raw_sheet(m.wb, tc.sales_values(12))              # stands in for a refresh with 2 more rows
     _agree_again(m.root, "sales", lambda c: c["expect"]["rows"].update(max=50_000))
     snap, ctl = m.root / "raw" / "sales.csv", controls.path(m.root, "sales")
@@ -293,6 +297,7 @@ CRITERIA_PAIRS = [
     ("1", True), ("North", "north"), ("Straße", "STRASSE"), ("ß", "ss"), ("?", "ß"), ("S?", "ß"),
     ("A*", "Apple"), ("A*", "a"), ("A?", "AB"), ("A?", "A"), ("A~*", "A*"), ("A~*", "AB"), ("*", "x"),
     ("*", None), ("*", 5), ("1*", "10"), ("1*", 10), ("~", "~"), ("a~b", "ab"), ("~~", "~"), ("*~", "a"),
+    ("A~b*", "Abc"), ("A~b*", "A~bc"), ("A~~*", "A~x"), ("A~~*", "A~~*"), ("~A*", "Ax"), ("A~*", "A~*"),
     ("<5", "3"), ("<5", 3), (">5", 10), ("=North", "north"), ("<>North", "north"), ("<>North", "South"),
     ("=", None), ("<>", None), ("<>", "x"), (">=b", "c"), ("<=b", "B"), ("<b", "B"), ("<>1", "001"), ("=1", "001"),
     ("=001", "1"), (">", "x"), ("=A*", "apple"), ("<>A*", "apple"), ("=<5", "<5"), (">1", "a"), (">a", 5),

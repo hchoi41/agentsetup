@@ -53,9 +53,17 @@ command too. Then `<SKILL_DIR>/references/checks.md` (what `rotm.py check` does)
      incomplete expression (a trailing or doubled operator, a missing operand, an unclosed bracket or quote) and a
      wrong argument count are refused by `rotm.py formula` and by build (`F-PARSE`, `F-ARGS`; build exit 2 with the
      JSON path).
-2. After a refresh in Excel: `ROTM check MODEL --refresh` (refreshes every query and waits until it has finished).
-   It refuses (exit 2, nothing refreshed) a Power Query table whose query was written for another contract than
-   the agreed one, and names the `land` commands that write the query again. Before Excel starts it also refuses
+   - `V-INPUT-RANGE` (an error): check reads each scalar input whose specification declares `valid` (min and max,
+     or list) from the saved workbook, after the recalculation, and without Excel as saved. A saved value outside
+     it (for example the fixed scale 1000 typed or pasted over as 1) names the cell, the value, the range and the
+     input's note; no row of the checks sheet tests it, so the master check can still show OK. Fix: change the
+     input's value in `model.spec.json` and rebuild (`ROTM build MODEL --force`); a value typed or pasted into the
+     inputs sheet is not kept by a rebuild.
+2. After a refresh in Excel: `ROTM check MODEL --refresh --strict` (refreshes every query and waits until it has
+   finished). Give `--strict`: without it a warning such as `X-NO-QUERY` leaves exit 0, so read the report's
+   `refreshed` value (`data.refreshed` in `MODEL/reports/check.json`). `X-NO-QUERY` stays a warning (an error with
+   `--accept-refresh`). It refuses (exit 2, nothing refreshed) a Power Query table whose query was written for
+   another contract than the agreed one, and names the `land` commands that write the query again. Before Excel starts it also refuses
    (exit 2, "nothing was refreshed") while a raw table loaded by a query has a contract that is missing, invalid,
    proposed, stale, or agreed only on the example channel; show the user each contract it names and record their
    reply (`ROTM contract show`, `ROTM contract agree`). A workbook with no query or connection gets `X-NO-QUERY`
@@ -68,7 +76,7 @@ command too. Then `<SKILL_DIR>/references/checks.md` (what `rotm.py check` does)
    - A table that the manifest records as loaded by Power Query, whose sheet holds no query table at A1:
      `X-NO-QUERY` for that table (a warning; an error with `--accept-refresh`). It was not refreshed and nothing
      is accepted for it. Attach the query again with `ROTM land MODEL --table <t> --power-query`, then
-     `ROTM check MODEL --refresh`.
+     `ROTM check MODEL --refresh --strict`.
    - A query changed in Excel's Power Query editor (or in any other way than `rotm.py`): the attach records the
      hash of the query formula Excel gives back (`query_formula_sha256` in the manifest), and `check --refresh`
      reads the formula again through Excel before the refresh and compares. On a difference it reports
@@ -78,9 +86,18 @@ command too. Then `<SKILL_DIR>/references/checks.md` (what `rotm.py check` does)
      such hash: a note says that the workbook's query was not compared. For a query attached by hand and carried
      over by build (`query_attach` `hand`), the fix is different: to keep the change, rebuild
      (`ROTM build MODEL --force`; build reads the query from the workbook, attaches it again and records its
-     formula); to drop the change, change the query back in Excel's Power Query editor. The query is read back only
-     by `check --refresh`: run it before `check --accept-refresh` after any change of the source;
-     `check --accept-refresh` alone does not read the query again.
+     formula); to drop the change, change the query back in Excel's Power Query editor.
+   - With Excel, `check --accept-refresh` reads the query back and compares it too, also when it is given without
+     `--refresh`: on a difference it reports `X-QUERY-CHANGED` as an error, accepts nothing, and `raw/<t>.csv`,
+     `raw/<t>.controls.json` and the manifest stay byte for byte. Without Excel, or for a manifest without the
+     hash, the acceptance prints the note that the query was not compared. A value typed into a raw sheet that a
+     query loads is not found by an acceptance alone: run `check --refresh` first, which loads the rows from the
+     source again.
+   - With Excel, `check --refresh` and `check --accept-refresh` also compare each query that a query attached by
+     hand reads (the connection-only queries build carried over, recorded in the manifest as `query_reads`) with
+     the hash build recorded: a changed, missing or unreadable one is `X-QUERY-CHANGED` and names that query; the
+     table is not refreshed, nothing is accepted, and `raw/<t>.csv`, `raw/<t>.controls.json` and the manifest stay
+     byte for byte.
    - `I-HIDDEN-DECIMALS` (information; the exit code does not change): a number column of the new rows holds more
      decimals than its number format shows. The values are stored and calculated in full. A rebuild shows them
      when build chose the format; when the contract names the format, agree another format in the contract, then
@@ -93,19 +110,34 @@ command too. Then `<SKILL_DIR>/references/checks.md` (what `rotm.py check` does)
    zero helper rows it writes the first one from the formulas the manifest keeps.
 4. Accept the refreshed rows: `ROTM check MODEL --accept-refresh --control <t>.<column>=<new source total>`. It
    records them only when they pass the contract, writes the control total into its input cell, records the total
-   with the snapshot's digest in `MODEL/raw/<t>.controls.json` (a rebuild then keeps it; the contract is not
-   changed) and checks again. Running it again gives the same record. A changed static raw sheet is never
+   with the snapshot's digest and the hash of the agreed contract in force in `MODEL/raw/<t>.controls.json` (a
+   rebuild then keeps it while the contract is not agreed again; the contract is not changed) and checks again.
+   Running it again under the same agreement gives the same record. A changed static raw sheet is never
    accepted: land the data and rebuild. A new extract with a new source total is landed with
    `ROTM land MODEL --table <t> --csv <file> --force --control <t>.<column>=<source total>`: `land` checks it
    against the contract and the total given and records that total for the new snapshot in
    `raw/<t>.controls.json` (a total that does not equal the file's sum is `L-TOTAL`; nothing is written).
-   - The control total used: `--control` of this run; else the total accepted for this snapshot in
-     `raw/<t>.controls.json`; else the agreed contract's. Never the inputs sheet: a different value there is
-     `D-CONTROL-INPUT` (a warning). A failing `<t>_total_<column>`: find the missing or extra rows in `raw_<t>`;
+   `--control` is accepted only for a column whose control total the agreed contract names: a control total is
+   part of the agreement. For any other column `land` and `check --accept-refresh` refuse (exit 2; nothing is
+   written or recorded). Add the total to the contract (`contract propose ... --force ...
+   --total <column>=<source total>`), show it and get it agreed; build then writes its check
+   `<t>_total_<column>`.
+   - The control total used for a table and column is, in this order: `--control` given in this run; else the
+     total accepted for this snapshot in `raw/<t>.controls.json` under the agreement in force; else the agreed
+     contract's total. A total accepted under an earlier agreement (the contract was agreed again since, for
+     example with another total) is not used: `land`, `build`, `check` and `lift` print a note that names it, and
+     when the rows do not meet the contract's total, `L-TOTAL` (`land`) or `D-TOTAL` (`check`) names both totals.
+     Give `--control` with the source's current total; it is recorded under the agreement in force. Never the
+     inputs sheet: a different value there is `D-CONTROL-INPUT` (a warning). A failing `<t>_total_<column>`: find the missing or extra rows in `raw_<t>`;
      after a refresh with a new source total use `--control`.
    - Nothing is accepted when `raw_<t>` still holds the rows `rotm.py` last wrote and `raw/<t>.csv` holds rows
-     landed after them (`R-CHANGED`; `raw/<t>.csv` is not changed): run `ROTM check MODEL --refresh` or
+     landed after them (`R-CHANGED`; `raw/<t>.csv` is not changed): run `ROTM check MODEL --refresh --strict` or
      `ROTM build MODEL --force`. A manifest built before v3 records no workbook digest: rebuild once.
+   - When `raw/<t>.csv` was landed after `rotm.py` last wrote rows into the workbook (the manifest's landed digest
+     differs from its workbook digest, for example after `land --force`), `--accept-refresh` accepts no changed
+     rows, whatever `raw_<t>` holds: `R-CHANGED` says that `raw/<t>.csv` was landed after the workbook was last
+     written, and `raw/<t>.csv`, `raw/<t>.controls.json` and the manifest stay byte for byte. Rebuild from the
+     landed snapshot (`ROTM build MODEL --force`), then refresh (`ROTM check MODEL --refresh --strict`) and accept.
    - Nothing is accepted when `--refresh` was asked for and no refresh ran (Excel missing or busy, the refresh
      failed, no query): `raw/`, the controls files and the manifest are not changed; the exit code is not 0.
    - `CT-VERSION`: the workbook was built from another version of its contract; land again if the rows change,
@@ -127,6 +159,12 @@ command too. Then `<SKILL_DIR>/references/checks.md` (what `rotm.py check` does)
 6. Without Excel (Excel missing, or `--no-excel`): exit 3 when nothing failed ("audited but not recalculated");
    errors still give exit 1. Excel busy: exit 5, run again later. Excel started but could not open the workbook:
    `X-OPEN`, exit 1 (step 1); it is not "not recalculated".
+   - A workbook that holds a function only Google Sheets has: check reports `X-SHEETS-ONLY` (information) with
+     the functions and their cells, does not open the workbook in Excel, leaves the file byte for byte and exits 3
+     (not recalculated). Say in the report "audited, not recalculated: functions only Google Sheets has". The
+     functions are those `<SKILL_DIR>/references/functions.md` marks Excel `no` and Sheets `yes` (JOIN, SPLIT,
+     REGEXMATCH and others); the fix names the alternative of each (for JOIN the `&` operator), which Excel can
+     check. With `--refresh` or `--accept-refresh` nothing is refreshed or accepted in that run.
 
 ## Exit codes
 
@@ -144,6 +182,8 @@ command too. Then `<SKILL_DIR>/references/checks.md` (what `rotm.py check` does)
 - `checks: H of N hold; alerts: S of A show a value` and the master check's value, or every failing check with
   its actual and expected values. A raised alert shows ALERT; it is not a failed check.
 - "audited but not recalculated" when Excel was not available or `--no-excel` was given; never "the checks hold".
+- "audited, not recalculated: functions only Google Sheets has" after `X-SHEETS-ONLY`, with the functions and
+  cells it names; list the model under "Not verified".
 - After `X-OPEN`: Excel could not open the workbook, so no check value was read; name the formula the strict
   audit reports.
 - Uncovered rows and the fix, when `H-COVERAGE` appears; the helper rows below the raw rows and the fix, when

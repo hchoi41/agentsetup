@@ -203,6 +203,7 @@ class PackageInfo:
     extensions: dict[str, list[str]] = field(default_factory=dict)   # worksheet part -> x14/x15 element names
     rich_text: bool = False
     metadata: bool = False           # xl/metadata.xml (dynamic arrays)
+    rich_text_parts: list[str] = field(default_factory=list)   # parts with formatted runs (shared or inline strings)
 
     @property
     def queries(self) -> int:
@@ -355,8 +356,9 @@ def _mashup_names(raw: bytes) -> list[str]:
 
 
 def _scan_member(z: zipfile.ZipFile, name: str, pattern: re.Pattern[bytes], *, start_marker: bytes | None = None,
-                 limit: int = 64 << 20) -> list[bytes]:
-    """Matches of `pattern` in one zip member, read in chunks; with `start_marker`, only after it."""
+                 limit: int = 64 << 20, first: bool = False) -> list[bytes]:
+    """Matches of `pattern` in one zip member, read in chunks; with `start_marker`, only after it; with `first`,
+    the reading stops at the first match."""
     found: list[bytes] = []
     tail = b""
     started = start_marker is None
@@ -375,7 +377,13 @@ def _scan_member(z: zipfile.ZipFile, name: str, pattern: re.Pattern[bytes], *, s
                     continue
                 started = True
                 data = data[pos:]
-            found.extend(m.group(0) for m in pattern.finditer(data))
+            if first:
+                m = pattern.search(data)
+                if m:
+                    found.append(m.group(0))
+                    break
+            else:
+                found.extend(m.group(0) for m in pattern.finditer(data))
             tail = data[-64:]
             if len(found) > 200:
                 break
@@ -386,12 +394,15 @@ _EXT_ELEMENT = re.compile(rb"<(?:x14|x15|x12ac|xcalcf):([A-Za-z]+)")
 _EXT_KINDS = frozenset({"conditionalFormattings", "dataValidations", "sparklineGroups", "slicerList", "protectedRanges",
                         "ignoredErrors", "webExtensions", "timelineRefs", "tableSlicerCache"})
 _RICH_RUN = re.compile(rb"<si><r>|<r><rPr>|<r><t[ >]")
+# v8 (A-aera-10): a formatted run inside a worksheet's inline string (<c t="inlineStr"><is><r>...). In a worksheet
+# part an <r> element exists only as such a run; a namespace prefix and white space between the tags are allowed.
+_INLINE_RICH_RUN = re.compile(rb"<(?:\w+:)?r>\s*<(?:\w+:)?(?:rPr|t)[\s>/]")
 
 
 def package_parts(path: str | Path) -> PackageInfo:
     """List the zip parts and the fragile ones (FRAGILE_PATTERNS; customXml only when it holds a DataMashup;
-    worksheet extension lists; rich text in shared strings). Raises common.Refusal for a file that is not an
-    OOXML package."""
+    worksheet extension lists; rich text in shared strings and, v8, in the inline strings of worksheet parts).
+    Raises common.Refusal for a file that is not an OOXML package."""
     from . import common
     p = common.native_path(path)
     _check_readable(p)
@@ -455,7 +466,19 @@ def package_parts(path: str | Path) -> PackageInfo:
             except (KeyError, OSError, zipfile.BadZipFile):
                 info.rich_text = False
             if info.rich_text:
-                groups.setdefault(RICH_TEXT_DESCRIPTION, []).append("xl/sharedStrings.xml")
+                info.rich_text_parts.append("xl/sharedStrings.xml")
+        # v8 (A-aera-10): formatted runs inside the inline strings of a worksheet part; the reading of a part
+        # stops at its first run
+        for name in parts:
+            if re.match(r"^xl/worksheets/sheet\d+\.xml$", name):
+                try:
+                    if _scan_member(z, name, _INLINE_RICH_RUN, first=True):
+                        info.rich_text_parts.append(name)
+                except (KeyError, OSError, zipfile.BadZipFile):
+                    continue
+        if info.rich_text_parts:
+            info.rich_text = True
+            groups.setdefault(RICH_TEXT_DESCRIPTION, []).extend(info.rich_text_parts)
     for _pattern, desc in FRAGILE_PATTERNS + ((None, "Power Query queries (DataMashup)"),
                                               (None, EXTENSION_DESCRIPTION), (None, RICH_TEXT_DESCRIPTION)):
         names = groups.pop(desc, None)
@@ -806,6 +829,9 @@ class Snapshot:
     pivots: int = 0
     formula_cells: set[tuple[str, str]] = field(default_factory=set)   # cells holding a formula (incl. data tables)
     sha256: str = ""
+    # v8 (A-aera-10): (sheet, coord) -> the formatted runs of a text cell that has them (shared or inline string),
+    # each run (text, bold, italic, colour hex or None, size or None, font name or None); text_runs()
+    runs: dict[tuple[str, str], tuple[tuple[Any, ...], ...]] = field(default_factory=dict)
 
 
 @dataclass
@@ -823,7 +849,7 @@ class Intended:
 
 @dataclass
 class Difference:
-    kind: str                                     # formula | value | style | sheet | table | name | chart | cf | dv | query | merged | pivot
+    kind: str                                     # formula | value | style | runs | sheet | table | name | chart | cf | dv | query | merged | pivot
     sheet: str | None
     cell: str | None
     before: Any
@@ -853,28 +879,168 @@ def snapshot(path: str | Path, *, styles: bool = False) -> Snapshot:
             if style_map is not None:
                 style_map[key] = c.style
     names = {(f"{scope}!{n}" if scope else n): v for n, v, scope in info.defined_names}
+    runs = text_runs(info.path) if info.package.rich_text else {}
     return Snapshot(path=info.path, sheets=info.sheet_names, formulas=formulas, values=values, styles=style_map,
                     tables={t.name: f"{t.sheet}!{t.ref}" for t in info.tables()}, names=names,
                     charts=info.package.charts, cf={s.name: s.cf_count for s in info.sheets},
                     dv={s.name: s.dv_count for s in info.sheets}, queries=info.package.queries,
                     has_cached_values=info.has_cached_values, merged={s.name: len(s.merged) for s in info.sheets},
-                    pivots=info.package.pivots, formula_cells=fcells, sha256=info.sha256)
+                    pivots=info.package.pivots, formula_cells=fcells, sha256=info.sha256, runs=runs)
+
+
+# v8 (A-aera-10): the formatted runs of text cells, read from the package (shared strings and inline strings)
+
+def _local(tag: Any) -> str:
+    return tag.rsplit("}", 1)[-1] if isinstance(tag, str) else ""
+
+
+def _run_flag(el: Any) -> bool:
+    """<b/>, <b val="1"/> and <b val="true"/> are on; val 0 or false is off."""
+    return (el.get("val") or "1").strip().lower() not in ("0", "false")
+
+
+def _run_color(el: Any, palette: list[str] | None) -> str | None:
+    """A run's <color> as 6-digit hex (rgb, theme with tint, or indexed); None for automatic or unreadable."""
+    if (el.get("auto") or "").lower() in ("1", "true"):
+        return None
+    if el.get("rgb"):
+        return resolve_color(el.get("rgb"), palette)
+    try:
+        if el.get("theme") is not None:
+            idx = int(el.get("theme"))
+            colours = palette or list(DEFAULT_THEME)
+            return apply_tint(colours[idx], float(el.get("tint") or 0)) if 0 <= idx < len(colours) else None
+        if el.get("indexed") is not None:
+            idx = int(el.get("indexed"))
+            from openpyxl.styles.colors import COLOR_INDEX
+            return str(COLOR_INDEX[idx])[-6:].upper() if 0 <= idx < len(COLOR_INDEX) and idx not in (64, 65) else None
+    except (TypeError, ValueError):
+        return None
+    return None
+
+
+def _runs_of(el: Any, palette: list[str] | None) -> tuple[tuple[Any, ...], ...] | None:
+    """The runs of one <si> or <is> element: (text, bold, italic, colour, size, font) each; None without <r>."""
+    runs: list[tuple[Any, ...]] = []
+    for r in el:
+        if _local(r.tag) != "r":
+            continue
+        text = "".join(t.text or "" for t in r if _local(t.tag) == "t")
+        bold = italic = False
+        colour: str | None = None
+        size: float | None = None
+        font: str | None = None
+        for props in r:
+            if _local(props.tag) != "rPr":
+                continue
+            for p in props:
+                k = _local(p.tag)
+                if k == "b":
+                    bold = _run_flag(p)
+                elif k == "i":
+                    italic = _run_flag(p)
+                elif k == "color":
+                    colour = _run_color(p, palette)
+                elif k == "sz":
+                    try:
+                        size = float(p.get("val"))
+                    except (TypeError, ValueError):
+                        size = None
+                elif k == "rFont":
+                    font = p.get("val")
+        runs.append((text, bold, italic, colour, size, font))
+    return tuple(runs) or None
+
+
+def text_runs(path: str | Path) -> dict[tuple[str, str], tuple[tuple[Any, ...], ...]]:
+    """(sheet, coord) -> formatted runs of every text cell that has them: a shared string (xl/sharedStrings.xml)
+    or an inline string (<is> in the worksheet part) that holds <r> elements. Each run is (text, bold, italic,
+    colour as 6-digit hex or None, size or None, font name or None). A part that cannot be read is left out.
+    Never writes."""
+    import xml.etree.ElementTree as ET
+
+    from . import common
+    p = Path(common.native_path(path))
+    out: dict[tuple[str, str], tuple[tuple[Any, ...], ...]] = {}
+    with zipfile.ZipFile(p) as z:
+        names = set(z.namelist())
+        try:
+            palette = theme_palette(z.read("xl/theme/theme1.xml")) if "xl/theme/theme1.xml" in names else None
+        except (KeyError, OSError, zipfile.BadZipFile):
+            palette = None
+        shared: list[tuple[tuple[Any, ...], ...] | None] = []
+        if "xl/sharedStrings.xml" in names:
+            try:
+                with z.open("xl/sharedStrings.xml") as f:
+                    for _ev, el in ET.iterparse(f, events=("end",)):
+                        if _local(el.tag) == "si":
+                            shared.append(_runs_of(el, palette))
+                            el.clear()
+            except (ET.ParseError, KeyError, OSError, zipfile.BadZipFile):
+                shared = []
+        any_shared = any(r is not None for r in shared)
+        try:
+            sheet_parts = _sheet_parts(z)
+        except (ET.ParseError, KeyError, OSError, zipfile.BadZipFile):
+            return out
+        for sheet, part in sheet_parts:
+            row, col = 0, 0
+            try:
+                with z.open(part) as f:
+                    for ev, el in ET.iterparse(f, events=("start", "end")):
+                        tag = _local(el.tag)
+                        if ev == "start":
+                            if tag == "row":
+                                row = int(el.get("r") or row + 1)
+                                col = 0
+                            continue
+                        if tag == "row":
+                            el.clear()
+                            continue
+                        if tag != "c":
+                            continue
+                        ref = el.get("r")
+                        if ref:
+                            col, row = common.split_cell(ref)
+                        else:
+                            col += 1
+                            ref = common.a1(col, row)
+                        kind = el.get("t")
+                        runs = None
+                        if kind == "inlineStr":
+                            box = next((x for x in el if _local(x.tag) == "is"), None)
+                            runs = _runs_of(box, palette) if box is not None else None
+                        elif kind == "s" and any_shared:
+                            v = next((x for x in el if _local(x.tag) == "v"), None)
+                            try:
+                                idx = int((v.text or "").strip()) if v is not None else -1
+                            except ValueError:
+                                idx = -1
+                            runs = shared[idx] if 0 <= idx < len(shared) else None
+                        if runs is not None:
+                            out[(sheet, ref.replace("$", ""))] = runs
+                        el.clear()
+            except (ET.ParseError, KeyError, OSError, zipfile.BadZipFile, ValueError):
+                continue
+    return out
+
+
+_FILE_PREFIX_RE = re.compile(r"_xlfn\._xlws\.|_xlfn\.|_xlws\.|_xlpm\.", re.IGNORECASE)
 
 
 def normalise_formula(formula: str | None) -> str | None:
-    """Formula text for comparison: _xlfn./_xlws. prefixes removed and upper case outside text literals
-    (Excel stores function names and references in upper case when it saves)."""
+    """Formula text for comparison: the file prefixes _xlfn._xlws., _xlfn., _xlws. and _xlpm. (function and LET or
+    LAMBDA names) removed and the text put in upper case, both outside text literals only (Excel stores function
+    names and references in upper case when it saves). Text inside double quotes stays as it is; a doubled quote
+    stays inside its literal (v9, round 8 verdict A-aera-13: the criterion "_xlfn.Fee" differs from "Fee")."""
     if formula is None:
         return None
-    text = formula.replace("_xlfn._xlws.", "").replace("_xlfn.", "").replace("_xlws.", "")
-    out, inside = [], False
-    for ch in text:
-        if ch == '"':
-            inside = not inside
-            out.append(ch)
-        else:
-            out.append(ch if inside else ch.upper())
-    return "".join(out)
+    # split on the double quote: the even pieces lie outside text literals, the odd pieces inside them; a doubled
+    # quote gives an empty outside piece, so the text after it stays inside the literal
+    pieces = formula.split('"')
+    for i in range(0, len(pieces), 2):
+        pieces[i] = _FILE_PREFIX_RE.sub("", pieces[i]).upper()
+    return '"'.join(pieces)
 
 
 def _as_number(v: Any) -> float | None:
@@ -921,6 +1087,19 @@ def _short(v: Any) -> str:
     return text if len(text) <= 60 else text[:57] + "..."
 
 
+def _runs_text(runs: tuple[tuple[Any, ...], ...] | None) -> str:
+    """'3 runs: 'a'; 'b' (bold, colour FF0000); 'c'' or 'no formatted runs' (at most about 160 characters)."""
+    if not runs:
+        return "no formatted runs"
+    parts = []
+    for text, bold, italic, colour, size, font in runs:
+        attrs = [a for a in ("bold" if bold else "", "italic" if italic else "", f"colour {colour}" if colour else "",
+                             f"size {size:g}" if size else "", f"font {font}" if font else "") if a]
+        parts.append(repr(text if len(text) <= 20 else text[:17] + "...") + (f" ({', '.join(attrs)})" if attrs else ""))
+    text = f"{len(runs)} run{'s' if len(runs) != 1 else ''}: " + "; ".join(parts)
+    return text if len(text) <= 160 else text[:157] + "..."
+
+
 def _cell_order(sheets: Sequence[str]) -> Any:
     """Sort key of (sheet, coord): the sheet's place in the workbook, then row, then column."""
     from . import common
@@ -945,7 +1124,8 @@ def compare(before: Snapshot, after: Snapshot, intended: Intended, *, max_differ
     only when both snapshots hold cached values. Cells in `skip_values` (for example volatile_cells()) keep their
     formula compared but not their cached value. `stats`, when given, is filled with cells_compared,
     values_left_out, first_left_out ('Sheet!A1' or None), calc_tolerance and calculated_values_compared (the
-    input of preservation_statement()). Stops after `max_differences`."""
+    input of preservation_statement()). The formatted runs of text cells (Snapshot.runs; v8) are compared outside
+    the intended cells, except when the intended kind is styles_only. Stops after `max_differences`."""
     diffs: list[Difference] = []
     skip = skip_values or set()
     counted = {"cells": 0, "left_out": 0}
@@ -1025,6 +1205,21 @@ def compare(before: Snapshot, after: Snapshot, intended: Intended, *, max_differ
             if sb != sa:
                 changed = sorted(k for k in set(sb or {}) | set(sa or {}) if (sb or {}).get(k) != (sa or {}).get(k))
                 if add("style", sheet, coord, sb, sa, f"{sheet}!{coord}: style changed ({', '.join(changed)})"):
+                    return diffs
+    # v8 (A-aera-10): the formatted runs of text cells (shared and inline strings), outside the intended cells;
+    # a command whose intended change is styles only (theme gives a rich-text cell one font, T-RICHTEXT) is not
+    # compared here
+    if intended.kind != "styles_only":
+        for key in sorted(set(before.runs) | set(after.runs)):
+            sheet, coord = key
+            if sheet not in before.sheets or (intended.kind == "cells" and key in intended.cells):
+                continue
+            if is_new(sheet, coord) and key not in before.runs:
+                continue
+            rb, ra = before.runs.get(key), after.runs.get(key)
+            if rb != ra:
+                if add("runs", sheet, coord, rb, ra, f"{sheet}!{coord}: formatted text runs changed "
+                       f"({_runs_text(rb)} -> {_runs_text(ra)})"):
                     return diffs
     for name in sorted(set(before.tables) | set(after.tables)):
         b, a = before.tables.get(name), after.tables.get(name)
