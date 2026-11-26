@@ -259,7 +259,7 @@ def test_plugin_manifest_names_the_author() -> None:
         pytest.skip("the skill folder was copied alone (F02): no plugin.json")
     data = json.loads(path.read_text(encoding="utf-8"))
     assert data["author"] == {"name": "Max"}
-    assert data["name"] == "rule-of-thumb-model" and data["version"] == "0.1.0" and data["description"]
+    assert data["name"] == "rule-of-thumb-model" and data["version"] == "0.9.0" and data["description"]
 
 
 # ----------------------------------------------------------------------------- A-aera-15, C-sol-8, C-sol-9

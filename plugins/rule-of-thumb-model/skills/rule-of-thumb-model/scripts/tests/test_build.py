@@ -269,7 +269,7 @@ def test_cover_lists_sheets_cell_types_and_build_record(built) -> None:
     texts = [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str)]
     for name in ("raw_sales", "h_sales", "Cell types", "Build record", "Limitations", "input", "master_check"):
         assert name in texts, name
-    assert any(t.startswith("rule-of-thumb-model 0.1.0") for t in texts)
+    assert any(t.startswith("rule-of-thumb-model 0.9.0") for t in texts)
 
 
 def test_status_and_report_recorded(built) -> None:
